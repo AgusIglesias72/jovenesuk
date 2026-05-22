@@ -66,10 +66,10 @@ export type Colegio = typeof colegios.$inferSelect;
 export type NewColegio = typeof colegios.$inferInsert;
 
 // --- Tipos auxiliares ---
-export interface Contacto {
+export type Contacto = {
   nombre: string;
   email: string;
   telefono?: string;
-}
+};
 
 type TipoAlojamientoEnum = "familia_anfitriona" | "residencia" | "campus" | "otro";

@@ -1,0 +1,421 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+
+import { Button, Checkbox, Field, Input, Select, Textarea } from "@/components/ui";
+import {
+  PAIS_LABELS,
+  PAISES,
+  TIPO_ALOJAMIENTO_LABELS,
+  TIPO_COLEGIO_LABELS,
+  TIPOS_ALOJAMIENTO,
+  TIPOS_COLEGIO,
+} from "@/lib/domain/colegios";
+import type { Colegio, Contacto } from "@/lib/db/schema/colegios";
+
+import {
+  createColegioAction,
+  desactivarColegioAction,
+  reactivarColegioAction,
+  updateColegioAction,
+} from "./actions";
+
+type ContactoValues = { nombre: string; email: string; telefono: string };
+type TipoAlojamiento = (typeof TIPOS_ALOJAMIENTO)[number];
+
+type FormValues = {
+  nombre: string;
+  tipo: (typeof TIPOS_COLEGIO)[number];
+  pais: (typeof PAISES)[number];
+  ciudad: string;
+  contactoAcademico: ContactoValues;
+  contactoAdministrativo: ContactoValues;
+  contactoAlojamientos: ContactoValues;
+  contactoJuniors: ContactoValues;
+  cursosDisponibles: string;
+  tiposAlojamiento: TipoAlojamiento[];
+  requiereCertificadoPsicofisico: boolean;
+  comisionAgenciaPorcentaje: string;
+  sitioWeb: string;
+  notas: string;
+};
+
+function toContacto(c: Contacto | null | undefined): ContactoValues {
+  return {
+    nombre: c?.nombre ?? "",
+    email: c?.email ?? "",
+    telefono: c?.telefono ?? "",
+  };
+}
+
+function initialValues(initial?: Colegio): FormValues {
+  return {
+    nombre: initial?.nombre ?? "",
+    tipo: initial?.tipo ?? "destino",
+    pais: initial?.pais ?? "reino_unido",
+    ciudad: initial?.ciudad ?? "",
+    contactoAcademico: toContacto(initial?.contactoAcademico),
+    contactoAdministrativo: toContacto(initial?.contactoAdministrativo),
+    contactoAlojamientos: toContacto(initial?.contactoAlojamientos),
+    contactoJuniors: toContacto(initial?.contactoJuniors),
+    cursosDisponibles: (initial?.cursosDisponibles ?? []).join(", "),
+    tiposAlojamiento: initial?.tiposAlojamiento ?? [],
+    requiereCertificadoPsicofisico: initial?.requiereCertificadoPsicofisico ?? false,
+    comisionAgenciaPorcentaje:
+      initial?.comisionAgenciaPorcentaje != null
+        ? String(initial.comisionAgenciaPorcentaje)
+        : "",
+    sitioWeb: initial?.sitioWeb ?? "",
+    notas: initial?.notas ?? "",
+  };
+}
+
+export function ColegioForm({
+  mode,
+  initial,
+}: {
+  mode: "create" | "edit";
+  initial?: Colegio;
+}) {
+  const router = useRouter();
+  const [values, setValues] = useState<FormValues>(() => initialValues(initial));
+  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
+  const [isPending, startTransition] = useTransition();
+
+  function set<K extends keyof FormValues>(key: K, value: FormValues[K]) {
+    setValues((v) => ({ ...v, [key]: value }));
+  }
+
+  function setContacto(
+    key:
+      | "contactoAcademico"
+      | "contactoAdministrativo"
+      | "contactoAlojamientos"
+      | "contactoJuniors",
+    field: keyof ContactoValues,
+    value: string
+  ) {
+    setValues((v) => ({ ...v, [key]: { ...v[key], [field]: value } }));
+  }
+
+  function toggleAlojamiento(t: TipoAlojamiento, checked: boolean) {
+    setValues((v) => ({
+      ...v,
+      tiposAlojamiento: checked
+        ? [...v.tiposAlojamiento, t]
+        : v.tiposAlojamiento.filter((x) => x !== t),
+    }));
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setFieldErrors({});
+
+    const payload = {
+      ...(mode === "edit" && initial ? { id: initial.id } : {}),
+      nombre: values.nombre,
+      tipo: values.tipo,
+      pais: values.pais,
+      ciudad: values.ciudad,
+      contactoAcademico: values.contactoAcademico,
+      contactoAdministrativo: values.contactoAdministrativo,
+      contactoAlojamientos: values.contactoAlojamientos,
+      contactoJuniors: values.contactoJuniors,
+      cursosDisponibles: values.cursosDisponibles
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+      tiposAlojamiento: values.tiposAlojamiento,
+      requiereCertificadoPsicofisico: values.requiereCertificadoPsicofisico,
+      comisionAgenciaPorcentaje: values.comisionAgenciaPorcentaje,
+      sitioWeb: values.sitioWeb,
+      notas: values.notas,
+    };
+
+    startTransition(async () => {
+      const result =
+        mode === "create"
+          ? await createColegioAction(payload)
+          : await updateColegioAction(payload);
+      if (result.ok) {
+        router.push("/colegios");
+        router.refresh();
+      } else {
+        setError(result.error);
+        if (result.fieldErrors) setFieldErrors(result.fieldErrors);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    });
+  }
+
+  function cambiarEstado(nuevo: "activo" | "inactivo") {
+    if (!initial) return;
+    startTransition(async () => {
+      const result =
+        nuevo === "inactivo"
+          ? await desactivarColegioAction(initial.id)
+          : await reactivarColegioAction(initial.id);
+      if (result.ok) {
+        router.push("/colegios");
+        router.refresh();
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
+  const fe = (k: string) => fieldErrors[k]?.[0];
+  const ce = (prefix: string) => ({
+    nombre: fe(`${prefix}.nombre`),
+    email: fe(`${prefix}.email`),
+    telefono: fe(`${prefix}.telefono`),
+  });
+
+  return (
+    <form onSubmit={handleSubmit} className="max-w-3xl">
+      {error && (
+        <div className="mb-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          {error}
+        </div>
+      )}
+
+      <Section title="Datos generales">
+        <Field label="Nombre" required error={fe("nombre")} className="col-span-2">
+          <Input
+            value={values.nombre}
+            invalid={!!fe("nombre")}
+            onChange={(e) => set("nombre", e.target.value)}
+            placeholder="London School of English"
+          />
+        </Field>
+
+        <Field label="Tipo" required error={fe("tipo")}>
+          <Select
+            value={values.tipo}
+            onChange={(e) => set("tipo", e.target.value as FormValues["tipo"])}
+          >
+            {TIPOS_COLEGIO.map((t) => (
+              <option key={t} value={t}>
+                {TIPO_COLEGIO_LABELS[t]}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        <Field label="País" required error={fe("pais")}>
+          <Select
+            value={values.pais}
+            onChange={(e) => set("pais", e.target.value as FormValues["pais"])}
+          >
+            {PAISES.map((p) => (
+              <option key={p} value={p}>
+                {PAIS_LABELS[p]}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        <Field label="Ciudad" required error={fe("ciudad")} className="col-span-2">
+          <Input
+            value={values.ciudad}
+            invalid={!!fe("ciudad")}
+            onChange={(e) => set("ciudad", e.target.value)}
+            placeholder="Londres"
+          />
+        </Field>
+      </Section>
+
+      <Section title="Contactos">
+        <ContactoFields
+          legend="Académico"
+          required
+          value={values.contactoAcademico}
+          errors={ce("contactoAcademico")}
+          onChange={(f, v) => setContacto("contactoAcademico", f, v)}
+        />
+        <ContactoFields
+          legend="Administrativo"
+          required
+          value={values.contactoAdministrativo}
+          errors={ce("contactoAdministrativo")}
+          onChange={(f, v) => setContacto("contactoAdministrativo", f, v)}
+        />
+        <ContactoFields
+          legend="Alojamientos (opcional)"
+          value={values.contactoAlojamientos}
+          errors={ce("contactoAlojamientos")}
+          onChange={(f, v) => setContacto("contactoAlojamientos", f, v)}
+        />
+        <ContactoFields
+          legend="Juniors (opcional)"
+          value={values.contactoJuniors}
+          errors={ce("contactoJuniors")}
+          onChange={(f, v) => setContacto("contactoJuniors", f, v)}
+        />
+      </Section>
+
+      <Section title="Oferta">
+        <Field
+          label="Cursos disponibles"
+          help="Separados por coma"
+          className="col-span-2"
+        >
+          <Input
+            value={values.cursosDisponibles}
+            onChange={(e) => set("cursosDisponibles", e.target.value)}
+            placeholder="General English, IELTS, Business English"
+          />
+        </Field>
+
+        <div className="col-span-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-gray-700">
+            Tipos de alojamiento
+          </span>
+          <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
+            {TIPOS_ALOJAMIENTO.map((t) => (
+              <Checkbox
+                key={t}
+                label={TIPO_ALOJAMIENTO_LABELS[t]}
+                checked={values.tiposAlojamiento.includes(t)}
+                onChange={(e) => toggleAlojamiento(t, e.target.checked)}
+              />
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Configuración">
+        <Field
+          label="Comisión de agencia (%)"
+          help="Solo visible para el equipo JUK"
+          error={fe("comisionAgenciaPorcentaje")}
+        >
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            value={values.comisionAgenciaPorcentaje}
+            invalid={!!fe("comisionAgenciaPorcentaje")}
+            onChange={(e) => set("comisionAgenciaPorcentaje", e.target.value)}
+          />
+        </Field>
+
+        <Field label="Sitio web" error={fe("sitioWeb")}>
+          <Input
+            type="url"
+            value={values.sitioWeb}
+            invalid={!!fe("sitioWeb")}
+            onChange={(e) => set("sitioWeb", e.target.value)}
+            placeholder="https://…"
+          />
+        </Field>
+
+        <div className="col-span-2">
+          <Checkbox
+            label="Requiere certificado psicofísico"
+            checked={values.requiereCertificadoPsicofisico}
+            onChange={(e) => set("requiereCertificadoPsicofisico", e.target.checked)}
+          />
+        </div>
+
+        <Field label="Notas" className="col-span-2">
+          <Textarea
+            value={values.notas}
+            onChange={(e) => set("notas", e.target.value)}
+            placeholder="Información interna sobre el colegio…"
+          />
+        </Field>
+      </Section>
+
+      <div className="mt-6 flex items-center justify-between gap-3">
+        <div>
+          {mode === "edit" && initial && (
+            <Button
+              type="button"
+              variant="danger"
+              disabled={isPending}
+              onClick={() =>
+                cambiarEstado(initial.estado === "activo" ? "inactivo" : "activo")
+              }
+            >
+              {initial.estado === "activo" ? "Desactivar" : "Reactivar"}
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/colegios"
+            className="inline-flex items-center h-8 px-4 text-sm rounded-md border font-semibold tracking-tight bg-white text-juk-navy-900 border-gray-300 hover:bg-gray-50"
+          >
+            Cancelar
+          </Link>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? "Guardando…" : "Guardar"}
+          </Button>
+        </div>
+      </div>
+    </form>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="mb-8">
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
+        {title}
+      </h2>
+      <div className="grid grid-cols-2 gap-4">{children}</div>
+    </section>
+  );
+}
+
+function ContactoFields({
+  legend,
+  required,
+  value,
+  errors,
+  onChange,
+}: {
+  legend: string;
+  required?: boolean;
+  value: ContactoValues;
+  errors?: { nombre?: string; email?: string; telefono?: string };
+  onChange: (field: keyof ContactoValues, value: string) => void;
+}) {
+  return (
+    <fieldset className="col-span-2 rounded-md border border-gray-200 p-4">
+      <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-700">
+        {legend}
+        {required && <span className="ml-0.5 text-juk-coral-600">*</span>}
+      </legend>
+      <div className="grid grid-cols-3 gap-3">
+        <Field label="Nombre" error={errors?.nombre}>
+          <Input
+            invalid={!!errors?.nombre}
+            value={value.nombre}
+            onChange={(e) => onChange("nombre", e.target.value)}
+          />
+        </Field>
+        <Field label="Email" error={errors?.email}>
+          <Input
+            type="email"
+            invalid={!!errors?.email}
+            value={value.email}
+            onChange={(e) => onChange("email", e.target.value)}
+          />
+        </Field>
+        <Field label="Teléfono" error={errors?.telefono}>
+          <Input
+            invalid={!!errors?.telefono}
+            value={value.telefono}
+            onChange={(e) => onChange("telefono", e.target.value)}
+          />
+        </Field>
+      </div>
+    </fieldset>
+  );
+}
