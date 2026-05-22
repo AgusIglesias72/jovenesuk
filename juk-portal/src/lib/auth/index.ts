@@ -15,6 +15,9 @@ import { db } from "@/lib/db";
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
+    // Nuestras tablas son plurales (users, sessions, accounts, verifications);
+    // Better-Auth por defecto busca user/session/account/verification.
+    usePlural: true,
   }),
 
   // Campos JUK que viven en la tabla users pero no son nativos de Better-Auth.
