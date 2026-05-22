@@ -56,3 +56,6 @@ export {
 
 // Page header
 export { PageHeader } from "./page-header";
+
+// Loading
+export { GlobeLoader } from "./globe-loader";

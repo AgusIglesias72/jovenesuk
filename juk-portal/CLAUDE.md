@@ -73,5 +73,6 @@ When working on this codebase, follow these conventions.
 - Money: GBP for trip-related amounts, ARS for local concepts
 - All step state badges follow the color mapping from the design system
 - Pasaporte expiration: UK requires valid through trip end (not 6 months extra)
+- **Loading states:** usar SIEMPRE `<GlobeLoader />` (`components/ui/globe-loader.tsx`), que monta el loader oficial `public/globe-loader.html`. No crear spinners ni loaders ad-hoc.
 
 See `docs/architecture.md` and `docs/phases.md` for more context.
