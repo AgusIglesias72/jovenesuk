@@ -14,7 +14,11 @@ export function proxy(request: NextRequest) {
   const isAuthPath = path.startsWith("/login") || path.startsWith("/reset-password");
   const isApiAuthPath = path.startsWith("/api/auth");
   const isWebhookPath = path.startsWith("/api/webhooks");
-  const isPublicAsset = path.startsWith("/_next") || path === "/favicon.ico";
+  const isPublicAsset =
+    path.startsWith("/_next") ||
+    path === "/favicon.ico" ||
+    path === "/manifest.webmanifest" ||
+    path === "/manifest.json";
 
   // Always allow these
   if (isApiAuthPath || isWebhookPath || isPublicAsset) {

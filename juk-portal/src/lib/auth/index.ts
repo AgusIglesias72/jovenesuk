@@ -63,6 +63,11 @@ export const auth = betterAuth({
   advanced: {
     cookiePrefix: "juk",
     useSecureCookies: process.env.NODE_ENV === "production",
+    // Las PKs del schema son uuid con defaultRandom(); que la DB genere los IDs
+    // en vez de Better-Auth (que produce strings no-uuid).
+    database: {
+      generateId: false,
+    },
   },
 });
 

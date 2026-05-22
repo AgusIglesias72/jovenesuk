@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -13,7 +13,9 @@ export const metadata: Metadata = {
     title: "JUK Portal",
     statusBarStyle: "default",
   },
-  manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
   themeColor: "#0A1F44",
 };
 
