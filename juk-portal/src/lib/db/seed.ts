@@ -28,7 +28,11 @@ const SEED_NAME = "Agustín";
 // Los 4 admins reales del equipo JUK. Comentar los que no querés crear
 // todavía (ej: vas a crearlos vos manualmente desde /usuarios después
 // de tu primer login).
-const TEAM_MEMBERS = [
+const TEAM_MEMBERS: Array<{
+  email: string;
+  name: string;
+  role: "super_admin" | "admin_juk";
+}> = [
   // { email: "maria@jovenesenuk.com",    name: "María",    role: "super_admin" as const },
   // { email: "felix@jovenesenuk.com",    name: "Felix",    role: "admin_juk" as const },
   // { email: "delfina@jovenesenuk.com",  name: "Delfina",  role: "admin_juk" as const },

@@ -15,6 +15,7 @@ build/
 # Logs & misc
 *.log
 coverage/
+*.tsbuildinfo
 
 # OS junk
 .DS_Store

@@ -17,6 +17,15 @@ export const auth = betterAuth({
     provider: "pg",
   }),
 
+  // Campos JUK que viven en la tabla users pero no son nativos de Better-Auth.
+  // Declararlos acá los incluye en el tipo de session.user (input:false = no settable en signup).
+  user: {
+    additionalFields: {
+      role: { type: "string", required: true, input: false, defaultValue: "admin_juk" },
+      isActive: { type: "boolean", required: true, input: false, defaultValue: true },
+    },
+  },
+
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
