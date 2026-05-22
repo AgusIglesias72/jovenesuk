@@ -1,0 +1,20 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg-page: theme("colors.gray.50");
+  --color-text-primary: theme("colors.gray.900");
+}
+
+html, body {
+  font-family: theme("fontFamily.sans");
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+* { box-sizing: border-box; }
