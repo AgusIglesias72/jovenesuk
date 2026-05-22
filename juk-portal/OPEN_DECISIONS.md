@@ -280,6 +280,26 @@ El PRD principal §2.5 deja como pregunta abierta:
 
 ---
 
+### TEC-09 · Falta la columna `requiere_test_nivel` en `colegios`
+
+**El problema:** MIN-03 asume que `requiere_test_nivel BOOLEAN` "ya está" en el schema, pero `src/lib/db/schema/colegios.ts` **no la tiene**. La condición de activación del Paso 4 (Test de Nivel) no tiene columna de soporte hoy.
+
+**Acción:** sumar `requiereTestNivel: boolean("requiere_test_nivel").default(false).notNull()` a `colegios` (cambio aditivo) al implementar el ABM de Colegios o el Paso 4. Generar migración.
+
+*(Hallazgo del agente `juk-prd-analyst`, mayo 2026.)*
+
+---
+
+### TEC-10 · `groupLeadersViaje.groupLeaderId` sin foreign key
+
+**El problema:** en `src/lib/db/schema/pasos-viaje.ts`, `groupLeaderId` es un `uuid` suelto, **sin `.references()`** a `group_leaders.id` — a diferencia de `viajeId`, que sí referencia. Rompe la integridad referencial de la relación N:M.
+
+**Acción:** agregar la FK con el `onDelete` apropiado antes de cargar Group Leaders reales. Cambio de schema → migración.
+
+*(Hallazgo del agente `juk-prd-analyst`, mayo 2026.)*
+
+---
+
 ## ✨ Nuevos descubrimientos (al leer DOCX completos)
 
 Cosas que aparecieron al leer los PRDs en formato DOCX (no estaban claras en MD):
