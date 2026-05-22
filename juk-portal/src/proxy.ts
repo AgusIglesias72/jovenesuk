@@ -18,7 +18,8 @@ export function proxy(request: NextRequest) {
     path.startsWith("/_next") ||
     path === "/favicon.ico" ||
     path === "/manifest.webmanifest" ||
-    path === "/manifest.json";
+    path === "/manifest.json" ||
+    path === "/globe-loader.html";
 
   // Always allow these
   if (isApiAuthPath || isWebhookPath || isPublicAsset) {

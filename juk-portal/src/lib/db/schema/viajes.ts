@@ -15,9 +15,12 @@ export const viajeEstado = pgEnum("viaje_estado", [
 ]);
 
 /**
- * Tipo de origen del viaje. Determina el flujo de pago final.
- * - representante_independiente / instituto → último pago es presencial JUK (sin 6% agencia)
- * - colegio_cliente (ej: NEA) → todos los pagos van directo a JUK
+ * Tipo de origen del viaje.
+ *
+ * OJO (CRIT-01, ver OPEN_DECISIONS.md): la relación origen → flujo de pago NO está
+ * cerrada (el PRD y el comentario de María se contradicen para NEA). Por eso hoy
+ * `ultimoPagoPresencial` se carga MANUAL y no se deriva de este campo. No documentar
+ * acá la regla como definitiva hasta resolver CRIT-01.
  */
 export const viajeOrigen = pgEnum("viaje_origen", [
   "representante_independiente",
@@ -53,9 +56,10 @@ export const viajes = pgTable("viajes", {
 
   estado: viajeEstado("estado").default("inscripcion_abierta").notNull(),
 
-  // Última cuota presencial — calculado al crearse
+  // Último pago presencial ('si' | 'no'). PROVISIONAL: hoy se carga manual; la
+  // derivación automática según `origen` depende de cerrar CRIT-01. El default es
+  // solo un valor inicial, no la regla de negocio.
   ultimoPagoPresencial: text("ultimo_pago_presencial").notNull().default("si"),
-  // 'si' para representante_independiente / instituto; 'no' para colegio_cliente
 
   notasInternas: text("notas_internas"),
 
