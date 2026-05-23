@@ -95,14 +95,19 @@ No hay imports de Next/React acá (lo verifica un hook).
 | `schema/viajes.ts` | `viajes` (FK a colegios, capacidad, estado, origen). Comentarios marcan lo gated por CRIT-01. |
 | `schema/alumnos.ts` | `alumnos` (datos, pasaporte, tutores, facturación JSON, estado). |
 | `schema/grupos-leaders.ts` | `groupLeaders` (datos + police check). |
-| `schema/asignaciones.ts` | Alumno↔viaje (la unidad sobre la que cuelgan pasos y cuotas). **Sin ABM aún** (gated). |
+| `schema/asignaciones.ts` | Alumno↔viaje (la unidad sobre la que cuelgan pasos y cuotas). La relación se gestiona desde el **detalle del viaje** (`/viajes/[id]`); los pasos/cuotas que cuelgan de ella siguen gated. |
 | `schema/pasos-alumno.ts` | Los 10 pasos del M6 por asignación (metadata JSON). **Sin UI aún.** |
 | `schema/pasos-viaje.ts` | Los 5 pasos del M7 por viaje + `groupLeadersViaje` (N:M). **Sin UI aún.** |
 | `schema/cuotas.ts` | Plan de pagos por asignación. **Gated CRIT-01.** |
 | `schema/documentos.ts` | Archivos en R2 (polimórfico). **Sin uso aún** (R2 no configurado). |
 | `schema/alertas.ts` | Alertas operativas materializadas. **Sin generación aún** (fase 6). |
 | `schema/auditoria.ts` | Log de auditoría (acción, entidad, usuario, diff). **En uso** por todas las actions. |
-| `queries/<feature>.ts` | Acceso a DB tipado por feature (colegios, viajes, alumnos, group-leaders, usuarios, auditoria, dashboard). Único lugar con Drizzle. |
+| `queries/<feature>.ts` | Acceso a DB tipado por feature (colegios, viajes, alumnos, group-leaders, usuarios, asignaciones, auditoria, dashboard). Único lugar con Drizzle. |
+
+> **Asignaciones** (no es un ABM estándar): `domain/asignaciones/` (validación de pasaporte con flag
+> `STRICT_UK_RULE`, errores, labels), `queries/asignaciones.ts` (roster, cupo, elegibles, alta/cancelar), y
+> en `app/(admin)/viajes/[id]/`: `page.tsx` (detalle), `asignaciones-panel.tsx` (asignar/quitar, client) y
+> `actions.ts` (asignar/desasignar con auth + cupo + pasaporte + auditoría).
 
 ---
 

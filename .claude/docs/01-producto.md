@@ -35,6 +35,8 @@ Los usuarios desactivados (`isActive = false`) no pueden entrar aunque tengan se
 - **Alumnos** — ABM con datos personales, pasaporte, tutores, facturación; baja/reactivación.
 - **Group Leaders** — ABM con datos + seguimiento del police check.
 - **Usuarios** (solo super_admin) — alta de admins con password temporal, cambio de rol, activar/desactivar.
+- **Asignaciones** — detalle del viaje (`/viajes/[id]`) con su roster: asignar/quitar alumnos, control de
+  cupo (GL×12) y validación de pasaporte. NO genera cuotas ni pasos todavía (eso es lo gated).
 
 ### Pendientes (marcados "Pronto" en la nav o sin entrada)
 - **Pagos / cuotas** — bloqueado por CRIT-01 (ver abajo).
@@ -54,8 +56,8 @@ lógica derivada.
 | **CRIT-02** — validación de pasaporte UK (¿6 meses extra?) | La regla de validación de pasaporte al asignar |
 | **CRIT-03** — el psicofísico, ¿del alumno o del group leader? | El Paso 9 del M6 y la estructura del M7 |
 
-Por eso **asignar un alumno a un viaje** (que dispararía la creación de los 10 pasos + las cuotas) todavía
-no está implementado: depende de CRIT-01 y CRIT-03.
+Por eso, al **asignar un alumno a un viaje** se crea solo la relación: la generación automática de los
+10 pasos del M6 y de las cuotas queda afuera hasta resolver CRIT-01 y CRIT-03.
 
 ## Estado (mayo 2026)
 

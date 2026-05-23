@@ -70,8 +70,9 @@ estructura del M7.
 
 ## Pendientes / próximos pasos
 
-1. **Cerrar los 3 CRIT** con el equipo (María) — desbloquea Pagos, asignaciones y el M7.
-2. **Asignación alumno↔viaje** (crea los 10 pasos del M6 + las cuotas) — depende de CRIT-01/03.
+1. **Cerrar los 3 CRIT** con el equipo (María) — desbloquea Pagos, el trigger de asignación y el M7.
+2. **Trigger de asignación**: al asignar un alumno, crear los 10 pasos del M6 + las cuotas. La relación
+   alumno↔viaje ya existe (detalle del viaje); falta este side-effect — depende de CRIT-01/03.
 3. **Módulo de Pagos** y **seguimiento M6/M7** (pasos) — el grueso del valor del portal.
 4. **Servicios pendientes**: Resend (emails), Cloudflare R2 (uploads de documentos), Trigger.dev
    (recordatorios), Sentry. Ver `/juk-setup`.
