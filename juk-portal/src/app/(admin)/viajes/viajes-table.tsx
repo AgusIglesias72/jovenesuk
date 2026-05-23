@@ -66,10 +66,10 @@ export function ViajesTable({ viajes }: { viajes: ViajeListItem[] }) {
               <TD numeric>{v.capacidadMaxima}</TD>
               <TD>
                 <Link
-                  href={`/viajes/${v.id}/editar`}
+                  href={`/viajes/${v.id}`}
                   className="text-sm font-semibold text-juk-navy-700 hover:text-juk-navy-900"
                 >
-                  Editar
+                  Ver
                 </Link>
               </TD>
             </TR>
