@@ -1,8 +1,8 @@
 import { forwardRef } from "react";
 import { cn } from "@/lib/utils/cn";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "critical" | "danger";
-type ButtonSize = "sm" | "default" | "lg" | "icon";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "critical" | "danger";
+export type ButtonSize = "sm" | "default" | "lg" | "icon";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -49,19 +49,28 @@ const sizeClasses: Record<ButtonSize, string> = {
   icon:    "h-8 w-8 p-0 justify-center",
 };
 
+/** Clases del Button, reutilizables por LinkButton para mantener un único look. */
+export function buttonClasses(
+  variant: ButtonVariant = "primary",
+  size: ButtonSize = "default",
+  className?: string
+) {
+  return cn(
+    "inline-flex items-center gap-2 whitespace-nowrap rounded-md border font-semibold tracking-tight",
+    "transition-colors duration-150",
+    "focus-visible:outline-none focus-visible:shadow-focus",
+    "disabled:opacity-50 disabled:cursor-not-allowed",
+    variantClasses[variant],
+    sizeClasses[size],
+    className
+  );
+}
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ variant = "primary", size = "default", className, leadingIcon, trailingIcon, children, ...props }, ref) => (
     <button
       ref={ref}
-      className={cn(
-        "inline-flex items-center gap-2 whitespace-nowrap rounded-md border font-semibold tracking-tight",
-        "transition-colors duration-150",
-        "focus-visible:outline-none focus-visible:shadow-focus",
-        "disabled:opacity-50 disabled:cursor-not-allowed",
-        variantClasses[variant],
-        sizeClasses[size],
-        className
-      )}
+      className={buttonClasses(variant, size, className)}
       {...props}
     >
       {leadingIcon && <span className="flex-shrink-0">{leadingIcon}</span>}

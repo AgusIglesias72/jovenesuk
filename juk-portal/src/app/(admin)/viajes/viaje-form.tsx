@@ -1,10 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Button, Field, Input, Select, Textarea } from "@/components/ui";
+import {
+  Button,
+  Field,
+  Input,
+  LinkButton,
+  Select,
+  Textarea,
+} from "@/components/ui";
 import { toDateInput } from "@/lib/utils/date";
 import {
   PAIS_LABELS,
@@ -373,12 +379,9 @@ export function ViajeForm({
           )}
         </div>
         <div className="flex items-center gap-3">
-          <Link
-            href="/viajes"
-            className="inline-flex items-center h-8 px-4 text-sm rounded-md border font-semibold tracking-tight bg-white text-juk-navy-900 border-gray-300 hover:bg-gray-50"
-          >
+          <LinkButton href="/viajes" variant="secondary">
             Volver
-          </Link>
+          </LinkButton>
           <Button type="submit" disabled={isPending}>
             {isPending ? "Guardando…" : "Guardar"}
           </Button>

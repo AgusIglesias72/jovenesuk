@@ -8,8 +8,6 @@ import {
   SidebarNavItem,
   SidebarUserChip,
   Breadcrumb,
-  TopbarSearch,
-  Button,
 } from "@/components/ui";
 
 /**
@@ -60,12 +58,7 @@ export function AdminShell({ user, children }: AdminShellProps) {
           href="/dashboard"
           active={pathname === "/dashboard"}
         />
-        <SidebarNavItem
-          icon={<IconUser />}
-          label="Alumnos"
-          href="/alumnos"
-          active={pathname.startsWith("/alumnos")}
-        />
+        <SidebarNavItem icon={<IconUser />} label="Alumnos" soon />
         <SidebarNavItem
           icon={<IconPlane />}
           label="Viajes"
@@ -78,28 +71,13 @@ export function AdminShell({ user, children }: AdminShellProps) {
           href="/colegios"
           active={pathname.startsWith("/colegios")}
         />
-        <SidebarNavItem
-          icon={<IconCard />}
-          label="Pagos"
-          href="/pagos"
-          active={pathname.startsWith("/pagos")}
-        />
+        <SidebarNavItem icon={<IconCard />} label="Pagos" soon />
       </SidebarNavSection>
 
       {user.role === "super_admin" && (
         <SidebarNavSection title="Administración">
-          <SidebarNavItem
-            icon={<IconUsers />}
-            label="Usuarios"
-            href="/usuarios"
-            active={pathname.startsWith("/usuarios")}
-          />
-          <SidebarNavItem
-            icon={<IconGear />}
-            label="Configuración"
-            href="/configuracion"
-            active={pathname.startsWith("/configuracion")}
-          />
+          <SidebarNavItem icon={<IconUsers />} label="Usuarios" soon />
+          <SidebarNavItem icon={<IconGear />} label="Configuración" soon />
         </SidebarNavSection>
       )}
 
@@ -111,15 +89,7 @@ export function AdminShell({ user, children }: AdminShellProps) {
     </>
   );
 
-  const topbar = (
-    <>
-      <Breadcrumb items={buildBreadcrumb(pathname)} />
-      <TopbarSearch />
-      <Button variant="secondary" size="sm">
-        + Nuevo
-      </Button>
-    </>
-  );
+  const topbar = <Breadcrumb items={buildBreadcrumb(pathname)} />;
 
   return (
     <AppShell sidebar={sidebar} topbar={topbar}>

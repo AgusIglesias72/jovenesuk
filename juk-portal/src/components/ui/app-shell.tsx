@@ -102,6 +102,7 @@ interface SidebarNavItemProps {
   active?: boolean;
   onClick?: () => void;
   href?: string;
+  soon?: boolean;
 }
 
 export function SidebarNavItem({
@@ -112,7 +113,22 @@ export function SidebarNavItem({
   active,
   onClick,
   href,
+  soon,
 }: SidebarNavItemProps) {
+  if (soon) {
+    return (
+      <div
+        className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-juk-navy-400 cursor-default select-none opacity-60"
+        aria-disabled="true"
+      >
+        <span className="w-4 h-4 flex-shrink-0 opacity-70">{icon}</span>
+        <span className="flex-1 text-left">{label}</span>
+        <span className="text-[9px] uppercase tracking-wide font-semibold px-1.5 py-px rounded-full bg-white/10 text-juk-navy-300">
+          Pronto
+        </span>
+      </div>
+    );
+  }
   const inner = (
     <>
       {active && (

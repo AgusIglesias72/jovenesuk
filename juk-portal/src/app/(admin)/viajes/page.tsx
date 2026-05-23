@@ -1,6 +1,4 @@
-import Link from "next/link";
-
-import { PageHeader } from "@/components/ui";
+import { LinkButton, PageHeader } from "@/components/ui";
 import { listViajes } from "@/lib/db/queries/viajes";
 import { viajeFiltersSchema } from "@/lib/domain/viajes";
 
@@ -33,14 +31,7 @@ export default async function ViajesPage({
       <PageHeader
         title="Viajes"
         subtitle={viajes.length === 1 ? "1 viaje" : `${viajes.length} viajes`}
-        actions={
-          <Link
-            href="/viajes/nuevo"
-            className="inline-flex items-center gap-2 h-8 px-4 text-sm rounded-md border font-semibold tracking-tight bg-juk-navy-900 text-white border-juk-navy-900 hover:bg-juk-navy-800 hover:border-juk-navy-800 transition-colors duration-150"
-          >
-            + Nuevo viaje
-          </Link>
-        }
+        actions={<LinkButton href="/viajes/nuevo">+ Nuevo viaje</LinkButton>}
       />
 
       <div className="mb-4">

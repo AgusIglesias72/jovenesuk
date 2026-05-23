@@ -1,10 +1,17 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Button, Checkbox, Field, Input, Select, Textarea } from "@/components/ui";
+import {
+  Button,
+  Checkbox,
+  Field,
+  Input,
+  LinkButton,
+  Select,
+  Textarea,
+} from "@/components/ui";
 import {
   PAIS_LABELS,
   PAISES,
@@ -347,12 +354,9 @@ export function ColegioForm({
           )}
         </div>
         <div className="flex items-center gap-3">
-          <Link
-            href="/colegios"
-            className="inline-flex items-center h-8 px-4 text-sm rounded-md border font-semibold tracking-tight bg-white text-juk-navy-900 border-gray-300 hover:bg-gray-50"
-          >
+          <LinkButton href="/colegios" variant="secondary">
             Cancelar
-          </Link>
+          </LinkButton>
           <Button type="submit" disabled={isPending}>
             {isPending ? "Guardando…" : "Guardar"}
           </Button>

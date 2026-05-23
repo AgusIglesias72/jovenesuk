@@ -1,6 +1,4 @@
-import Link from "next/link";
-
-import { PageHeader } from "@/components/ui";
+import { LinkButton, PageHeader } from "@/components/ui";
 import { listColegios } from "@/lib/db/queries/colegios";
 import { colegioFiltersSchema } from "@/lib/domain/colegios";
 
@@ -38,14 +36,7 @@ export default async function ColegiosPage({
             ? "1 colegio"
             : `${colegios.length} colegios`
         }
-        actions={
-          <Link
-            href="/colegios/nuevo"
-            className="inline-flex items-center gap-2 h-8 px-4 text-sm rounded-md border font-semibold tracking-tight bg-juk-navy-900 text-white border-juk-navy-900 hover:bg-juk-navy-800 hover:border-juk-navy-800 transition-colors duration-150"
-          >
-            + Nuevo colegio
-          </Link>
-        }
+        actions={<LinkButton href="/colegios/nuevo">+ Nuevo colegio</LinkButton>}
       />
 
       <div className="mb-4">

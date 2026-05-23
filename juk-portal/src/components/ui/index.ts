@@ -1,5 +1,6 @@
 // Buttons & forms
-export { Button } from "./button";
+export { Button, buttonClasses, type ButtonVariant, type ButtonSize } from "./button";
+export { LinkButton } from "./link-button";
 export {
   Field,
   Label,
