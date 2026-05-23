@@ -21,6 +21,13 @@ next-env.d.ts
 # Playwright MCP test artifacts
 .playwright-mcp/
 
+# Playwright (E2E)
+test-results/
+playwright-report/
+blob-report/
+**/playwright/.cache/
+**/tests/e2e/.auth/
+
 # OS junk
 .DS_Store
 Thumbs.db

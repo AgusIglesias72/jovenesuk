@@ -1,4 +1,4 @@
-import { forwardRef, useId } from "react";
+import { cloneElement, forwardRef, isValidElement, useId } from "react";
 import { cn } from "@/lib/utils/cn";
 
 /**
@@ -169,6 +169,10 @@ interface FieldProps {
 
 export function Field({ label, required, help, error, children, className }: FieldProps) {
   const id = useId();
+  // Asocia el label con el control inyectándole el id (accesibilidad + testabilidad).
+  const control = isValidElement(children)
+    ? cloneElement(children as React.ReactElement<{ id?: string }>, { id })
+    : children;
   return (
     <div className={cn("flex flex-col gap-1", className)}>
       {label && (
@@ -176,7 +180,7 @@ export function Field({ label, required, help, error, children, className }: Fie
           {label}
         </Label>
       )}
-      {children}
+      {control}
       {error ? <ErrorText>{error}</ErrorText> : help ? <HelpText>{help}</HelpText> : null}
     </div>
   );
