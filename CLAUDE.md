@@ -48,8 +48,17 @@ dashboard layout, shell/navegación, y los pasos 1, 3-8 del M6.
 - **¿Puedo tocar este módulo?** → `/juk-gate <área>`.
 - **Antes de dar por cerrada una feature** → pasala por el agente `juk-revisor`.
 
+## Documentación de handoff
+
+`.claude/docs/` tiene la referencia completa de producto y código (para mantenimiento y traspaso):
+producto, arquitectura/convenciones, **mapa archivo-por-archivo**, y operación. Empezá por
+`.claude/docs/README.md`. Mantenela actualizada al sumar módulos.
+
 ## Estado del proyecto (mayo 2026)
 
-- Fase 0-1 (~95%): auth, reset password, AppShell, design system, 12 schemas Drizzle, 3 email templates.
-- Fases 2-9: sin empezar. Ver `juk-portal/docs/phases.md` para el orden.
-- Stack y ADRs: `juk-portal/docs/architecture.md`. Modelo de datos: `juk-portal/docs/data-model.md`.
+- Fase 0-1: auth, reset, AppShell, design system, schemas Drizzle, email templates.
+- Construido: ABM de Colegios, Viajes, Alumnos, Group Leaders; Gestión de Usuarios; dashboard con datos
+  reales; GlobeLoader; suite E2E (Playwright).
+- Pendiente: Pagos, seguimiento M6/M7 (pasos), asignación alumno↔viaje, alertas dinámicas — varios
+  bloqueados por los CRIT de `OPEN_DECISIONS.md`.
+- Detalle: `.claude/docs/` · fases en `juk-portal/docs/phases.md` · ADRs en `juk-portal/docs/architecture.md`.
