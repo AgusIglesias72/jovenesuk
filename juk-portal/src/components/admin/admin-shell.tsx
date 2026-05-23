@@ -58,7 +58,12 @@ export function AdminShell({ user, children }: AdminShellProps) {
           href="/dashboard"
           active={pathname === "/dashboard"}
         />
-        <SidebarNavItem icon={<IconUser />} label="Alumnos" soon />
+        <SidebarNavItem
+          icon={<IconUser />}
+          label="Alumnos"
+          href="/alumnos"
+          active={pathname.startsWith("/alumnos")}
+        />
         <SidebarNavItem
           icon={<IconPlane />}
           label="Viajes"
@@ -71,12 +76,23 @@ export function AdminShell({ user, children }: AdminShellProps) {
           href="/colegios"
           active={pathname.startsWith("/colegios")}
         />
+        <SidebarNavItem
+          icon={<IconUsers />}
+          label="Group Leaders"
+          href="/group-leaders"
+          active={pathname.startsWith("/group-leaders")}
+        />
         <SidebarNavItem icon={<IconCard />} label="Pagos" soon />
       </SidebarNavSection>
 
       {user.role === "super_admin" && (
         <SidebarNavSection title="Administración">
-          <SidebarNavItem icon={<IconUsers />} label="Usuarios" soon />
+          <SidebarNavItem
+            icon={<IconUsers />}
+            label="Usuarios"
+            href="/usuarios"
+            active={pathname.startsWith("/usuarios")}
+          />
           <SidebarNavItem icon={<IconGear />} label="Configuración" soon />
         </SidebarNavSection>
       )}

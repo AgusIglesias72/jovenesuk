@@ -22,6 +22,10 @@ export async function requireSession() {
   if (!session) {
     redirect("/login");
   }
+  // Usuario desactivado (isActive=false): se lo bloquea aunque tenga sesión válida.
+  if (session.user.isActive === false) {
+    redirect("/login?inactivo=1");
+  }
   return session;
 }
 
