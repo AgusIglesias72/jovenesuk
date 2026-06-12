@@ -8,12 +8,15 @@ import { requireAdminJuk } from "@/lib/auth/helpers";
 import { registrarAuditoria } from "@/lib/db/queries/auditoria";
 import {
   createViaje,
+  getViajeById,
   setViajeEstado,
   updateViaje,
 } from "@/lib/db/queries/viajes";
 import {
+  VIAJE_ESTADO_LABELS,
   ViajeNotFoundError,
   capacidadMaxima,
+  puedeTransicionar,
   viajeCreateSchema,
   viajeUpdateSchema,
 } from "@/lib/domain/viajes";
@@ -92,10 +95,26 @@ export async function updateViajeAction(
     };
   }
 
-  const { id, ...data } = parsed.data;
+  const { id, estado, ...data } = parsed.data;
+
+  const actual = await getViajeById(id);
+  if (!actual) {
+    return { ok: false, error: "El viaje no existe." };
+  }
+
+  const cambioEstado = estado !== actual.estado;
+  if (cambioEstado && !puedeTransicionar(actual.estado, estado)) {
+    return {
+      ok: false,
+      error: `No se puede pasar de "${VIAJE_ESTADO_LABELS[actual.estado]}" a "${VIAJE_ESTADO_LABELS[estado]}". Esa transición de estado no está permitida.`,
+      fieldErrors: { estado: ["Transición de estado inválida"] },
+    };
+  }
+
   try {
     const viaje = await updateViaje(id, {
       ...data,
+      estado,
       capacidadMaxima: capacidadMaxima(data.cantidadGroupLeaders),
     });
     await safeAudit({
@@ -104,6 +123,15 @@ export async function updateViajeAction(
       entidadId: id,
       usuarioId: session.user.id,
     });
+    if (cambioEstado) {
+      await safeAudit({
+        accion: "cambio_estado_viaje",
+        entidadTipo: "viaje",
+        entidadId: id,
+        usuarioId: session.user.id,
+        metadata: { estadoAnterior: actual.estado, estado },
+      });
+    }
     revalidatePath("/viajes");
     revalidatePath(`/viajes/${id}/editar`);
     return { ok: true, data: viaje };

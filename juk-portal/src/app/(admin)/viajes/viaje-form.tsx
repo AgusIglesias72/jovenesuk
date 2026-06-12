@@ -24,6 +24,7 @@ import {
   VIAJE_ORIGEN_LABELS,
   VIAJE_ORIGENES,
   capacidadMaxima,
+  opcionesEstado,
 } from "@/lib/domain/viajes";
 import type { Viaje } from "@/lib/db/schema/viajes";
 
@@ -101,6 +102,9 @@ export function ViajeForm({
 
   const fe = (k: string) => fieldErrors[k]?.[0];
   const capMax = (Number(values.cantidadGroupLeaders) || 0) * 12;
+  const estadosDisponibles = initial
+    ? opcionesEstado(initial.estado)
+    : VIAJE_ESTADOS;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -342,12 +346,17 @@ export function ViajeForm({
         </Field>
 
         {mode === "edit" && (
-          <Field label="Estado">
+          <Field
+            label="Estado"
+            error={fe("estado")}
+            help="Solo se ofrecen las transiciones válidas desde el estado actual."
+          >
             <Select
               value={values.estado}
+              invalid={!!fe("estado")}
               onChange={(e) => set("estado", e.target.value as FormValues["estado"])}
             >
-              {VIAJE_ESTADOS.map((s) => (
+              {estadosDisponibles.map((s) => (
                 <option key={s} value={s}>
                   {VIAJE_ESTADO_LABELS[s]}
                 </option>
