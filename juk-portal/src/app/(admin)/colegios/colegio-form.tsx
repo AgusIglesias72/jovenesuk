@@ -13,12 +13,22 @@ import {
   Textarea,
 } from "@/components/ui";
 import {
+  CONFIG_DOCUMENTAL_DEFAULT,
+  DOCUMENTO_LABELS,
+  DOCUMENTOS_PROGRAMA,
   PAIS_LABELS,
   PAISES,
+  REQUISITO_LABELS,
+  REQUISITOS_DOCUMENTO,
   TIPO_ALOJAMIENTO_LABELS,
   TIPO_COLEGIO_LABELS,
+  TIPO_ENTRADA_LABELS,
   TIPOS_ALOJAMIENTO,
   TIPOS_COLEGIO,
+  TIPOS_ENTRADA,
+  tipoEntradaPorPais,
+  type ConfigDocumental,
+  type RequisitoDocumento,
 } from "@/lib/domain/colegios";
 import type { Colegio, Contacto } from "@/lib/db/schema/colegios";
 
@@ -43,7 +53,8 @@ type FormValues = {
   contactoJuniors: ContactoValues;
   cursosDisponibles: string;
   tiposAlojamiento: TipoAlojamiento[];
-  requiereCertificadoPsicofisico: boolean;
+  tipoEntradaRequerida: (typeof TIPOS_ENTRADA)[number];
+  configDocumental: ConfigDocumental;
   comisionAgenciaPorcentaje: string;
   sitioWeb: string;
   notas: string;
@@ -57,11 +68,12 @@ function toContacto(c: Contacto | null | undefined): ContactoValues {
   };
 }
 
-function initialValues(initial?: Colegio): FormValues {
+function initialValues(initial?: Colegio, initialConfig?: ConfigDocumental): FormValues {
+  const pais = initial?.pais ?? "reino_unido";
   return {
     nombre: initial?.nombre ?? "",
     tipo: initial?.tipo ?? "destino",
-    pais: initial?.pais ?? "reino_unido",
+    pais,
     ciudad: initial?.ciudad ?? "",
     contactoAcademico: toContacto(initial?.contactoAcademico),
     contactoAdministrativo: toContacto(initial?.contactoAdministrativo),
@@ -69,7 +81,8 @@ function initialValues(initial?: Colegio): FormValues {
     contactoJuniors: toContacto(initial?.contactoJuniors),
     cursosDisponibles: (initial?.cursosDisponibles ?? []).join(", "),
     tiposAlojamiento: initial?.tiposAlojamiento ?? [],
-    requiereCertificadoPsicofisico: initial?.requiereCertificadoPsicofisico ?? false,
+    tipoEntradaRequerida: initial?.tipoEntradaRequerida ?? tipoEntradaPorPais(pais),
+    configDocumental: initialConfig ?? { ...CONFIG_DOCUMENTAL_DEFAULT },
     comisionAgenciaPorcentaje:
       initial?.comisionAgenciaPorcentaje != null
         ? String(initial.comisionAgenciaPorcentaje)
@@ -82,12 +95,16 @@ function initialValues(initial?: Colegio): FormValues {
 export function ColegioForm({
   mode,
   initial,
+  initialConfig,
 }: {
   mode: "create" | "edit";
   initial?: Colegio;
+  initialConfig?: ConfigDocumental;
 }) {
   const router = useRouter();
-  const [values, setValues] = useState<FormValues>(() => initialValues(initial));
+  const [values, setValues] = useState<FormValues>(() =>
+    initialValues(initial, initialConfig)
+  );
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
   const [isPending, startTransition] = useTransition();
@@ -117,6 +134,23 @@ export function ColegioForm({
     }));
   }
 
+  function setPais(pais: FormValues["pais"]) {
+    setValues((v) => ({
+      ...v,
+      pais,
+      // En alta, el tipo de entrada sigue al país (MIN-14); en edición no se pisa.
+      tipoEntradaRequerida:
+        mode === "create" ? tipoEntradaPorPais(pais) : v.tipoEntradaRequerida,
+    }));
+  }
+
+  function setRequisito(documento: (typeof DOCUMENTOS_PROGRAMA)[number], requisito: RequisitoDocumento) {
+    setValues((v) => ({
+      ...v,
+      configDocumental: { ...v.configDocumental, [documento]: requisito },
+    }));
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -137,7 +171,8 @@ export function ColegioForm({
         .map((s) => s.trim())
         .filter(Boolean),
       tiposAlojamiento: values.tiposAlojamiento,
-      requiereCertificadoPsicofisico: values.requiereCertificadoPsicofisico,
+      tipoEntradaRequerida: values.tipoEntradaRequerida,
+      configDocumental: values.configDocumental,
       comisionAgenciaPorcentaje: values.comisionAgenciaPorcentaje,
       sitioWeb: values.sitioWeb,
       notas: values.notas,
@@ -216,7 +251,7 @@ export function ColegioForm({
         <Field label="País" required error={fe("pais")}>
           <Select
             value={values.pais}
-            onChange={(e) => set("pais", e.target.value as FormValues["pais"])}
+            onChange={(e) => setPais(e.target.value as FormValues["pais"])}
           >
             {PAISES.map((p) => (
               <option key={p} value={p}>
@@ -295,6 +330,45 @@ export function ColegioForm({
         </div>
       </Section>
 
+      <Section title="Documentos del programa">
+        <p className="col-span-2 -mt-1 text-sm text-gray-600">
+          Qué exige este colegio. Define los pasos del tablero del alumno al
+          asignarlo a un viaje (los cambios aplican solo a asignaciones nuevas).
+          “Opcional” activa el paso pero no cuenta para la completitud ni las alertas.
+        </p>
+        {DOCUMENTOS_PROGRAMA.map((doc) => (
+          <Field key={doc} label={DOCUMENTO_LABELS[doc]}>
+            <Select
+              value={values.configDocumental[doc]}
+              onChange={(e) => setRequisito(doc, e.target.value as RequisitoDocumento)}
+            >
+              {REQUISITOS_DOCUMENTO.map((r) => (
+                <option key={r} value={r}>
+                  {REQUISITO_LABELS[r]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        ))}
+        <Field
+          label="Documentación de entrada"
+          help="Rige el paso C1 (ETA) del alumno. Se deriva del país; ajustable."
+        >
+          <Select
+            value={values.tipoEntradaRequerida}
+            onChange={(e) =>
+              set("tipoEntradaRequerida", e.target.value as FormValues["tipoEntradaRequerida"])
+            }
+          >
+            {TIPOS_ENTRADA.map((t) => (
+              <option key={t} value={t}>
+                {TIPO_ENTRADA_LABELS[t]}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </Section>
+
       <Section title="Configuración">
         <Field
           label="Comisión de agencia (%)"
@@ -320,14 +394,6 @@ export function ColegioForm({
             placeholder="https://…"
           />
         </Field>
-
-        <div className="col-span-2">
-          <Checkbox
-            label="Requiere certificado psicofísico"
-            checked={values.requiereCertificadoPsicofisico}
-            onChange={(e) => set("requiereCertificadoPsicofisico", e.target.checked)}
-          />
-        </div>
 
         <Field label="Notas" className="col-span-2">
           <Textarea

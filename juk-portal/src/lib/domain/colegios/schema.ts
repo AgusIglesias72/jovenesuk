@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { configDocumentalSchema } from "./documentos";
+
 /**
  * Validación de Colegios (capa de dominio, pura).
  * Fuente de verdad de la validación: la usan las server actions hoy y la
@@ -66,8 +68,11 @@ export const colegioCreateSchema = z.object({
   cursosDisponibles: z.array(z.string().trim().min(1)).default([]),
   tiposAlojamiento: z.array(tipoAlojamientoEnum).default([]),
 
-  // CRIT-03: flag editable, sin lógica de negocio asociada todavía.
-  requiereCertificadoPsicofisico: z.boolean().default(false),
+  // Documentación de entrada (rige C1). Default por país: tipoEntradaPorPais().
+  tipoEntradaRequerida: z.enum(["eta", "visa", "ninguna"]),
+
+  // Config documental por colegio (US-05b). Defaults por documento (MIN-11).
+  configDocumental: configDocumentalSchema,
 
   comisionAgenciaPorcentaje: z.preprocess(
     (v) => {

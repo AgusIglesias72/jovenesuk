@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/ui";
-import { getColegioById } from "@/lib/db/queries/colegios";
+import { getColegioById, getConfigDocumental } from "@/lib/db/queries/colegios";
 
 import { ColegioForm } from "../../colegio-form";
 
@@ -16,10 +16,12 @@ export default async function EditarColegioPage({
   const colegio = await getColegioById(id);
   if (!colegio) notFound();
 
+  const configDocumental = await getConfigDocumental(id);
+
   return (
     <>
       <PageHeader title={colegio.nombre} subtitle="Editar colegio" />
-      <ColegioForm mode="edit" initial={colegio} />
+      <ColegioForm mode="edit" initial={colegio} initialConfig={configDocumental} />
     </>
   );
 }

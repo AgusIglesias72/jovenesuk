@@ -36,6 +36,20 @@
       "when": 1781229961357,
       "tag": "0004_narrow_quicksilver",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781231470316,
+      "tag": "0005_robust_annihilus",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781231489341,
+      "tag": "0006_lively_serpent_society",
+      "breakpoints": true
     }
   ]
 }

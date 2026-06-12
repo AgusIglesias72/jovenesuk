@@ -10,6 +10,7 @@ import {
   createColegio,
   setColegioEstado,
   updateColegio,
+  upsertConfigDocumental,
 } from "@/lib/db/queries/colegios";
 import {
   ColegioNotFoundError,
@@ -48,11 +49,13 @@ export async function createColegioAction(
     };
   }
 
+  const { configDocumental, ...data } = parsed.data;
   try {
     const colegio = await createColegio({
-      ...parsed.data,
+      ...data,
       createdBy: session.user.id,
     });
+    await upsertConfigDocumental(colegio.id, configDocumental, session.user.id);
     await safeAudit({
       accion: "create",
       entidadTipo: "colegio",
@@ -81,9 +84,12 @@ export async function updateColegioAction(
     };
   }
 
-  const { id, ...data } = parsed.data;
+  const { id, configDocumental, ...data } = parsed.data;
   try {
     const colegio = await updateColegio(id, data);
+    // Cambios de config aplican solo a asignaciones nuevas (US-05b): acá solo
+    // se persiste; los tableros existentes no se tocan.
+    await upsertConfigDocumental(id, configDocumental, session.user.id);
     await safeAudit({
       accion: "update",
       entidadTipo: "colegio",

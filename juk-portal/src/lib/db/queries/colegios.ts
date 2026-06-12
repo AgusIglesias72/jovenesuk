@@ -1,8 +1,21 @@
 import { and, asc, eq, ilike, or, type SQL } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { colegios, type Colegio, type NewColegio } from "@/lib/db/schema/colegios";
-import { ColegioNotFoundError, type ColegioFilters } from "@/lib/domain/colegios";
+import {
+  colegios,
+  colegioDocumentoConfig,
+  type Colegio,
+  type NewColegio,
+} from "@/lib/db/schema/colegios";
+import {
+  ColegioNotFoundError,
+  configDocumentalEfectiva,
+  DOCUMENTOS_PROGRAMA,
+  type ColegioFilters,
+  type ConfigDocumental,
+  type DocumentoPrograma,
+  type RequisitoDocumento,
+} from "@/lib/domain/colegios";
 
 export async function listColegios(filters: ColegioFilters = {}): Promise<Colegio[]> {
   const conditions: SQL[] = [];
@@ -63,4 +76,37 @@ export async function setColegioEstado(
   const row = rows[0];
   if (!row) throw new ColegioNotFoundError(id);
   return row;
+}
+
+// --- Config documental por colegio (US-05b) ---
+
+/** Config efectiva del colegio: defaults del dominio + overrides persistidos. */
+export async function getConfigDocumental(colegioId: string): Promise<ConfigDocumental> {
+  const rows = await db
+    .select()
+    .from(colegioDocumentoConfig)
+    .where(eq(colegioDocumentoConfig.colegioId, colegioId));
+
+  const overrides: Partial<ConfigDocumental> = {};
+  for (const row of rows) {
+    overrides[row.documento as DocumentoPrograma] = row.requisito as RequisitoDocumento;
+  }
+  return configDocumentalEfectiva(overrides);
+}
+
+/** Upsert de las 5 filas de config (explícitas, auditables con fecha/usuario). */
+export async function upsertConfigDocumental(
+  colegioId: string,
+  config: ConfigDocumental,
+  updatedBy: string
+): Promise<void> {
+  for (const documento of DOCUMENTOS_PROGRAMA) {
+    await db
+      .insert(colegioDocumentoConfig)
+      .values({ colegioId, documento, requisito: config[documento], updatedBy })
+      .onConflictDoUpdate({
+        target: [colegioDocumentoConfig.colegioId, colegioDocumentoConfig.documento],
+        set: { requisito: config[documento], updatedAt: new Date(), updatedBy },
+      });
+  }
 }
