@@ -1,6 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = 3001;
+// Default 3001 (el 3000 es el dev del usuario). Con PW_PORT podés apuntar los
+// tests a un server ya levantado (ej: PW_PORT=3000) — Next 16 no permite dos
+// dev servers sobre el mismo proyecto.
+const PORT = Number(process.env.PW_PORT ?? 3001);
 const baseURL = `http://localhost:${PORT}`;
 
 export default defineConfig({

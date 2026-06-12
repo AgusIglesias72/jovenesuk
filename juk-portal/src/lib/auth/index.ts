@@ -13,6 +13,13 @@ import { db } from "@/lib/db";
  *  - email verification required before first login (set on admin invite)
  */
 export const auth = betterAuth({
+  // En dev el server puede correr en 3000 (el del usuario) o 3001 (E2E/Claude);
+  // sin esto, el origin que no coincide con BETTER_AUTH_URL devuelve 403.
+  trustedOrigins:
+    process.env.NODE_ENV === "production"
+      ? []
+      : ["http://localhost:3000", "http://localhost:3001"],
+
   database: drizzleAdapter(db, {
     provider: "pg",
     // Nuestras tablas son plurales (users, sessions, accounts, verifications);
