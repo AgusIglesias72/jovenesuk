@@ -25,10 +25,7 @@ export function PageHeader({ title, subtitle, actions, className }: PageHeaderPr
   return (
     <header className={cn("flex justify-between items-start gap-4 mb-6", className)}>
       <div>
-        <h1
-          className="font-display font-semibold text-3xl text-juk-navy-950 leading-tight m-0"
-          style={{ letterSpacing: "-0.02em" }}
-        >
+        <h1 className="font-display font-semibold text-3xl text-juk-navy-950 leading-tight m-0 tracking-[-0.02em]">
           {title}
         </h1>
         {subtitle && <div className="text-sm text-gray-600 mt-1">{subtitle}</div>}

@@ -38,10 +38,9 @@ export function StatCard({
       </div>
       <div
         className={cn(
-          "font-display font-semibold leading-none text-4xl tabular-nums",
+          "font-display font-semibold leading-none text-4xl tabular-nums tracking-[-0.02em]",
           tone === "critical" ? "text-juk-coral-700" : "text-juk-navy-950"
         )}
-        style={{ letterSpacing: "-0.02em" }}
       >
         {value}
       </div>

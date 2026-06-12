@@ -83,10 +83,7 @@ export function TripCard({
         <TripBadge state={state} />
       </div>
 
-      <h3
-        className="font-display text-xl font-semibold text-juk-navy-950 leading-snug m-0"
-        style={{ letterSpacing: "-0.015em" }}
-      >
+      <h3 className="font-display text-xl font-semibold text-juk-navy-950 leading-snug m-0 tracking-[-0.015em]">
         {name}
       </h3>
 

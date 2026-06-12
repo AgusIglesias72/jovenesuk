@@ -33,11 +33,11 @@ import type { StepState } from "./badge";
  *   />
  */
 
-export interface Step {
+export type Step = {
   num: number;
   state: StepState;
   label: string;
-}
+};
 
 const STEP_PILL_CLASSES: Record<StepState, string> = {
   pendiente:   "bg-gray-100 text-gray-500 border-gray-200",

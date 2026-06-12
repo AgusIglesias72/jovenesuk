@@ -35,10 +35,7 @@ export function JukBrandPanel() {
           <span className="font-display font-semibold text-lg tracking-tight">
             Jóvenes en UK
           </span>
-          <span
-            className="text-[10px] uppercase font-medium mt-0.5"
-            style={{ color: "#e6b54d", letterSpacing: "0.12em" }}
-          >
+          <span className="text-[10px] uppercase font-medium mt-0.5 text-juk-gold-500 tracking-[0.12em]">
             Portal Interno
           </span>
         </div>
@@ -46,27 +43,17 @@ export function JukBrandPanel() {
 
       {/* Middle: quote / tagline */}
       <div className="relative z-10 max-w-md">
-        <p
-          className="font-display font-medium leading-tight"
-          style={{
-            fontSize: "32px",
-            letterSpacing: "-0.02em",
-            color: "white",
-          }}
-        >
-          Todo lo que hace que <em style={{ color: "#ee948f" }}>el viaje</em> salga bien,
+        <p className="font-display font-medium leading-tight text-[32px] tracking-[-0.02em] text-white">
+          Todo lo que hace que <em className="text-juk-coral-400">el viaje</em> salga bien,
           en un solo lugar.
         </p>
-        <p
-          className="mt-6 text-sm leading-relaxed"
-          style={{ color: "#9ab4e2" }}
-        >
+        <p className="mt-6 text-sm leading-relaxed text-juk-navy-400">
           Gestión de alumnos, viajes, trámites y pagos para el equipo operativo de JUK.
         </p>
       </div>
 
       {/* Bottom: subtle meta */}
-      <div className="relative z-10 text-xs" style={{ color: "#6f95d6" }}>
+      <div className="relative z-10 text-xs text-juk-navy-500">
         © {new Date().getFullYear()} Jóvenes en UK · v0.1
       </div>
     </aside>
