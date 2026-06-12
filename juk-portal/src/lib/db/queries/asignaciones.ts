@@ -153,3 +153,13 @@ export async function listAsignacionesByAlumno(alumnoId: string): Promise<Asigna
     .orderBy(desc(asignaciones.fechaAsignacion));
   return rows;
 }
+
+/** Dueño real de una asignación (para revalidaciones y ownership server-side). */
+export async function alumnoIdDeAsignacion(asignacionId: string): Promise<string | null> {
+  const rows = await db
+    .select({ alumnoId: asignaciones.alumnoId })
+    .from(asignaciones)
+    .where(eq(asignaciones.id, asignacionId))
+    .limit(1);
+  return rows[0]?.alumnoId ?? null;
+}

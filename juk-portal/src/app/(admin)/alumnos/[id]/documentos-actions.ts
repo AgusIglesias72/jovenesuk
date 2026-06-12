@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { requireAdminJuk } from "@/lib/auth/helpers";
+import { alumnoIdDeAsignacion } from "@/lib/db/queries/asignaciones";
 import { db } from "@/lib/db";
 import { registrarAuditoria } from "@/lib/db/queries/auditoria";
 import { documentos } from "@/lib/db/schema/documentos";
@@ -48,11 +49,8 @@ export async function subirDocumentoPasoAction(
   const session = await requireAdminJuk();
 
   const ids = z
-    .object({ pasoId: z.string().uuid(), alumnoId: z.string().uuid() })
-    .safeParse({
-      pasoId: formData.get("pasoId"),
-      alumnoId: formData.get("alumnoId"),
-    });
+    .object({ pasoId: z.string().uuid() })
+    .safeParse({ pasoId: formData.get("pasoId") });
   if (!ids.success) return { ok: false, error: "Datos inválidos." };
 
   const file = formData.get("archivo");
@@ -61,6 +59,10 @@ export async function subirDocumentoPasoAction(
   const rows = await db.select().from(pasosAlumno).where(eq(pasosAlumno.id, ids.data.pasoId)).limit(1);
   const paso = rows[0];
   if (!paso) return { ok: false, error: "El paso no existe." };
+
+  // El dueño se deriva del paso (nunca del cliente).
+  const alumnoId = await alumnoIdDeAsignacion(paso.asignacionId);
+  if (!alumnoId) return { ok: false, error: "La asignación del paso no existe." };
 
   const categoria = CATEGORIA_POR_PASO[paso.codigo as PasoCodigo];
   if (!categoria) return { ok: false, error: "Este paso no lleva documento adjunto." };
@@ -106,7 +108,7 @@ export async function subirDocumentoPasoAction(
       metadata: { categoria, nombre: file.name, bytes: file.size },
     });
 
-    revalidatePath(`/alumnos/${ids.data.alumnoId}`);
+    revalidatePath(`/alumnos/${alumnoId}`);
     return { ok: true, data: { url } };
   } catch (err) {
     if (err instanceof DocumentoInvalidoError) {

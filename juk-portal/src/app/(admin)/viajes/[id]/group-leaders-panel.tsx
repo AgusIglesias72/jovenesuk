@@ -64,6 +64,9 @@ export function GroupLeadersPanel({
   }
 
   function quitar(groupLeaderId: string) {
+    if (!window.confirm("¿Quitar este Group Leader del viaje? El paso Police Checks se recalcula.")) {
+      return;
+    }
     startTransition(async () => {
       setError(null);
       const r = await quitarGroupLeaderAction(viajeId, groupLeaderId);

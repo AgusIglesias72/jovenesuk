@@ -175,6 +175,12 @@ export async function marcarAlumnoPasoViajeAction(
     const paso = pasos.find((p) => p.tipo === tipoPaso);
     if (!paso) return { ok: false, error: "El paso no existe." };
 
+    // Pertenencia: la asignación tiene que ser de ESTE viaje (ids cruzados no).
+    const activas = await listAsignacionesByViaje(viajeId);
+    if (!activas.some((a) => a.asignacionId === asignacionId)) {
+      return { ok: false, error: "La asignación no pertenece a este viaje." };
+    }
+
     const metadata = paso.metadata as Record<string, unknown>;
     const porAlumno = {
       ...((metadata.porAlumno as Record<string, boolean> | undefined) ?? {}),
@@ -182,7 +188,6 @@ export async function marcarAlumnoPasoViajeAction(
     };
     await updateMetadataPasoViaje(viajeId, tipoPaso, { ...metadata, porAlumno }, session.user.id);
 
-    const activas = await listAsignacionesByViaje(viajeId);
     const idsActivas = activas
       .filter((a) => a.estado === "activa")
       .map((a) => a.asignacionId);

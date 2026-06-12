@@ -63,12 +63,19 @@ export function AsignacionesPanel({
     });
   }
 
-  function quitar(asignacionId: string) {
+  function quitar(asignacionId: string, nombre: string) {
+    if (!window.confirm(`¿Quitar a ${nombre} del viaje? Su tablero de seguimiento queda asociado a la asignación cancelada.`)) {
+      return;
+    }
     startTransition(async () => {
       setError(null);
-      const r = await desasignarAlumnoAction(asignacionId, viajeId);
+      let r = await desasignarAlumnoAction(asignacionId, viajeId);
+      // Baja extraordinaria (viaje en curso/finalizado): segunda confirmación.
+      if (!r.ok && r.requiereConfirmacion && window.confirm(r.error)) {
+        r = await desasignarAlumnoAction(asignacionId, viajeId, { confirmar: true });
+      }
       if (r.ok) router.refresh();
-      else setError(r.error);
+      else if (!r.requiereConfirmacion) setError(r.error);
     });
   }
 
@@ -158,7 +165,7 @@ export function AsignacionesPanel({
                       variant="ghost"
                       size="sm"
                       disabled={isPending}
-                      onClick={() => quitar(a.asignacionId)}
+                      onClick={() => quitar(a.asignacionId, `${a.alumno.apellido}, ${a.alumno.nombre}`)}
                     >
                       Quitar
                     </Button>

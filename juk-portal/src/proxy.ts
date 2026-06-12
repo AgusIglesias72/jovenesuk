@@ -13,6 +13,13 @@ export function proxy(request: NextRequest) {
 
   const isAuthPath = path.startsWith("/login") || path.startsWith("/reset-password");
   const isApiAuthPath = path.startsWith("/api/auth");
+
+  // El registro público de Better-Auth queda CERRADO: las cuentas se crean
+  // solo server-side (seed, /usuarios, cuentas de familia). auth.api.* interno
+  // no pasa por este proxy, así que esto no afecta esos flujos.
+  if (path.startsWith("/api/auth/sign-up")) {
+    return NextResponse.json({ error: "Registro deshabilitado" }, { status: 404 });
+  }
   const isWebhookPath = path.startsWith("/api/webhooks");
   // Design Lab: concepts estáticos de UI (sin datos reales ni DB). Público para
   // poder iterar el diseño sin login. NO exponer en prod tal cual si se deploya.

@@ -6,7 +6,7 @@ import { getColegioById, getConfigDocumental } from "./colegios";
 import { crearPasosParaAsignacion } from "./pasos-alumno";
 import { setViajeEstado } from "./viajes";
 import { alumnos, type Alumno } from "@/lib/db/schema/alumnos";
-import type { Viaje } from "@/lib/db/schema/viajes";
+import { viajes, type Viaje } from "@/lib/db/schema/viajes";
 import { edadAlInicioDelViaje, pasosIniciales } from "@/lib/domain/pasos";
 
 /**
@@ -17,6 +17,13 @@ import { edadAlInicioDelViaje, pasosIniciales } from "@/lib/domain/pasos";
  * Las VALIDACIONES (estado del viaje, pasaporte, cupo) son responsabilidad
  * del llamador: acá solo se ejecuta el efecto.
  */
+export class ViajeNoInscribibleError extends Error {
+  constructor(estado: string) {
+    super(`El viaje ya no admite inscripciones (estado: ${estado}).`);
+    this.name = "ViajeNoInscribibleError";
+  }
+}
+
 export async function asignarConTablero(opts: {
   viaje: Viaje;
   alumno: Alumno;
@@ -24,6 +31,18 @@ export async function asignarConTablero(opts: {
   usuarioId: string | null;
 }): Promise<{ asignacionId: string; autoConfirmado: boolean; pasosCreados: number }> {
   const { viaje, alumno, usuarioId } = opts;
+
+  // Re-chequeo del estado justo antes de insertar (cierra la ventana TOCTOU
+  // entre la validación del llamador y este efecto; neon-http no da transacciones).
+  const estadoActual = await db
+    .select({ estado: viajes.estado })
+    .from(viajes)
+    .where(eq(viajes.id, viaje.id))
+    .limit(1);
+  const estado = estadoActual[0]?.estado;
+  if (estado !== "inscripcion_abierta" && estado !== "confirmado") {
+    throw new ViajeNoInscribibleError(estado ?? "inexistente");
+  }
 
   const asig = await createAsignacion({ alumnoId: alumno.id, viajeId: viaje.id });
 

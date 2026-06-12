@@ -119,9 +119,9 @@ export async function sincronizarPasosPago(
   // C2 nace bloqueado por B1: al completarse B1 pasa a pendiente; si B1 se
   // reabre (pago revertido a futuro), C2 vuelve a bloquearse solo si no avanzó.
   if (b1 === "completado") {
-    await db
-      .update(pasosAlumno)
-      .set({ estado: "pendiente", metadata: {}, updatedAt: new Date(), updatedBy })
+    const c2Rows = await db
+      .select()
+      .from(pasosAlumno)
       .where(
         and(
           eq(pasosAlumno.asignacionId, asignacionId),
@@ -129,6 +129,16 @@ export async function sincronizarPasosPago(
           eq(pasosAlumno.estado, "bloqueado")
         )
       );
+    const c2 = c2Rows[0];
+    if (c2) {
+      // Se quita SOLO el marcador estructural: lo demás (archivoUrl de un
+      // documento subido mientras estaba bloqueado, etc.) se preserva.
+      const { bloqueadoPor: _bloqueadoPor, ...resto } = c2.metadata as Record<string, unknown>;
+      await db
+        .update(pasosAlumno)
+        .set({ estado: "pendiente", metadata: resto, updatedAt: new Date(), updatedBy })
+        .where(eq(pasosAlumno.id, c2.id));
+    }
   }
 
   // B2 (si no es N/A): completado cuando la última cuota está pagada presencial.

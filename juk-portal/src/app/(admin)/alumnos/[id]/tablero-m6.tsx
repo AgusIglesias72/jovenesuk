@@ -3,11 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Select } from "@/components/ui";
+import { Input, Select } from "@/components/ui";
 import {
+  ETA_SUBESTADO_LABELS,
+  ETA_SUBESTADOS,
   GRUPO_LABELS,
   PASO_ESTADO_LABELS,
   PASO_LABELS,
+  PC_SUBESTADO_LABELS,
+  PC_SUBESTADOS,
   esPasoEditable,
   grupoDePaso,
   transicionesPasoAlumno,
@@ -18,7 +22,7 @@ import {
 import { formatFecha } from "@/lib/utils/date";
 
 import { subirDocumentoPasoAction } from "./documentos-actions";
-import { transicionarPasoAlumnoAction } from "./pasos-actions";
+import { actualizarSubEstadoPasoAction, transicionarPasoAlumnoAction } from "./pasos-actions";
 
 /** Pasos que llevan documento adjunto (AF, PC, captura ETA, letters, escribano, psicofísico). */
 const PASOS_CON_DOCUMENTO: ReadonlySet<PasoCodigo> = new Set([
@@ -111,14 +115,36 @@ function PasoCard({
   const opciones = transicionesPasoAlumno(paso.codigo, paso.estado);
   const nota = notaDelPaso(paso);
 
+  // C1 (US-31) y A3 (US-29): el estado se deriva del sub-estado del trámite.
+  const conSubEstado = (paso.codigo === "c1" || paso.codigo === "a3") && paso.estado !== "na";
+  const subEstados: readonly string[] = paso.codigo === "c1" ? ETA_SUBESTADOS : PC_SUBESTADOS;
+  const subEstadoLabels: Record<string, string> =
+    paso.codigo === "c1" ? ETA_SUBESTADO_LABELS : PC_SUBESTADO_LABELS;
+  const subEstadoActual =
+    typeof paso.metadata.subEstado === "string" ? paso.metadata.subEstado : subEstados[0]!;
+  const numeroAutorizacion =
+    typeof paso.metadata.numeroAutorizacion === "string" ? paso.metadata.numeroAutorizacion : "";
+
   function transicionar(nuevo: PasoEstado) {
     if (nuevo === paso.estado) return;
     startTransition(async () => {
       onError(null);
       const r = await transicionarPasoAlumnoAction({
         pasoId: paso.id,
-        alumnoId,
         nuevoEstado: nuevo,
+      });
+      if (r.ok) router.refresh();
+      else onError(r.error);
+    });
+  }
+
+  function actualizarSubEstado(subEstado: string, numero?: string) {
+    startTransition(async () => {
+      onError(null);
+      const r = await actualizarSubEstadoPasoAction({
+        pasoId: paso.id,
+        subEstado,
+        ...(numero?.trim() ? { numeroAutorizacion: numero.trim() } : {}),
       });
       if (r.ok) router.refresh();
       else onError(r.error);
@@ -131,7 +157,6 @@ function PasoCard({
       onError(null);
       const fd = new FormData();
       fd.set("pasoId", paso.id);
-      fd.set("alumnoId", alumnoId);
       fd.set("archivo", file);
       const r = await subirDocumentoPasoAction(fd);
       if (r.ok) router.refresh();
@@ -182,7 +207,39 @@ function PasoCard({
         </p>
       )}
 
-      {editable && opciones.length > 1 && (
+      {conSubEstado && (
+        <div className="mt-2 space-y-2">
+          <Select
+            value={subEstadoActual}
+            disabled={isPending}
+            onChange={(e) => {
+              if (e.target.value !== subEstadoActual) actualizarSubEstado(e.target.value);
+            }}
+            className="!min-h-0 !py-1 text-[length:var(--t-small)]"
+          >
+            {subEstados.map((s) => (
+              <option key={s} value={s}>
+                {subEstadoLabels[s] ?? s}
+              </option>
+            ))}
+          </Select>
+          {paso.codigo === "c1" && subEstadoActual === "aprobado" && (
+            <Input
+              type="text"
+              placeholder="N° autorización"
+              defaultValue={numeroAutorizacion}
+              disabled={isPending}
+              onBlur={(e) => {
+                if (e.target.value.trim() !== numeroAutorizacion)
+                  actualizarSubEstado(subEstadoActual, e.target.value);
+              }}
+              className="!min-h-0 !py-1 text-[length:var(--t-small)]"
+            />
+          )}
+        </div>
+      )}
+
+      {editable && !conSubEstado && opciones.length > 1 && (
         <div className="mt-2">
           <Select
             value={paso.estado}

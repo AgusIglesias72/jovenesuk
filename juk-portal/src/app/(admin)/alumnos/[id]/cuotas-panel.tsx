@@ -93,11 +93,15 @@ export function CuotasPanel({
     startTransition(async () => {
       setError(null);
       setFieldErrors({});
-      const r = await crearPlanCuotasAction({ asignacionId, ...plan });
-      if (r.ok) router.refresh();
-      else {
-        setError(r.error);
-        if (r.fieldErrors) setFieldErrors(r.fieldErrors);
+      try {
+        const r = await crearPlanCuotasAction({ asignacionId, ...plan });
+        if (r.ok) router.refresh();
+        else {
+          setError(r.error);
+          if (r.fieldErrors) setFieldErrors(r.fieldErrors);
+        }
+      } catch {
+        setError("No pudimos crear el plan. Reintentá en unos segundos.");
       }
     });
   }
@@ -105,18 +109,33 @@ export function CuotasPanel({
   function pagar(cuotaId: string) {
     startTransition(async () => {
       setError(null);
-      const r = await registrarPagoCuotaAction({ cuotaId, alumnoId });
-      if (r.ok) router.refresh();
-      else setError(r.error);
+      try {
+        const r = await registrarPagoCuotaAction({ cuotaId });
+        if (r.ok) router.refresh();
+        else setError(r.error);
+      } catch {
+        setError("No pudimos registrar el pago. Reintentá en unos segundos.");
+      }
     });
   }
 
   function confirmarB2() {
+    if (
+      !window.confirm(
+        `¿Confirmar que la última cuota (n° ${ultima?.numero}) se cobró presencialmente en JUK? Esto la marca como pagada.`
+      )
+    ) {
+      return;
+    }
     startTransition(async () => {
       setError(null);
-      const r = await confirmarUltimoPagoPresencialAction(asignacionId, alumnoId);
-      if (r.ok) router.refresh();
-      else setError(r.error);
+      try {
+        const r = await confirmarUltimoPagoPresencialAction(asignacionId);
+        if (r.ok) router.refresh();
+        else setError(r.error);
+      } catch {
+        setError("No pudimos confirmar el pago presencial. Reintentá en unos segundos.");
+      }
     });
   }
 

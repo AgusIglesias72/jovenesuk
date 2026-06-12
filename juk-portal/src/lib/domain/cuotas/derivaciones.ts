@@ -17,6 +17,11 @@ export type CuotaLike = {
 
 const monto = (c: CuotaLike) => (typeof c.monto === "string" ? Number(c.monto) : c.monto);
 
+/** Día calendario UTC (las columnas `date` parsean a medianoche UTC). */
+function diaUTC(d: Date): number {
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
 /**
  * Canal de una cuota al crearse (PRD B1/B2, ex CRIT-01): la ÚLTIMA cuota es
  * presencial solo para Independiente/Instituto; todo lo demás va vía agencia.
@@ -25,14 +30,19 @@ export function canalCuota(origen: ViajeOrigen, esUltima: boolean): "agencia" | 
   return esUltima && aplicaUltimoPagoPresencial(origen) ? "presencial" : "agencia";
 }
 
-/** Vencida = no pagada y con vencimiento anterior a hoy (derivado, sin job). */
+/**
+ * Vencida = no pagada y con vencimiento en un día ANTERIOR a hoy (derivado,
+ * sin job). Comparación por día calendario UTC: `fechaVencimiento` es una
+ * columna `date` (medianoche UTC) y compararla con `new Date()` crudo marcaba
+ * la mora desde las 21:00 ART del día previo.
+ */
 export function estaVencida(c: CuotaLike, hoy: Date): boolean {
-  return c.estado !== "pagada" && c.fechaVencimiento.getTime() < hoy.getTime();
+  return c.estado !== "pagada" && diaUTC(c.fechaVencimiento) < diaUTC(hoy);
 }
 
 export function diasDeMora(c: CuotaLike, hoy: Date): number {
   if (!estaVencida(c, hoy)) return 0;
-  return Math.floor((hoy.getTime() - c.fechaVencimiento.getTime()) / 86_400_000);
+  return Math.round((diaUTC(hoy) - diaUTC(c.fechaVencimiento)) / 86_400_000);
 }
 
 export function totalPlan(cuotas: CuotaLike[]): number {

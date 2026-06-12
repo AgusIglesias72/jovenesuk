@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { requireAdminJuk } from "@/lib/auth/helpers";
 import { registrarAuditoria } from "@/lib/db/queries/auditoria";
+import { alumnoIdDeAsignacion } from "@/lib/db/queries/asignaciones";
 import {
   PlanConPagosError,
   crearPlanCuotas,
@@ -111,7 +112,9 @@ export async function registrarPagoCuotaAction(
       usuarioId: session.user.id,
       metadata: { numero: cuota.numero, canal: cuota.canal },
     });
-    revalidatePath(`/alumnos/${parsed.data.alumnoId}`);
+    // El dueño se deriva de la cuota (nunca del cliente).
+    const alumnoId = await alumnoIdDeAsignacion(cuota.asignacionId);
+    if (alumnoId) revalidatePath(`/alumnos/${alumnoId}`);
     return { ok: true, data: { id: cuota.id } };
   } catch (err) {
     Sentry.captureException(err);
@@ -121,15 +124,15 @@ export async function registrarPagoCuotaAction(
 
 /** B2 (US-35): confirma que la ÚLTIMA cuota se cobró presencialmente en JUK. */
 export async function confirmarUltimoPagoPresencialAction(
-  asignacionId: string,
-  alumnoId: string
+  asignacionId: string
 ): Promise<ActionResult<{ id: string }>> {
   const session = await requireAdminJuk();
 
-  const ids = z
-    .object({ asignacionId: z.string().uuid(), alumnoId: z.string().uuid() })
-    .safeParse({ asignacionId, alumnoId });
+  const ids = z.object({ asignacionId: z.string().uuid() }).safeParse({ asignacionId });
   if (!ids.success) return { ok: false, error: "Datos inválidos." };
+
+  const alumnoId = await alumnoIdDeAsignacion(asignacionId);
+  if (!alumnoId) return { ok: false, error: "La asignación no existe." };
 
   const plan = await listCuotasByAsignacion(asignacionId);
   const ultima = plan.find((c) => c.esUltimaCuota === 1);

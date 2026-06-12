@@ -57,6 +57,5 @@ export function generarVencimientos(primerVencimiento: Date, cantidad: number): 
 
 export const registrarPagoSchema = z.object({
   cuotaId: z.string().uuid(),
-  alumnoId: z.string().uuid(),
   observaciones: z.string().trim().max(500).optional(),
 });
