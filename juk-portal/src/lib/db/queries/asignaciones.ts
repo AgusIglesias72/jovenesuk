@@ -128,6 +128,7 @@ export type AsignacionConViaje = {
   viajeCodigo: string;
   viajeNombre: string;
   viajeEstado: string;
+  viajeOrigen: string;
   fechaInicio: Date;
   fechaFin: Date;
 };
@@ -142,6 +143,7 @@ export async function listAsignacionesByAlumno(alumnoId: string): Promise<Asigna
       viajeCodigo: viajes.codigo,
       viajeNombre: viajes.nombre,
       viajeEstado: viajes.estado,
+      viajeOrigen: viajes.origen,
       fechaInicio: viajes.fechaInicio,
       fechaFin: viajes.fechaFin,
     })

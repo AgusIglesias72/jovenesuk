@@ -1,0 +1,1 @@
+ALTER TABLE "cuotas" ADD COLUMN "registrado_por" uuid;

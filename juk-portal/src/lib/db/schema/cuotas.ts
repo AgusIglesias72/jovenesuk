@@ -47,6 +47,9 @@ export const cuotas = pgTable("cuotas", {
 
   observaciones: text("observaciones"),
 
+  // Quién registró el pago (trazabilidad, Modelo v1.7)
+  registradoPor: uuid("registrado_por"),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

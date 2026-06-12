@@ -4,11 +4,15 @@ import { notFound } from "next/navigation";
 import { LinkButton, PageHeader, TripBadge } from "@/components/ui";
 import { getAlumnoById } from "@/lib/db/queries/alumnos";
 import { listAsignacionesByAlumno } from "@/lib/db/queries/asignaciones";
+import { listCuotasByAsignacion } from "@/lib/db/queries/cuotas";
 import { listPasosByAsignacion } from "@/lib/db/queries/pasos-alumno";
 import { ALUMNO_ESTADO_LABELS } from "@/lib/domain/alumnos";
+import type { Moneda } from "@/lib/domain/cuotas";
 import type { PasoCodigo, PasoEstado } from "@/lib/domain/pasos";
+import type { ViajeOrigen } from "@/lib/domain/viajes";
 import { formatFecha } from "@/lib/utils/date";
 
+import { CuotasPanel, type CuotaView } from "./cuotas-panel";
 import { TableroM6, type PasoView } from "./tablero-m6";
 
 export const metadata = { title: "Alumno" };
@@ -47,6 +51,20 @@ export default async function AlumnoDetailPage({
           metadata: p.metadata,
           notas: p.notas,
           fechaCompletado: p.fechaCompletado,
+        })
+      ),
+      cuotas: (await listCuotasByAsignacion(a.asignacionId)).map(
+        (c): CuotaView => ({
+          id: c.id,
+          numero: c.numero,
+          esUltimaCuota: c.esUltimaCuota,
+          monto: c.monto,
+          moneda: c.moneda as Moneda,
+          estado: c.estado,
+          canal: c.canal,
+          fechaVencimiento: c.fechaVencimiento,
+          fechaPagoEfectivo: c.fechaPagoEfectivo,
+          observaciones: c.observaciones,
         })
       ),
     }))
@@ -96,7 +114,7 @@ export default async function AlumnoDetailPage({
           </p>
         </div>
       ) : (
-        tableros.map(({ asignacion, pasos }) => (
+        tableros.map(({ asignacion, pasos, cuotas }) => (
           <div key={asignacion.asignacionId}>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
@@ -117,6 +135,12 @@ export default async function AlumnoDetailPage({
               alumnoId={id}
               pasos={pasos}
               titulo={asignacion.viajeCodigo}
+            />
+            <CuotasPanel
+              alumnoId={id}
+              asignacionId={asignacion.asignacionId}
+              origenViaje={asignacion.viajeOrigen as ViajeOrigen}
+              cuotas={cuotas}
             />
           </div>
         ))
