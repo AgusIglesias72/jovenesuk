@@ -14,6 +14,9 @@ export function proxy(request: NextRequest) {
   const isAuthPath = path.startsWith("/login") || path.startsWith("/reset-password");
   const isApiAuthPath = path.startsWith("/api/auth");
   const isWebhookPath = path.startsWith("/api/webhooks");
+  // Design Lab: concepts estáticos de UI (sin datos reales ni DB). Público para
+  // poder iterar el diseño sin login. NO exponer en prod tal cual si se deploya.
+  const isDesignPath = path.startsWith("/design");
   const isPublicAsset =
     path.startsWith("/_next") ||
     path === "/favicon.ico" ||
@@ -22,7 +25,7 @@ export function proxy(request: NextRequest) {
     path === "/globe-loader.html";
 
   // Always allow these
-  if (isApiAuthPath || isWebhookPath || isPublicAsset) {
+  if (isApiAuthPath || isWebhookPath || isPublicAsset || isDesignPath) {
     return NextResponse.next();
   }
 

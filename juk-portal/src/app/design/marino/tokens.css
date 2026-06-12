@@ -1,0 +1,173 @@
+/*
+ * JUK Portal — Dirección visual "MARINO"
+ * ------------------------------------------------------------------
+ * Claro · aireado · sobrio · profesional. Navy (juk-navy) como tinta y
+ * fill primario, oro como acento puntual, coral para peligro/alertas.
+ * Superficies blancas / navy-50 muy sutil. Redondeado (geometría de
+ * Studio en los forms) pero SIN un solo degradé: fills planos, sólidos.
+ *
+ * ESTE es el único archivo que tenés que tocar para ajustar esta
+ * dirección. Todos los componentes de /design/marino consumen estas
+ * custom properties vía Tailwind arbitrary values
+ * (ej. bg-[var(--c-surface)] rounded-[var(--r-lg)]).
+ * Cambiá un valor acá y se restila TODA la dirección.
+ *
+ * Las familias tipográficas (--font-display / --font-body / --font-mono)
+ * las inyecta next/font desde la page; acá quedan los fallbacks.
+ */
+
+.v-marino {
+  /* ── Tipografías (next/font sobreescribe estas vars en el wrapper) ── */
+  --font-display: "Fraunces", "Inter", Georgia, serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* ── Paleta · Navy oficial JUK (color PRIMARIO) ── */
+  --c-navy-50: #f5f8fd;
+  --c-navy-100: #ecf1fa;
+  --c-navy-400: #9ab4e2;
+  --c-navy-500: #6f95d6;
+  --c-navy-700: #2d5198;
+  --c-navy-900: #122d5c;
+  --c-navy-950: #0a1f44;
+
+  --c-brand: #0a1f44;        /* navy-950 — tinta y fill primario */
+  --c-brand-700: #122d5c;    /* navy-900 — hover del primario */
+  --c-brand-600: #2d5198;    /* navy-700 */
+  --c-brand-500: #6f95d6;    /* navy-500 */
+  --c-brand-300: #9ab4e2;    /* navy-400 */
+  --c-brand-100: #ecf1fa;    /* navy-100 — avatares, chips */
+  --c-brand-50: #f5f8fd;     /* navy-50 — superficie sutil */
+
+  /* ── Paleta · Oro (acento puntual: links, detalle, progreso de cupo) ── */
+  --c-accent: #e6b54d;       /* gold-500 */
+  --c-accent-600: #c89a3a;   /* gold-600 — texto/link de acento */
+  --c-accent-soft: #fbf1d8;  /* fondo suave de acento */
+
+  /* ── Paleta · Coral (peligro / alertas) ── */
+  --c-coral: #ee948f;        /* coral-400 */
+  --c-coral-600: #d4524d;    /* coral-600 */
+  --c-coral-soft: #fdeceb;
+
+  /* ── Superficies (claras y aireadas) ── */
+  --c-page: #f5f8fd;         /* navy-50 muy sutil, base de la app */
+  --c-surface: #ffffff;      /* tarjeta / panel */
+  --c-surface-2: #eef3fb;    /* superficie hundida / header de tabla / chips */
+  --c-surface-3: #f7faff;    /* fila alterna / inputs en reposo */
+  --c-surface-inverse: #0a1f44; /* paneles navy (login, hero del viaje) */
+  --c-overlay: rgba(10, 31, 68, 0.05);
+
+  /* ── Tinta (texto) ── */
+  --c-ink: #122d5c;          /* navy-900 — texto principal */
+  --c-ink-muted: #4a5b7a;    /* secundario */
+  --c-ink-subtle: #8b98b3;   /* terciario / placeholder */
+  --c-ink-onbrand: #f5f8fd;  /* texto sobre navy */
+  --c-ink-onbrand-muted: #9ab4e2;
+  --c-ink-onaccent: #4a3a12; /* texto sobre el oro */
+
+  /* ── Bordes ── */
+  --c-border: #e3eaf5;       /* hairline frío */
+  --c-border-strong: #cdd9ec;
+  --c-border-brand: #9ab4e2;
+  --c-ring: rgba(10, 31, 68, 0.12);
+
+  /* ── Semánticos ── */
+  --c-success: #2f8f6b;
+  --c-success-bg: #e2f3ec;
+  --c-warning: #c89a3a;
+  --c-warning-bg: #fbf1d8;
+  --c-danger: #d4524d;       /* coral-600 */
+  --c-danger-bg: #fdeceb;
+  --c-info: #2d5198;         /* navy-700 */
+  --c-info-bg: #ecf1fa;
+  --c-neutral: #6b7793;
+  --c-neutral-bg: #eef3fb;
+
+  /* ── Badges · Estado de viaje ── */
+  --b-viaje-abierta: var(--c-info);
+  --b-viaje-abierta-bg: var(--c-info-bg);
+  --b-viaje-confirmado: var(--c-success);
+  --b-viaje-confirmado-bg: var(--c-success-bg);
+  --b-viaje-en_curso: var(--c-accent-600);
+  --b-viaje-en_curso-bg: var(--c-accent-soft);
+  --b-viaje-finalizado: var(--c-neutral);
+  --b-viaje-finalizado-bg: var(--c-neutral-bg);
+  --b-viaje-cancelado: var(--c-danger);
+  --b-viaje-cancelado-bg: var(--c-danger-bg);
+
+  /* ── Badges · Estado de paso (M6/M7) ── */
+  --b-paso-pendiente: var(--c-neutral);
+  --b-paso-pendiente-bg: var(--c-neutral-bg);
+  --b-paso-en_progreso: var(--c-info);
+  --b-paso-en_progreso-bg: var(--c-info-bg);
+  --b-paso-completado: var(--c-success);
+  --b-paso-completado-bg: var(--c-success-bg);
+  --b-paso-bloqueado: var(--c-danger);
+  --b-paso-bloqueado-bg: var(--c-danger-bg);
+  --b-paso-na: var(--c-ink-subtle);
+  --b-paso-na-bg: var(--c-overlay);
+
+  /* ── Badges · Police check ── */
+  --b-police-pendiente: var(--c-neutral);
+  --b-police-pendiente-bg: var(--c-neutral-bg);
+  --b-police-en_tramite: var(--c-warning);
+  --b-police-en_tramite-bg: var(--c-warning-bg);
+  --b-police-aprobado: var(--c-success);
+  --b-police-aprobado-bg: var(--c-success-bg);
+  --b-police-vencido: var(--c-danger);
+  --b-police-vencido-bg: var(--c-danger-bg);
+
+  /* ── Escala tipográfica (fluida) ── */
+  --t-display-1: clamp(2.5rem, 4.5vw, 3.75rem);
+  --t-display-2: clamp(1.9rem, 3vw, 2.6rem);
+  --t-h1: clamp(1.6rem, 2.4vw, 2.1rem);
+  --t-h2: 1.4rem;
+  --t-h3: 1.125rem;
+  --t-body: 0.975rem;
+  --t-small: 0.85rem;
+  --t-label: 0.74rem;
+  --t-mono: 0.8rem;
+
+  --lh-tight: 1.08;
+  --lh-snug: 1.3;
+  --lh-body: 1.6;
+
+  --ls-label: 0.06em;
+  --ls-tight: -0.02em;
+
+  /* ── Escala de espaciado ── */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+  --sp-8: 4rem;
+  --sp-9: 6rem;
+
+  /* ── Radios (GRANDES y redondeados: heredados del rounded de Studio) ── */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-pill: 999px;
+
+  /* ── Sombras (difusas, suaves, TEÑIDAS DE NAVY) ── */
+  --shadow-soft: 0 2px 8px rgba(10, 31, 68, 0.05);
+  --shadow-1: 0 2px 10px rgba(10, 31, 68, 0.06), 0 1px 3px rgba(10, 31, 68, 0.04);
+  --shadow-2: 0 12px 30px rgba(10, 31, 68, 0.09), 0 3px 8px rgba(10, 31, 68, 0.05);
+  --shadow-3: 0 24px 60px rgba(10, 31, 68, 0.16), 0 8px 18px rgba(10, 31, 68, 0.07);
+  --shadow-accent: 0 8px 20px rgba(230, 181, 77, 0.28);
+  --shadow-brand: 0 12px 28px rgba(10, 31, 68, 0.22);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+
+  --ring-focus: 0 0 0 4px rgba(45, 81, 152, 0.18);
+  --ring-accent: 0 0 0 4px rgba(230, 181, 77, 0.24);
+  --ring-error: 0 0 0 4px rgba(212, 82, 77, 0.18);
+
+  /* ── Misc ── */
+  --hairline: 1px;
+  --tap: 44px; /* target de toque mínimo (touch-first) */
+}

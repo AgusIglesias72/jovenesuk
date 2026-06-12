@@ -1,0 +1,182 @@
+/* ============================================================================
+   DIRECCIÓN VISUAL · "CONSOLE"
+   ----------------------------------------------------------------------------
+   Consola de operaciones / power-tool. Densa, eficiente, profesional.
+   Gris-frío neutro + UN acento filoso (indigo eléctrico). Bordes 1px crisp.
+
+   ★★★ ESTE ES EL ÚNICO ARCHIVO QUE TENÉS QUE TOCAR PARA AJUSTAR LA DIRECCIÓN ★★★
+   Cambiá cualquier variable acá y se restila TODO (las 4 pantallas).
+   ============================================================================ */
+
+.v-console {
+  /* ---- PALETA · superficies (gris-frío) -------------------------------- */
+  --c-bg: #f4f5f7; /* fondo de la app (lienzo) */
+  --c-surface: #ffffff; /* tarjetas, paneles, filas */
+  --c-surface-2: #fbfbfc; /* superficie levemente hundida (toolbars, headers de tabla) */
+  --c-surface-3: #eef0f3; /* relleno sutil / hover de fila / track de barras */
+  --c-header: #0d1018; /* header oscuro de la consola */
+  --c-header-2: #161a24; /* superficie sobre el header oscuro */
+
+  /* ---- PALETA · tinta (texto) ------------------------------------------ */
+  --c-ink: #15181f; /* texto primario */
+  --c-ink-2: #4a4f5a; /* texto secundario */
+  --c-ink-3: #7b818d; /* texto terciario / labels */
+  --c-ink-4: #a6abb5; /* placeholder / disabled */
+  --c-ink-inv: #f5f6f8; /* texto sobre superficies oscuras */
+  --c-ink-inv-2: #9298a6; /* texto secundario sobre oscuro */
+
+  /* ---- PALETA · bordes -------------------------------------------------- */
+  --c-border: #e3e5ea; /* borde base 1px */
+  --c-border-strong: #cfd2da; /* borde más marcado (inputs, divisores duros) */
+  --c-border-dark: #262b37; /* borde sobre header oscuro */
+
+  /* ---- PALETA · acento (indigo eléctrico) ------------------------------ */
+  --c-brand: #4f46e5; /* acento filoso */
+  --c-brand-hover: #4338ca;
+  --c-brand-active: #3730a3;
+  --c-brand-ink: #ffffff; /* texto sobre el acento */
+  --c-brand-soft: #eef0ff; /* relleno suave del acento (chips, focus bg) */
+  --c-brand-soft-ink: #3730a3; /* texto sobre relleno suave */
+  --c-brand-ring: rgba(79, 70, 229, 0.35); /* halo de focus */
+
+  /* ---- PALETA · semánticos (estado) ------------------------------------ */
+  --c-info: #2563eb;
+  --c-info-soft: #e7efff;
+  --c-info-ink: #1e40af;
+
+  --c-success: #16855b;
+  --c-success-soft: #e2f5ec;
+  --c-success-ink: #0c5d3e;
+
+  --c-warning: #b06a04;
+  --c-warning-soft: #fdf0d9;
+  --c-warning-ink: #8a5300;
+
+  --c-danger: #d12953;
+  --c-danger-soft: #fde7ec;
+  --c-danger-ink: #a01239;
+
+  --c-neutral: #5a6071;
+  --c-neutral-soft: #eceef2;
+  --c-neutral-ink: #3a3f4c;
+
+  /* ---- BADGES · estados de PASO (M6/M7) -------------------------------- */
+  --badge-pendiente-bg: var(--c-neutral-soft);
+  --badge-pendiente-ink: var(--c-neutral-ink);
+  --badge-pendiente-dot: var(--c-neutral);
+
+  --badge-en_progreso-bg: var(--c-info-soft);
+  --badge-en_progreso-ink: var(--c-info-ink);
+  --badge-en_progreso-dot: var(--c-info);
+
+  --badge-completado-bg: var(--c-success-soft);
+  --badge-completado-ink: var(--c-success-ink);
+  --badge-completado-dot: var(--c-success);
+
+  --badge-bloqueado-bg: var(--c-danger-soft);
+  --badge-bloqueado-ink: var(--c-danger-ink);
+  --badge-bloqueado-dot: var(--c-danger);
+
+  --badge-na-bg: var(--c-surface-3);
+  --badge-na-ink: var(--c-ink-3);
+  --badge-na-dot: var(--c-ink-4);
+
+  /* ---- BADGES · estados de VIAJE --------------------------------------- */
+  --badge-inscripcion_abierta-bg: var(--c-brand-soft);
+  --badge-inscripcion_abierta-ink: var(--c-brand-soft-ink);
+  --badge-inscripcion_abierta-dot: var(--c-brand);
+
+  --badge-confirmado-bg: var(--c-success-soft);
+  --badge-confirmado-ink: var(--c-success-ink);
+  --badge-confirmado-dot: var(--c-success);
+
+  --badge-en_curso-bg: var(--c-info-soft);
+  --badge-en_curso-ink: var(--c-info-ink);
+  --badge-en_curso-dot: var(--c-info);
+
+  --badge-finalizado-bg: var(--c-neutral-soft);
+  --badge-finalizado-ink: var(--c-neutral-ink);
+  --badge-finalizado-dot: var(--c-neutral);
+
+  --badge-cancelado-bg: var(--c-danger-soft);
+  --badge-cancelado-ink: var(--c-danger-ink);
+  --badge-cancelado-dot: var(--c-danger);
+
+  /* ---- BADGES · police check ------------------------------------------- */
+  --badge-police_pendiente-bg: var(--c-neutral-soft);
+  --badge-police_pendiente-ink: var(--c-neutral-ink);
+  --badge-police_pendiente-dot: var(--c-neutral);
+
+  --badge-en_tramite-bg: var(--c-warning-soft);
+  --badge-en_tramite-ink: var(--c-warning-ink);
+  --badge-en_tramite-dot: var(--c-warning);
+
+  --badge-aprobado-bg: var(--c-success-soft);
+  --badge-aprobado-ink: var(--c-success-ink);
+  --badge-aprobado-dot: var(--c-success);
+
+  --badge-vencido-bg: var(--c-danger-soft);
+  --badge-vencido-ink: var(--c-danger-ink);
+  --badge-vencido-dot: var(--c-danger);
+
+  /* ---- TIPOGRAFÍA · familias (vienen de next/font en page.tsx) --------- */
+  --font-display: var(--font-console-display), "Georgia", serif;
+  --font-body: var(--font-console-body), system-ui, sans-serif;
+  --font-mono: var(--font-console-mono), "SF Mono", "Consolas", monospace;
+
+  /* ---- TIPOGRAFÍA · escala (densa, operativa) -------------------------- */
+  --t-2xs: 10.5px;
+  --t-xs: 11.5px;
+  --t-sm: 12.5px;
+  --t-base: 13.5px;
+  --t-md: 15px;
+  --t-lg: 18px;
+  --t-xl: 22px;
+  --t-2xl: 28px;
+  --t-3xl: 34px;
+
+  --lh-tight: 1.15;
+  --lh-snug: 1.35;
+  --lh-normal: 1.5;
+
+  --ls-tight: -0.02em;
+  --ls-normal: 0;
+  --ls-wide: 0.04em;
+  --ls-caps: 0.08em; /* labels/eyebrows en MAYÚSCULA */
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* ---- ESPACIADO · grid de 4px ----------------------------------------- */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --s-16: 64px;
+
+  /* densidad de filas / controles */
+  --row-h: 38px;
+  --control-h: 34px;
+
+  /* ---- RADIOS (chicos, crisp) ------------------------------------------ */
+  --r-xs: 3px;
+  --r-sm: 5px;
+  --r-md: 7px;
+  --r-lg: 10px;
+  --r-full: 999px;
+
+  /* ---- SOMBRAS (elevación sutil) --------------------------------------- */
+  --sh-xs: 0 1px 1px rgba(13, 16, 24, 0.04);
+  --sh-sm: 0 1px 2px rgba(13, 16, 24, 0.06), 0 1px 1px rgba(13, 16, 24, 0.04);
+  --sh-md: 0 6px 18px -6px rgba(13, 16, 24, 0.14), 0 2px 4px rgba(13, 16, 24, 0.05);
+  --sh-lg: 0 18px 40px -12px rgba(13, 16, 24, 0.22), 0 4px 8px rgba(13, 16, 24, 0.06);
+  --sh-focus: 0 0 0 3px var(--c-brand-ring);
+  --sh-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
