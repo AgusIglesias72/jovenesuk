@@ -118,6 +118,13 @@ export default async function ViajeDetailPage({
         pasos={pasosView}
         policeEstado={policeEstado}
         policeGLs={policeGLs}
+        roster={asignados
+          .filter((a) => a.estado === "activa")
+          .map((a) => ({
+            asignacionId: a.asignacionId,
+            nombre: a.alumno.nombre,
+            apellido: a.alumno.apellido,
+          }))}
       />
     </>
   );

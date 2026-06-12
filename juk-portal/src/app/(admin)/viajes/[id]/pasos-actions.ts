@@ -5,6 +5,7 @@ import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 
 import { requireAdminJuk } from "@/lib/auth/helpers";
+import { listAsignacionesByViaje } from "@/lib/db/queries/asignaciones";
 import { registrarAuditoria } from "@/lib/db/queries/auditoria";
 import {
   listOrInitPasosViaje,
@@ -17,9 +18,12 @@ import {
   PASO_VIAJE_ESTADOS,
   PASO_VIAJE_LABELS,
   PASO_VIAJE_TIPOS,
+  PASOS_POR_ALUMNO,
+  coberturaPorAlumno,
   esPasoDerivado,
   puedeTransicionarPaso,
   type EditablePasoTipo,
+  type PasoPorAlumno,
   type PasoViajeEstado,
   type PasoViajeTipo,
 } from "@/lib/domain/pasos-viaje";
@@ -142,5 +146,73 @@ export async function guardarMetadataPasoViajeAction(
   } catch (err) {
     Sentry.captureException(err);
     return { ok: false, error: "No pudimos guardar los datos del paso." };
+  }
+}
+
+/**
+ * M7 P3/P4: marca/desmarca la cobertura de un alumno (transfer asignado o
+ * tarjeta entregada). El paso se completa solo cuando TODOS los alumnos
+ * activos del viaje están cubiertos, y se reabre si deja de estarlo.
+ */
+export async function marcarAlumnoPasoViajeAction(
+  viajeId: string,
+  tipo: string,
+  asignacionId: string,
+  cubierto: boolean
+): Promise<ActionResult<{ marcados: number; total: number; estado: PasoViajeEstado }>> {
+  const session = await requireAdminJuk();
+
+  const ids = z
+    .object({ viajeId: z.string().uuid(), asignacionId: z.string().uuid() })
+    .safeParse({ viajeId, asignacionId });
+  if (!ids.success || !(PASOS_POR_ALUMNO as readonly string[]).includes(tipo)) {
+    return { ok: false, error: "Datos inválidos." };
+  }
+  const tipoPaso = tipo as PasoPorAlumno;
+
+  try {
+    const pasos = await listOrInitPasosViaje(viajeId);
+    const paso = pasos.find((p) => p.tipo === tipoPaso);
+    if (!paso) return { ok: false, error: "El paso no existe." };
+
+    const metadata = paso.metadata as Record<string, unknown>;
+    const porAlumno = {
+      ...((metadata.porAlumno as Record<string, boolean> | undefined) ?? {}),
+      [asignacionId]: cubierto,
+    };
+    await updateMetadataPasoViaje(viajeId, tipoPaso, { ...metadata, porAlumno }, session.user.id);
+
+    const activas = await listAsignacionesByViaje(viajeId);
+    const idsActivas = activas
+      .filter((a) => a.estado === "activa")
+      .map((a) => a.asignacionId);
+    const cobertura = coberturaPorAlumno(porAlumno, idsActivas);
+
+    // Completar / reabrir según cobertura (sin pisar bloqueos manuales).
+    let estadoFinal = paso.estado as PasoViajeEstado;
+    if (cobertura.completo && paso.estado !== "completado") {
+      await updateEstadoPasoViaje(viajeId, tipoPaso, "completado", session.user.id);
+      estadoFinal = "completado";
+    } else if (!cobertura.completo && paso.estado === "completado") {
+      await updateEstadoPasoViaje(viajeId, tipoPaso, "en_progreso", session.user.id);
+      estadoFinal = "en_progreso";
+    } else if (!cobertura.completo && paso.estado === "pendiente" && cobertura.marcados > 0) {
+      await updateEstadoPasoViaje(viajeId, tipoPaso, "en_progreso", session.user.id);
+      estadoFinal = "en_progreso";
+    }
+
+    await safeAudit({
+      accion: "cambio_estado_paso",
+      entidadTipo: "paso_viaje",
+      entidadId: viajeId,
+      usuarioId: session.user.id,
+      metadata: { tipo: tipoPaso, asignacionId, cubierto, ...cobertura },
+    });
+
+    revalidatePath(`/viajes/${viajeId}`);
+    return { ok: true, data: { ...cobertura, estado: estadoFinal } };
+  } catch (err) {
+    Sentry.captureException(err);
+    return { ok: false, error: "No pudimos actualizar la cobertura." };
   }
 }

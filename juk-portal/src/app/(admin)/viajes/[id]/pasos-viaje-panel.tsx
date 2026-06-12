@@ -21,7 +21,11 @@ import {
 } from "@/lib/domain/pasos-viaje";
 import { formatFecha } from "@/lib/utils/date";
 
-import { cambiarEstadoPasoViajeAction, guardarMetadataPasoViajeAction } from "./pasos-actions";
+import {
+  cambiarEstadoPasoViajeAction,
+  guardarMetadataPasoViajeAction,
+  marcarAlumnoPasoViajeAction,
+} from "./pasos-actions";
 
 export type PasoView = {
   tipo: PasoViajeTipo;
@@ -45,16 +49,20 @@ const POLICE_TONE: Record<PoliceCheckEstado, "neutral" | "info" | "success" | "d
   vencido: "danger",
 };
 
+export type RosterItem = { asignacionId: string; nombre: string; apellido: string };
+
 export function PasosViajePanel({
   viajeId,
   pasos,
   policeEstado,
   policeGLs,
+  roster,
 }: {
   viajeId: string;
   pasos: PasoView[];
   policeEstado: PasoViajeEstado;
   policeGLs: PoliceGLView[];
+  roster: RosterItem[];
 }) {
   const [selected, setSelected] = useState<PasoViajeTipo>("pasajes");
 
@@ -115,6 +123,7 @@ export function PasosViajePanel({
           viajeId={viajeId}
           paso={selectedPaso}
           pasajesCompletado={pasajesCompletado}
+          roster={roster}
         />
       ) : null}
     </section>
@@ -125,10 +134,12 @@ function PasoEditor({
   viajeId,
   paso,
   pasajesCompletado,
+  roster,
 }: {
   viajeId: string;
   paso: PasoView;
   pasajesCompletado: boolean;
+  roster: RosterItem[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -203,10 +214,98 @@ function PasoEditor({
         <ExcursionesForm metadata={paso.metadata} disabled={isPending} onSave={guardar} />
       )}
       {tipo === "transfers" && (
-        <TransfersForm metadata={paso.metadata} disabled={isPending} onSave={guardar} />
+        <>
+          <TransfersForm metadata={paso.metadata} disabled={isPending} onSave={guardar} />
+          <RosterCobertura
+            viajeId={viajeId}
+            tipo="transfers"
+            etiqueta="Transfer asignado"
+            metadata={paso.metadata}
+            roster={roster}
+            onError={setError}
+          />
+        </>
       )}
       {tipo === "tarjeta_transporte" && (
-        <TarjetaForm metadata={paso.metadata} disabled={isPending} onSave={guardar} />
+        <>
+          <TarjetaForm metadata={paso.metadata} disabled={isPending} onSave={guardar} />
+          <RosterCobertura
+            viajeId={viajeId}
+            tipo="tarjeta_transporte"
+            etiqueta="Tarjeta entregada"
+            metadata={paso.metadata}
+            roster={roster}
+            onError={setError}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Cobertura por alumno (M7 P3/P4): el paso se completa cuando TODOS los
+ * alumnos del roster están marcados, y se reabre si alguno se desmarca.
+ */
+function RosterCobertura({
+  viajeId,
+  tipo,
+  etiqueta,
+  metadata,
+  roster,
+  onError,
+}: {
+  viajeId: string;
+  tipo: "transfers" | "tarjeta_transporte";
+  etiqueta: string;
+  metadata: Record<string, unknown>;
+  roster: RosterItem[];
+  onError: (msg: string | null) => void;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const porAlumno = (metadata.porAlumno as Record<string, boolean> | undefined) ?? {};
+  const marcados = roster.filter((r) => porAlumno[r.asignacionId] === true).length;
+
+  function marcar(asignacionId: string, cubierto: boolean) {
+    startTransition(async () => {
+      onError(null);
+      const r = await marcarAlumnoPasoViajeAction(viajeId, tipo, asignacionId, cubierto);
+      if (r.ok) router.refresh();
+      else onError(r.error);
+    });
+  }
+
+  return (
+    <div className="mt-5" data-roster-cobertura={tipo}>
+      <div className="mb-2 flex items-center justify-between">
+        <h4 className="text-[length:var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-muted)]">
+          {etiqueta} · por alumno
+        </h4>
+        <span className="font-mono text-[length:var(--t-small)] tabular-nums text-[var(--c-ink-muted)]">
+          {marcados}/{roster.length}
+        </span>
+      </div>
+      {roster.length === 0 ? (
+        <p className="text-sm text-[var(--c-ink-subtle)]">
+          Sin alumnos asignados al viaje todavía.
+        </p>
+      ) : (
+        <ul className="divide-y divide-[var(--c-border)] overflow-hidden rounded-[var(--r-md)] border border-[var(--c-border)] bg-[var(--c-surface)]">
+          {roster.map((r) => (
+            <li key={r.asignacionId} className="flex items-center justify-between px-4 py-2">
+              <span className="text-sm font-medium text-[var(--c-ink)]">
+                {r.apellido}, {r.nombre}
+              </span>
+              <Checkbox
+                label={etiqueta}
+                checked={porAlumno[r.asignacionId] === true}
+                disabled={isPending}
+                onChange={(e) => marcar(r.asignacionId, e.target.checked)}
+              />
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

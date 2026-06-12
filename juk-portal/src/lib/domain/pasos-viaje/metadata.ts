@@ -59,3 +59,26 @@ export type ExcursionItem = z.infer<typeof excursionItemSchema>;
 export type ExcursionesMetadata = z.infer<typeof excursionesMetadataSchema>;
 export type TransfersMetadata = z.infer<typeof transfersMetadataSchema>;
 export type TarjetaTransporteMetadata = z.infer<typeof tarjetaTransporteMetadataSchema>;
+
+/**
+ * Cobertura por alumno (PRD M7 P3/P4): transfers y tarjetas se marcan alumno
+ * por alumno; el paso se completa cuando TODOS los activos están cubiertos.
+ * `porAlumno` mapea asignacionId → cubierto.
+ */
+export type CoberturaPorAlumno = {
+  marcados: number;
+  total: number;
+  completo: boolean;
+};
+
+export function coberturaPorAlumno(
+  porAlumno: Record<string, boolean> | undefined,
+  asignacionesActivas: string[]
+): CoberturaPorAlumno {
+  const marcados = asignacionesActivas.filter((id) => porAlumno?.[id] === true).length;
+  const total = asignacionesActivas.length;
+  return { marcados, total, completo: total > 0 && marcados === total };
+}
+
+export const PASOS_POR_ALUMNO = ["transfers", "tarjeta_transporte"] as const;
+export type PasoPorAlumno = (typeof PASOS_POR_ALUMNO)[number];
