@@ -36,12 +36,18 @@ Los usuarios desactivados (`isActive = false`) no pueden entrar aunque tengan se
 - **Group Leaders** — ABM con datos + seguimiento del police check.
 - **Usuarios** (solo super_admin) — alta de admins con password temporal, cambio de rol, activar/desactivar.
 - **Asignaciones** — detalle del viaje (`/viajes/[id]`) con su roster: asignar/quitar alumnos, control de
-  cupo (GL×12) y validación de pasaporte. NO genera cuotas ni pasos todavía (eso es lo gated).
+  cupo (GL×12) y validación de pasaporte. NO genera cuotas ni pasos del alumno todavía (eso es lo gated).
+- **Seguimiento M7** (pasos del viaje) — strip de los 5 pasos en el detalle del viaje, máquina de estados
+  con dependencia (Transfers ← Pasajes), metadata tipada por paso y audit log. *Police Checks* es derivado
+  del police check de cada Group Leader del viaje. Falta: asignar GLs al viaje desde la UI (la FK ya existe)
+  y el upload de archivos a R2 (hoy las URLs de e-ticket/comprobante son manuales).
 
 ### Pendientes (marcados "Pronto" en la nav o sin entrada)
 - **Pagos / cuotas** — bloqueado por CRIT-01 (ver abajo).
-- **Seguimiento M6** (10 pasos por alumno) y **M7** (5 pasos por viaje) — incluye trámites como
-  Application Form, Immigration Letter, ETA, Parental Consent, etc.
+- **Seguimiento M6** (10 pasos por alumno) — Application Form, Immigration Letter, ETA, Parental Consent,
+  etc. Paso 2/10 (pagos) bloqueado por CRIT-01; Paso 9 (psicofísico) por CRIT-03.
+- **Asignación de Group Leaders al viaje** (UI) — habilita el cálculo real del paso Police Checks del M7.
+- **Upload de archivos a R2** — infra de almacenamiento (no existe todavía); hoy los docs van como URL manual.
 - **Configuración**, **recordatorios automáticos** (Trigger.dev), **alertas** dinámicas.
 
 ## Decisiones de negocio abiertas (gating)

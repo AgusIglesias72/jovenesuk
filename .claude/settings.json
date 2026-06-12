@@ -13,20 +13,23 @@
     ]
   },
   "permissions": {
+    "defaultMode": "acceptEdits",
     "allow": [
-      "Bash(npm run typecheck:*)",
-      "Bash(npm run lint:*)",
-      "Bash(npm run db:generate:*)",
-      "Bash(npm run format:*)",
-      "Bash(git status:*)",
-      "Bash(git diff:*)",
-      "Bash(git log:*)",
-      "PowerShell(npm run typecheck:*)",
-      "PowerShell(npm run lint:*)",
-      "PowerShell(npm run db:generate:*)",
-      "PowerShell(git status:*)",
-      "PowerShell(git diff:*)",
-      "PowerShell(git log:*)"
+      "Bash",
+      "PowerShell",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "Agent",
+      "Skill",
+      "TodoWrite",
+      "NotebookEdit",
+      "mcp__plugin_playwright_playwright",
+      "mcp__shadcn-studio-mcp"
     ]
   }
 }
