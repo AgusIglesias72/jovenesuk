@@ -79,5 +79,9 @@ completas (12/06/2026)**: tipo_viaje + JUK directo + flujo de pago derivado, con
 por colegio, tablero Paso 0 + A1…D2, lockout de login, y el **trigger de asignación** (crea los
 11 pasos con N/A automáticos + valida pasaporte + auto-Confirmado al 5°). **Dirección visual
 STUDIO aplicada** a toda la app (tokens del lab como fuente de verdad, components/ui, shell y
-auth). Próximo: UI del tablero M6 + cuotas B1/B2 (diseños en `design/shared/seguimiento.tsx` y
-`pagos.tsx`), dashboard v2, webhook + credenciales de familias.
+auth). **Tablero M6 con UI** en `/alumnos/[id]` (transiciones validadas + auditadas),
+**cuotas B1/B2 completas** (multi-moneda, sync de pasos, C2 se desbloquea con B1) y
+**dashboard v2 con alertas reales** (pasaporte, mora, bloqueados, police checks). Cuentas de
+test (`test.superadmin@` / `test.admin@`, password fija dev) + `npm run db:seed:demo` con
+dataset que cubre todas las ramas. Próximo: webhook + credenciales de familias, recordatorios
+(Trigger.dev), uploads R2, panel de excursiones/transfers por alumno del M7.
