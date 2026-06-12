@@ -63,7 +63,6 @@ está bloqueado. Confirmá con el usuario cómo proceder (andamiar con flag vs. 
 
 ## Paso 4 — Cerrar
 
-1. `npm run typecheck` y `npm run lint` (desde `juk-portal/`). Arreglá lo que rompa.
-2. Si cambiaste schema y todavía no generaste la migración → `/juk-migracion`.
-3. Pasá el diff por el agente **`juk-revisor`**.
-4. Resumí al usuario qué quedó hecho y qué falta (no más de 2 frases).
+Corré el loop completo de **`/juk-cierre`** (typecheck + lint + unit + E2E afectados +
+navegador + migración pendiente + `juk-revisor`). Después resumí al usuario qué quedó
+hecho y qué falta (no más de 2 frases).

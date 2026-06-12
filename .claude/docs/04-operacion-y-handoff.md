@@ -24,10 +24,14 @@ Si la sesión expira (8h), volvés a entrar.
 ```bash
 npm run typecheck    # tsc --noEmit (estricto)
 npm run lint         # eslint (flat config)
+npm run test         # Vitest — unit tests del dominio (src/**/*.test.ts)
+npm run test:watch   # Vitest en modo watch
 npm run test:e2e     # Playwright (reusa el dev server en 3001)
 ```
 
-Mantené `typecheck` y `lint` en verde antes de commitear (es lo que el agente `juk-revisor` también chequea).
+El loop de cierre completo (qué correr antes de dar por lista una feature) está en el skill
+**`/juk-cierre`** — es la Definition of Done única del proyecto. Mantené `typecheck`, `lint`
+y `test` en verde antes de commitear (es lo que el agente `juk-revisor` también chequea).
 
 ## Base de datos y migraciones
 

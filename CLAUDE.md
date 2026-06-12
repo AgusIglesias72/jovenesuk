@@ -46,7 +46,8 @@ dashboard layout, shell/navegación, y los pasos 1, 3-8 del M6.
 - **Implementar un paso del M6/M7** → `/juk-paso <tipo>`.
 - **Cambié un schema Drizzle** → `/juk-migracion` (genera + revisa + commitea la migración).
 - **¿Puedo tocar este módulo?** → `/juk-gate <área>`.
-- **Antes de dar por cerrada una feature** → pasala por el agente `juk-revisor`.
+- **Antes de dar por cerrada una feature** → `/juk-cierre` (typecheck + lint + unit + E2E +
+  navegador + `juk-revisor`). Es la Definition of Done única.
 
 ## Documentación de handoff
 

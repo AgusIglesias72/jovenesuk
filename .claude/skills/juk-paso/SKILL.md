@@ -53,4 +53,5 @@ Pasos seguros para implementar ya: **1, 3, 4, 5, 6, 7, 8**.
 
 ## Cerrar
 
-`npm run typecheck` + `npm run lint`, y pasá el diff por **`juk-revisor`**.
+Corré el loop completo de **`/juk-cierre`**. La lógica de transiciones y la metadata
+tipada del paso van con unit test (`<archivo>.test.ts` al lado, corre con `npm run test`).
