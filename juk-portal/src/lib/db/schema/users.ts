@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, pgEnum, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, pgEnum, uuid, integer, bigint } from "drizzle-orm/pg-core";
 
 /**
  * Roles del sistema.
@@ -24,11 +24,27 @@ export const users = pgTable("users", {
   email: text("email").unique().notNull(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   name: text("name").notNull(),
+  apellido: text("apellido"),
   image: text("image"),
   role: userRole("role").notNull().default("admin_juk"),
+  // Área del admin dentro del equipo (CEO/Sales/Marketing/Operations). Libre
+  // a propósito: el PRD lo llama sub_rol_admin pero no fija valores.
+  subRolAdmin: text("sub_rol_admin"),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+/**
+ * Rate limiting de Better-Auth con storage en DB (US-01: 5 intentos fallidos
+ * → bloqueo 15 min). En memoria no sirve: cada lambda de Vercel resetearía
+ * el contador.
+ */
+export const rateLimits = pgTable("rate_limits", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  key: text("key").unique().notNull(),
+  count: integer("count").notNull(),
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
 });
 
 /**

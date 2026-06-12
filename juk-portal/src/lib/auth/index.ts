@@ -51,6 +51,16 @@ export const auth = betterAuth({
         resetUrl: url,
       });
     },
+
+    // US-04: aviso por email cuando la contraseña se cambió con éxito.
+    onPasswordReset: async ({ user }) => {
+      const { sendPasswordChangedEmail } = await import("@/lib/email/send-password-changed");
+      await sendPasswordChangedEmail({
+        to: user.email,
+        name: user.name,
+        changedAt: new Date(),
+      });
+    },
   },
 
   session: {
@@ -63,8 +73,17 @@ export const auth = betterAuth({
   },
 
   rateLimit: {
-    window: 60,                      // 60s window
-    max: 5,                          // 5 attempts (PRD §1.2 US-01)
+    enabled: true,                   // también en dev (default: solo prod)
+    storage: "database",             // tabla rate_limits (memoria no sirve en serverless)
+    modelName: "rateLimit",
+    window: 60,
+    max: 20,
+    // US-01: 5 intentos de login en 15 min → bloqueado hasta que pase la ventana.
+    // Aproximación al "5 fallidos consecutivos" del PRD: cuenta intentos, no
+    // solo fallas (Better-Auth no expone hook de login fallido).
+    customRules: {
+      "/sign-in/email": { window: 60 * 15, max: 5 },
+    },
   },
 
   advanced: {
