@@ -113,6 +113,6 @@ export async function crearGroupLeader(
 /** El <select> de estado del paso M7 abierto (es el único con la opción "Pendiente"). */
 export function selectorEstadoPaso(page: Page) {
   return page.locator("select", {
-    has: page.getByRole("option", { name: "Pendiente", exact: true }),
+    has: page.locator('option:text-is("Pendiente")'),
   });
 }

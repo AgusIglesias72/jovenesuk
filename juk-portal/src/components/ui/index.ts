@@ -60,3 +60,12 @@ export { PageHeader } from "./page-header";
 
 // Loading
 export { GlobeLoader } from "./globe-loader";
+export {
+  Skeleton,
+  PageHeaderSkeleton,
+  ListPageSkeleton,
+  FormPageSkeleton,
+  FichaAlumnoSkeleton,
+  ViajeDetalleSkeleton,
+  DashboardSkeleton,
+} from "./skeleton";

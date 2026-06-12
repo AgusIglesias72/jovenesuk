@@ -26,7 +26,7 @@ export function GlobeLoader({
     <div
       className={cn(
         fullScreen ? "fixed inset-0 z-50" : "relative min-h-[70vh] w-full",
-        "overflow-hidden bg-[#efece6]",
+        "overflow-hidden",
         className
       )}
     >

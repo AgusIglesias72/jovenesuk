@@ -8,7 +8,7 @@ function alumnosPanel(page: Page) {
 
 function selectorElegibles(page: Page) {
   return page.locator("select", {
-    has: page.getByRole("option", { name: "Elegí un alumno…" }),
+    has: page.locator('option:text-is("Elegí un alumno…")'),
   });
 }
 
