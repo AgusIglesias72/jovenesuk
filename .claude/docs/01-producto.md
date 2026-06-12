@@ -73,8 +73,11 @@ portal interno M1–M7, modelo de datos objetivo, Portal de Familias, Vista del 
 
 ## Estado (junio 2026)
 
-Fase 0-1 completas (infra, auth, design system). Fase 2-3 cubiertas por los ABMs de Colegios,
-Viajes, Alumnos, Group Leaders y Usuarios; M7 parcial. PRDs nuevos procesados (11/06/2026):
-desbloquean Pagos, pasaporte y M6 completo. Próximo gran bloque: el plan del doc
-`docs/prd/06-deltas-implementacion.md` (fundaciones del modelo → trigger de asignación →
-tablero M6 → dashboard v2).
+Fase 0-1 completas. ABMs de Colegios, Viajes, Alumnos, GLs y Usuarios; M7 parcial. PRDs
+procesados (11/06/2026) y decisiones tomadas: cero gates ROJOS. **Fundaciones del modelo
+completas (12/06/2026)**: tipo_viaje + JUK directo + flujo de pago derivado, config documental
+por colegio, tablero Paso 0 + A1…D2, lockout de login, y el **trigger de asignación** (crea los
+11 pasos con N/A automáticos + valida pasaporte + auto-Confirmado al 5°). **Dirección visual
+STUDIO aplicada** a toda la app (tokens del lab como fuente de verdad, components/ui, shell y
+auth). Próximo: UI del tablero M6 + cuotas B1/B2 (diseños en `design/shared/seguimiento.tsx` y
+`pagos.tsx`), dashboard v2, webhook + credenciales de familias.
