@@ -38,10 +38,14 @@ pueden construir.
 - **MIN-01** Parental Consent: versión por edad ¿al inicio del viaje o al descargar? ¿1 o 2 archivos por colegio?
 - **MIN-04** Diario con múltiples GLs: ¿publica solo el principal?
 - **MIN-06** Definición de "paso obligatorio" para alertas de viaje próximo.
-- **MIN-07** Login del Portal de Familias por DNI sobre Better-Auth + cuentas por grupo familiar.
+- **MIN-07** Identidad de la cuenta de familias: ¿email del Tutor 1 (Interno) o DNI del alumno (Modelo/Familias)?
 - **MIN-08** Retención del acceso post-viaje de familias (representante ya es permanente).
 - **MIN-09** Email emisor de recordatorios (info@ vs noreply@).
 - **MIN-10** Precio por alumno / cálculo de precio final (v1 no calcula precios).
+- **MIN-11** Defaults de la config documental (¿todo Opcional o por documento?).
+- **MIN-12** Dropdown de asignación: ¿solo Inscripción abierta o también Confirmado? (los Individuales nacen Confirmados).
+- **MIN-13** Semántica de "Opcional" en la config documental (¿paso activo u oculto?).
+- **MIN-14** Dueño de la regla de C1/ETA: ¿país del viaje o `tipo_entrada_requerida` del colegio?
 
 ### ⚙️ Técnicos (decidibles por el dev, documentar al resolver)
 

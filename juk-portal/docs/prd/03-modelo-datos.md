@@ -108,6 +108,8 @@ Portal de acceso único para el equipo JUK (rol Admin) y Representantes externos
 
 Cuenta del Portal de Familias. Se genera **automáticamente** al crear el alumno (RV-12); el envío de credenciales es una acción manual separada del equipo JUK. El DNI del alumno es el username.
 
+> ⚠️ AMBIGUO (**MIN-07**): el identificador de login del Portal de Familias está contradicho entre fuentes. El Interno v1.13 (US-19b) dice usuario = **email del Tutor 1**; este Modelo y el PRD de Familias dicen usuario = **DNI del alumno**. No asumir ninguno al implementar: resolver MIN-07 en `OPEN_DECISIONS.md` primero.
+
 | Campo | Tipo | Oblig. | Notas |
 |---|---|---|---|
 | `id_cuenta_familias` | UUID (PK) | NOT NULL | |
@@ -120,7 +122,7 @@ Cuenta del Portal de Familias. Se genera **automáticamente** al crear el alumno
 | `fecha_envio_credenciales` | TIMESTAMP | NULL | Cuándo JUK envió las credenciales |
 | `email_contacto` | VARCHAR(255) | NOT NULL | Email del padre/tutor principal (o del alumno si `Alumno_Adulto`) |
 | `whatsapp` | VARCHAR(30) | NULL | Para alertas urgentes |
-| `titular` | ENUM | NOT NULL | `Padre_Tutor` \| `Alumno_Adulto`. Determinado automáticamente: `Alumno_Adulto` si el alumno cumple 18 antes de `VIAJE.fecha_inicio`. Determina lenguaje del portal, visibilidad de Pasos 5/8 y destinatario del NPS |
+| `titular` | ENUM | NOT NULL | `Padre_Tutor` \| `Alumno_Adulto`. Determinado automáticamente: `Alumno_Adulto` si el alumno cumple 18 antes de `VIAJE.fecha_inicio`. Determina lenguaje del portal, visibilidad de A3/D1 (ex Pasos 5/8) y destinatario del NPS |
 
 ### 3.3 COLEGIO_DESTINO
 
@@ -165,6 +167,12 @@ Institución educativa en el extranjero (principalmente UK) donde estudian los a
 | `notas_internas` | TEXT | NULL | Solo visible para Admin JUK |
 | `fecha_creacion` | TIMESTAMP | NOT NULL | |
 | `id_organizacion` | UUID | NULL | En v1 siempre NULL (JUK). Reservado multi-tenant v2 (§7) |
+
+> **Nota de implementación (Interno v1.13, US-05b):** la nota de arquitectura del Interno exige modelar la configuración de documentos como **entidad independiente** (`colegio_documento_config`, una fila por documento), NO como columnas fijas. La implementación va a seguir al Interno; las columnas `config_*` de esta tabla quedan como referencia de los 5 documentos a configurar.
+
+> ⚠️ AMBIGUO (**MIN-11**): los defaults de `config_*` difieren entre fuentes — el Interno v1.13 dice default **"Opcional" para todos** los documentos; este Modelo da defaults por documento (Requerido/NA según el caso). No asumir.
+
+> **Nota (TEC-11.k):** el estado `En_negociacion` no existe en el Interno v1.13, que solo define `Activo|Inactivo` para el colegio. Decidir al implementar.
 
 ### 3.4 REPRESENTANTE
 
@@ -250,6 +258,8 @@ Alumno participante. El alta se inicia vía Application Form JUK (Google Form co
 | `origen_alta` | ENUM | NOT NULL | `Google_Form` \| `Manual` |
 | `fecha_alta` | TIMESTAMP | NOT NULL | |
 
+> **Nota (TEC-11.e):** el Interno v1.13 define **6 estados** para el alumno: `Pre-inscripto|Inscripto|Activo|Viajando|Finalizado|Baja`. Valen los 6 (queda por decidir si `Pausado` — que solo aparece en este Modelo — se suma).
+
 ### 3.7 INSCRIPCION_VIAJE
 
 Junction N:M entre `ESTUDIANTE` y `VIAJE`; cada fila es la participación de un alumno en un viaje. Al crearla se generan automáticamente los 11 registros de `PASO_INSCRIPCION` y las N `CUOTA_PAGO` del plan definido para ese viaje.
@@ -293,6 +303,8 @@ Estado de cada uno de los **11 pasos** (Paso 0 + grupos A–D) que cada alumno a
 
 **Constraints:** `UNIQUE(id_inscripcion, codigo_paso)`.
 
+> **Nota (TEC-11.d):** al ENUM de `estado` le falta **`Vencido`**, que el Interno v1.13 define para A1 (fecha límite pasada sin completar). Agregarlo al implementar.
+
 **Reglas de inicialización automática:**
 
 - **Paso 0** (App Form JUK): se crea al dar de alta el alumno; estado siempre `Completado`, inmutable (RV-00).
@@ -326,9 +338,13 @@ Cada cuota del plan de pagos de un alumno por viaje. Los pagos **no son online**
 
 > ⚠️ AMBIGUO: el PRD fija la moneda de las cuotas en **USD** (`monto_usd`), mientras que la convención del proyecto (`CLAUDE.md`) y el schema actual usan **GBP** para montos del viaje. Hay que cerrar la moneda canónica antes de migrar la tabla de cuotas.
 
+> **Nota (TEC-11.h):** a esta tabla le falta el campo **`canal`** (`'Vía agencia'` \| `'Presencial JUK'`) que B1/B2 del Interno v1.13 requieren por cuota. Agregarlo al implementar.
+
 ### 3.10 NPS_RESPUESTA
 
 Encuesta de satisfacción post-viaje completada por el padre/tutor desde el Portal de Familias. Tres dimensiones independientes: JUK, Representante y Colegio UK. Se habilita cuando el Admin JUK marca el viaje `Finalizado` (RV-15).
+
+> **Lectura compatible (RV-15 + Familias v1.11, US-9.1):** la fila de `NPS_RESPUESTA` se **crea** cuando el viaje pasa a `Finalizado` (RV-15), y la encuesta se **habilita para la familia a los 3 días del regreso** (US-9.1 del PRD de Familias). No es una contradicción: creación del registro y habilitación de la encuesta son dos momentos distintos.
 
 | Campo | Tipo | Oblig. | Notas |
 |---|---|---|---|
@@ -371,6 +387,8 @@ Los **5 trámites** coordinados a nivel de viaje (no por alumno), responsabilida
 ### 3.12 ACTIVIDAD_VIAJE
 
 Excursiones y actividades del programa. Pueden ser **fijas** (estándar, siempre incluidas) o **variables** (opcionales, sujetas a confirmación). El Representante puede proponer variables, pero JUK debe aprobarlas. Las aprobadas se reflejan automáticamente en el calendario visible por el Representante.
+
+> ⚠️ AMBIGUO (**CRIT-04**): el mecanismo de aprobación está contradicho entre fuentes — el Interno v1.13 (US-38) dice que el **representante aprueba/rechaza** las actividades variables; este Modelo dice que el representante solo **propone** y JUK aprueba. No asumir el mecanismo: resolver CRIT-04 antes de implementar.
 
 | Campo | Tipo | Oblig. | Notas |
 |---|---|---|---|
@@ -424,6 +442,10 @@ Control policial de los group leaders por viaje (el colegio destino lo requiere)
 | `notas` | TEXT | NULL | |
 
 **Constraints:** `UNIQUE(id_representante, id_viaje)`.
+
+> **Nota (TEC-11.f):** el Interno v1.13 (US-41) exige el police check por **cada GL físico** del viaje, no por representante del sistema. Manda el Interno (la implementación actual ya lo modela por GL).
+
+> **Nota (TEC-11.g):** los ENUM de estado difieren entre fuentes e implementación. Implementar la **unión**: `pendiente|en_tramite|aprobado|rechazado|vencido`.
 
 ### 3.15 LOG_AUDITORIA
 
@@ -537,6 +559,14 @@ El PRD no especifica reglas `ON DELETE` explícitas por FK; todas las relaciones
 | **RV-23** | NA por mayoría de edad (A3 y D1) | Si `(fecha_inicio − fecha_nacimiento) ≥ 18 años`, A3 y D1 se inicializan en NA. Se verifica **al crear la inscripción**; no se recalcula automáticamente si cambian las fechas del viaje — en ese caso la regla debe ejecutarse de nuevo en forma explícita |
 | **RV-24** | PASO_VIAJE en Individuales | (1) Paso 5 (Police checks) inicia NA (no hay GL). (2) Paso 1 (Pasajes) aplica con semántica distinta: JUK registra los datos del vuelo autogestionado por el alumno |
 
+> **Nota sobre RV-14 (TEC-11.i):** esta regla quedó **superseded** por el PRD Representante v1.10, que define acceso **permanente, solo lectura y revocable manualmente** para el representante post-viaje (sin desactivación automática a los 30 días). La regla se conserva arriba por fidelidad a la fuente; manda el Representante v1.10.
+
+> **Nota sobre RV-17 (TEC-11.j):** el Interno v1.13 define la alerta de pasaporte como **CRÍTICA** y **general** (no solo para viajes fuera de UK). Manda el Interno.
+
+> ⚠️ AMBIGUO (**MIN-01**) — RV-11: el Interno v1.13 (US-28) determina la versión del Parental Consent por la **edad al inicio del viaje**, no por la edad en la fecha de descarga. No asumir.
+
+> ⚠️ AMBIGUO (**MIN-14**) — RV-C1 / `tipo_entrada_requerida`: el Interno v1.13 dice que la regla de documentación de entrada la determina el **país del viaje**; este Modelo la pone como atributo del **colegio destino**. Recomendación registrada en `OPEN_DECISIONS.md`: atributo del colegio con default por país. No asumir.
+
 ---
 
 ## 6. Matriz de roles y permisos
@@ -592,7 +622,7 @@ Leyenda: ✅ completo · ⚠️ limitado (ver nota) · 🚫 sin acceso.
 | | Activar alertas automáticas de anomalías | ✅ | ✅ | 🚫 | Rep.: configura para su grupo |
 | Pagos | Ver detalle de cuotas y vencimientos | ✅ | 🚫 | ✅ | Familias: solo su alumno |
 | | Registrar pago de una cuota | ✅ | 🚫 | 🚫 | |
-| | Confirmar Paso 10 (último pago presencial) | ✅ | 🚫 | 🚫 | Solo flujo Vía agencia |
+| | Confirmar B2 (ex Paso 10, último pago presencial) | ✅ | 🚫 | 🚫 | Solo flujo Vía agencia |
 | | Ver alumnos en mora | ✅ | 🚫 | 🚫 | |
 | Mapa de ubicaciones | Ver mapa con pins de alumnos y colegio | ✅ | ✅ | ⚠️ | Familias: solo dirección de su alumno |
 | | Exportar ubicaciones del grupo (PDF/Excel) | ✅ | ✅ | 🚫 | |
@@ -602,7 +632,7 @@ Leyenda: ✅ completo · ⚠️ limitado (ver nota) · 🚫 sin acceso.
 | | Descargar y subir Parental Consent | 🚫 | 🚫 | ✅ | |
 | | Descargar App Form del Colegio | 🚫 | 🚫 | ✅ | |
 | | Subir App Form del Colegio completado | 🚫 | 🚫 | ✅ | |
-| | Reportar estado del ETA | 🚫 | 🚫 | ✅ | En_procesamiento / Aprobado / Rechazado; autoreporte, JUK puede corregir |
+| | Reportar estado del ETA | 🚫 | 🚫 | ✅ | En_procesamiento / Aprobado / Rechazado; autoreporte, JUK puede corregir. Nota TEC-11.l: el Interno llama "En trámite" al estado intermedio; canónico en el código: `en_tramite` |
 | | Ver Accommodation Letter y mapa casa/colegio | 🚫 | 🚫 | ✅ | Solo cuando JUK la cargó |
 | | Ver itinerario final del viaje | 🚫 | 🚫 | ✅ | |
 | | Ver diario de viaje y fotos del grupo | 🚫 | 🚫 | ✅ | |
@@ -650,7 +680,7 @@ Leyenda: ✅ completo · ⚠️ limitado (ver nota) · 🚫 sin acceso.
 | Police check | Control policial requerido por el colegio destino para los GL |
 | Psicofísico (D2) | Certificado de aptitud física y psicológica para viajes **grupales** (grupo D). No aplica a Individuales. Ya no depende de `REPRESENTANTE.requiere_psicofisico` (deprecado desde v1.3) |
 | Pre-inscripto | Estado inicial del ESTUDIANTE al entrar por webhook del Google Form |
-| Alumno_Adulto / Padre_Tutor | Valores de `CUENTA_FAMILIAS.titular`. Alumno_Adulto si cumple 18 antes del inicio del viaje (cambia lenguaje del portal y marca Pasos 5/8 como NA); Padre_Tutor es el default |
+| Alumno_Adulto / Padre_Tutor | Valores de `CUENTA_FAMILIAS.titular`. Alumno_Adulto si cumple 18 antes del inicio del viaje (cambia lenguaje del portal y marca A3/D1 (ex Pasos 5/8) como NA); Padre_Tutor es el default |
 
 > ⚠️ AMBIGUO: el glosario del PRD dice que **Directo_JUK** "aplica a viajes con representante de tipo *Colegio_cliente*", lo que **contradice** RV-05 y la definición de `VIAJE.flujo_pago` (Colegio_cliente → `Via_agencia`; `Directo_JUK` es exclusivo del tipo `JUK_Directo`). La entrada del glosario es texto desactualizado de una versión previa a v1.3; **manda RV-05**, que coincide con el PRD Interno v1.13 (ex CRIT-01, ya resuelto: Colegio cliente = vía agencia sin excepción presencial). Registrado como **TEC-11(a)** en `OPEN_DECISIONS.md` para que producto corrija el doc.
 
@@ -726,8 +756,8 @@ Falta crear completa (§3.2): vínculo 1:1 con alumno, DNI como username, `activ
 #### ESTUDIANTE → `alumnos` (`alumnos.ts`)
 
 - **Faltan:** `pais_pasaporte`, `origen_alta` ENUM `Google_Form|Manual`, UNIQUE en `dni` (impl. lo tiene NOT NULL pero sin unique), y el desglose de salud del PRD: `alergias_alimentarias`, `alergias_ambientales`, `alergias_medicamentos`, `condiciones_cronicas`, `medicacion_habitual`, `observaciones_salud` — impl. tiene un único `alergias_salud` TEXT.
-- **Facturación:** impl. la guarda como JSON `facturacion` (razonSocial, direccion, localidad, provincia, codigoPostal, cuilCuit, condicionFiscal); el PRD pide columnas planas `cuil_cuit`, `razon_social`, `condicion_fiscal` (sensibles — RV-20). El JSON impl. tiene más campos (dirección fiscal) que el PRD no contempla.
-- **Enum `estado`:** impl. `pre_inscripto|inscripto|activo|viajando|finalizado|baja` vs. PRD `Pre-inscripto|Activo|Baja|Pausado`. Falta `pausado`; los valores `inscripto|viajando|finalizado` de impl. no existen en el PRD (ese ciclo vive en `INSCRIPCION_VIAJE.estado` y `VIAJE.estado`).
+- **Facturación:** impl. la guarda como JSON `facturacion` (razonSocial, direccion, localidad, provincia, codigoPostal, cuilCuit, condicionFiscal); el PRD pide columnas planas `cuil_cuit`, `razon_social`, `condicion_fiscal` (sensibles — RV-20). El JSON impl. tiene más campos (dirección fiscal) que el PRD no contempla. Ver **MIN-15**: hay discrepancia con el changelog del Interno v1.13 sobre estos datos de facturación; se conservan, visibles solo para Admin (RV-20).
+- **Enum `estado`:** impl. `pre_inscripto|inscripto|activo|viajando|finalizado|baja` vs. PRD `Pre-inscripto|Activo|Baja|Pausado`. Falta `pausado`. Los valores `inscripto|viajando|finalizado` de impl. **sí existen en el PRD**: el Interno v1.13 define los 6 estados `Pre-inscripto|Inscripto|Activo|Viajando|Finalizado|Baja` (TEC-11.e); este Modelo solo lista 4.
 - **Extra impl.:** `telefono_alumno`, `preferencias_alojamiento`, `nivel_ingles_autoevaluacion`, `procesado_por`, `fecha_baja`, `motivo_baja`, `updatedAt` (el PRD registra bajas a nivel inscripción, no alumno).
 - Coinciden: `notas_internas` ≈ `observaciones_internas` (renombre menor), tutores 1/2, pasaporte, `fecha_alta`. ✓
 
@@ -753,7 +783,7 @@ Falta crear completa (§3.2): vínculo 1:1 con alumno, DNI como username, `activ
 - **Falta** `UNIQUE(asignacion_id, numero)` (PRD: `UNIQUE(id_inscripcion, numero_cuota)`).
 - **Enum `estado`:** impl. `pendiente|pagada|vencida`; PRD agrega `NA`.
 - **Faltan:** `registrado_por` (FK trazabilidad). Renombres: `fecha_pago_efectivo` (timestamp) → `fecha_pago` (DATE); `observaciones` → `notas`.
-- **Extra impl.:** `canal` ENUM `agencia|presencial` (no está en el PRD; en el modelo objetivo el canal se deriva de `flujo_pago` + `es_ultimo_pago`).
+- **Extra impl.:** `canal` ENUM `agencia|presencial` — **sí está en el PRD**: el Interno v1.13 lo requiere por cuota en B1/B2 (`'Vía agencia'` \| `'Presencial JUK'` — TEC-11.h), aunque este Modelo no lo lista.
 
 #### NPS_RESPUESTA → no existe
 

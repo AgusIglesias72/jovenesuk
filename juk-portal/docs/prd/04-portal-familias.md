@@ -56,6 +56,10 @@ Atributos comunes a ambos perfiles:
 - **Email de contacto:** del tutor (perfil a) o del propio alumno (perfil b). Se usa para
   credenciales y notificaciones.
 
+> ⚠️ AMBIGUO (**MIN-07**): el usuario de login está contradicho entre fuentes — el Interno v1.13
+> (US-19b) dice usuario = **email del Tutor 1**; este PRD y el Modelo de Datos dicen usuario =
+> **DNI del alumno**. No asumir ninguno al implementar: resolver MIN-07 en `OPEN_DECISIONS.md` primero.
+
 Diferencias funcionales del **alumno adulto (18+)**: sin Parental Consent (A3 = N/A), sin
 Autorización por escribano (D1 = N/A, la sección se omite por completo en Módulo 4), el seguro lo
 contrata y firma el propio alumno, y la encuesta NPS le llega a su email con lenguaje adaptado.
@@ -242,7 +246,9 @@ del Portal Interno v1.9+.
 2. Acepta PDF o imagen (JPG/PNG, máx. 10 MB).
 3. Al confirmar, estado → "Cumplido". JUK puede revertirlo desde el panel interno si detecta
    inconsistencia.
-4. Para alumno adulto (18+) aplica normalmente — **no** es N/A automático.
+4. D2 **no depende de la edad** sino del **tipo de viaje**: para un alumno adulto (18+) en viaje
+   **Grupal** aplica normalmente — no es N/A automático por edad. D2 es N/A solo en viajes
+   **Individuales** (RV-07 del Modelo de Datos).
 
 ### 1.3 Estados de los documentos
 
@@ -261,6 +267,9 @@ del Portal Interno v1.9+.
 **Específicos del ETA:** 🕐 Pendiente → ⏳ En procesamiento (gobierno UK procesando, típico hasta
 72 hs) → ✅ Aprobado · 🔴 Rechazado / Con error (acción urgente; puede implicar visa, hasta
 3 semanas) · 🔄 Reintento en curso (protocolo de reintento o trámite de visa).
+
+> **Nota (TEC-11.l):** el Interno v1.13 llama **"En trámite"** al estado intermedio del ETA que acá
+> figura como "En procesamiento". Es el mismo estado; canónico en el código: `en_tramite`.
 
 **Específicos del Application Form del Colegio:** 🔒 No disponible aún (JUK no subió el PDF) →
 🕐 Disponible — Pendiente descarga → 📥 Descargado — Pendiente devolución → ⏳ Enviado — Pendiente
@@ -302,9 +311,14 @@ revisión → 🔴 Rechazado — Requiere corrección / ✅ Aprobado por JUK.
 - **Combinatoria N/A de A3:** (1) N/A si `config_parental_consent` = `'NA'` u `'Opcional'`;
   (2) N/A si alumno 18+ al inicio del viaje; (3) ambas condiciones a la vez → igualmente N/A;
   (4) A3 activo solo con colegio `'Requerido'` AND alumno menor de 18.
+
+> ⚠️ AMBIGUO (**MIN-13**): el Interno v1.13 solo desactiva el paso con config `'NA'`; con
+> `'Opcional'` el paso queda **activo** (como opcional). Este PRD trata `'Opcional'` igual que
+> `'NA'` (módulo oculto, paso N/A). Cambia qué ve la familia: no asumir.
+
 - **Alumno adulto:** D1 (autorización escribano) tampoco aparece. El resto aplica normal.
-- **D2 (Psicofísico):** aplica para menores y adultos. Confirmación + carga opcional. Sin integración
-  con sistemas de salud.
+- **D2 (Psicofísico):** aplica para menores y adultos en viajes **Grupales** (N/A en Individuales —
+  RV-07). Confirmación + carga opcional. Sin integración con sistemas de salud.
 - **Accommodation Letter:** se habilita cuando JUK confirma el alojamiento. Si cambia, JUK sube nueva
   versión; mapa y transporte se actualizan automáticamente. Historial de versiones solo para JUK.
 - **Reemplazo de formularios:** solo en estado "Pendiente" o "Rechazado". Una vez aprobados, quedan
@@ -779,6 +793,9 @@ alumno adulto (perfil b), con lenguaje adaptado.
 ### 9.4 Reglas de negocio (✅ modelo de datos cerrado)
 
 - La encuesta se habilita cuando JUK marca el viaje como **"Finalizado"** en el sistema interno.
+  Lectura compatible con US-9.1: al pasar el viaje a Finalizado se **crea** el registro NPS (RV-15
+  del Modelo de Datos) y la encuesta se **muestra a la familia a los 3 días del regreso**. Son dos
+  momentos distintos, no una contradicción.
 - Resultados visibles para JUK **con identificación del alumno**; anónimos entre pares.
 - Comentarios libres opcionales.
 - **Cada alumno genera una respuesta NPS propia. El NPS del viaje = promedio de las respuestas de
@@ -933,8 +950,13 @@ dato** (quién escribe; el otro lado consume).
 ### Cuenta y credenciales — dueño: Portal Interno
 
 - **Generación automática al crear el alumno** (US-19b del PRD interno): al dar de alta el alumno en
-  el portal interno se generan las credenciales del Portal de Familias (usuario = DNI del alumno).
-  No se envían automáticamente.
+  el portal interno se generan las credenciales del Portal de Familias (este PRD dice usuario = DNI
+  del alumno; ojo: la US-19b del Interno dice usuario = **email del Tutor 1**). No se envían
+  automáticamente.
+
+> ⚠️ AMBIGUO (**MIN-07**): el identificador de login está contradicho entre fuentes. El Interno
+> v1.13 (US-19b) dice usuario = **email del Tutor 1**; este PRD de Familias y el Modelo de Datos
+> dicen usuario = **DNI del alumno**. No asumir.
 - **Envío manual por el admin:** botón "Enviar acceso al Portal de Familias" en el perfil del alumno,
   con estado visible "Acceso no enviado" / "Acceso enviado — fecha", y posibilidad de reenviar. El
   acceso queda activo desde el envío, **independientemente del estado del viaje**.

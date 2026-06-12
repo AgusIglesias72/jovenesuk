@@ -47,7 +47,7 @@ portal (US-38) o el flujo es solicitud→aprobación de JUK (PRD Representante)?
 - **PRD Modelo de Datos v1.7:** `CUOTA_PAGO.monto` en **USD**.
 - **PRD Portal de Familias v1.11:** resumen de pagos en **USD**.
 - **Convención del repo (CLAUDE.md):** GBP para montos del viaje, ARS para conceptos locales.
-- El viejo TEC-01 (multi-moneda con cotización) sigue sin respuesta de Felix.
+- Absorbe al viejo TEC-01 (multi-moneda con cotización), que sigue sin respuesta de Felix.
 
 **Bloquea:** schema de cuotas (B1/B2), resumen de pagos, alertas de mora con montos.
 **Pregunta para Felix:** ¿en qué moneda se ACUERDA el plan de pagos hoy (USD nominal / ARS al
@@ -77,12 +77,14 @@ El panel de alertas usa "paso obligatorio en Pendiente" (<7 días) y "documentos
 (<3 meses), pero ningún PRD define el subconjunto "obligatorio". **Recomendación:** obligatorio
 = todo paso activo no-N/A excepto los marcados Opcional por la config del colegio. Confirmar.
 
-### MIN-07 · Login del Portal de Familias por DNI
+### MIN-07 · Identidad de la cuenta del Portal de Familias: ¿email del Tutor 1 o DNI del alumno?
 
-Familias v1.11 pide login con **DNI del alumno + contraseña**; Better-Auth está armado sobre
-email. Además: "1 alumno = 1 cuenta" convive con la regla de soportar N alumnos por grupo
-familiar (11.7). Decidir mapeo (email del Tutor 1 como identidad + DNI como username
-secundario, o cuenta por alumno) antes de construir el portal.
+Contradicción directa entre PRDs: el **Interno v1.13 (US-19b)** dice "usuario = email del
+Tutor 1"; el **Modelo v1.7** y **Familias v1.11** dicen "usuario = DNI del alumno". Además
+Better-Auth está armado sobre email, y "1 alumno = 1 cuenta" convive con la regla de soportar
+N alumnos por grupo familiar (11.7). **Recomendación:** email del Tutor 1 como identidad de
+auth + DNI del alumno como selector/username secundario. Confirmar con el equipo antes de
+construir credenciales (US-19b) o el portal.
 
 ### MIN-08 · Acceso post-viaje de FAMILIAS: ¿cuánto dura?
 
@@ -94,6 +96,45 @@ representante ya quedó permanente. Definir retención por tipo de cuenta.
 Pregunta abierta oficial del PRD Interno (M6). Decisión técnica nuestra → proponer:
 transaccionales/recordatorios desde `noreply@`, comunicaciones con respuesta esperada desde
 `info@`. Confirmar con el equipo y cerrar.
+
+### MIN-11 · Defaults de la config documental por colegio
+
+El Interno v1.13 (US-05b) dice que **todo documento defaultea a "Opcional"**; el Modelo v1.7
+da defaults por documento (App Form: Requerido, Test de Nivel: NA, Parental Consent: NA,
+Confirmation Letter: Requerido, VISA/Immigration: Requerido) — ninguno coincide.
+**Recomendación:** los defaults por documento del Modelo (reflejan la operación real) y
+documentar la corrección en el PRD Interno. Confirmar.
+
+### MIN-12 · ¿A qué viajes se puede asignar un alumno desde su perfil?
+
+El Interno v1.13 se contradice solo: US-16 dice "dropdown **solo** con viajes en Inscripción
+abierta", pero US-11 permite altas/bajas en Inscripción abierta **y Confirmado**, y los viajes
+Individuales **nacen en Confirmado** (US-10b) — con la regla de US-16 serían inasignables.
+**Recomendación:** el dropdown incluye viajes en Inscripción abierta y Confirmado con vacantes.
+
+### MIN-13 · Semántica de "Opcional" en la config documental
+
+Para un documento configurado **Opcional**: el Interno v1.13 activa el paso (solo "N/A" lo
+desactiva); Familias v1.11 (§1.5) lo trata como N/A/oculto ("activo solo con Requerido").
+Cambia qué ve la familia y qué cuenta para la completitud del viaje. **Recomendación:**
+Opcional = paso activo pero excluido del cálculo de completitud y de las alertas de
+"obligatorios" (conecta con MIN-06). Confirmar.
+
+### MIN-14 · ¿Quién determina si C1 (ETA) aplica: el país del viaje o el colegio?
+
+Interno v1.13 (US-31): "el campo país destino **del viaje** determina si C1 está activo".
+Modelo v1.7 (RV-C1): lo determina `COLEGIO_DESTINO.tipo_entrada_requerida` (ETA|VISA|Ninguna).
+Mismo resultado en la práctica (el colegio está en un país), distinto dueño de la regla.
+**Recomendación:** `tipo_entrada_requerida` en el colegio, con default derivado de su país —
+más configurable y compatible con ambos textos. Confirmar y unificar los PRDs.
+
+### MIN-15 · Datos de facturación del alumno: ¿se eliminaron o no?
+
+El changelog del Interno dice "ELIMINADO en v1.2 (per Felix)", pero el propio Interno v1.13
+(US-15: "datos de facturación visibles solo para admins") y el Modelo v1.7 (campos
+`cuil_cuit`/`razon_social`/`condicion_fiscal` + RV-20) los conservan. El schema actual los
+tiene. **Recomendación:** conservarlos (visibles solo Admin); pedir a producto que limpie el
+changelog o las US.
 
 ### MIN-10 · Precio por alumno / cálculo del precio final
 
@@ -119,12 +160,33 @@ falta el campo "precio por semana" para Individuales que el PRD da por cerrado p
 - **TEC-06 · Tabla `notificacion_enviada`:** imprescindible para los recordatorios escalonados
   (14/7/3/1 y 90/60/30) con dedup `(tipo, entidad_id, fecha)`. Construir junto con Trigger.dev.
 - **TEC-07 · Importer de planillas:** sin cambios — definir con Tomas/María antes del go-live.
-- **TEC-11 · Inconsistencias internas del Modelo v1.7** (detectadas al procesarlo):
-  (a) el glosario dice `Directo_JUK` = Colegio cliente, contradiciendo la regla RV-05 y el PRD
-  Interno (Colegio cliente = vía agencia); vale el PRD Interno v1.13. (b) §4.7 dice "10
-  registros" de pasos pero define 11 (incluye Paso 0); valen 11. (c) RV-10 exige estado
-  "Confirmado" en PASO_VIAJE que el ENUM no tiene; interpretar como sub-estado de Pasajes.
-  Avisar al equipo de producto para que corrija el doc.
+- **TEC-11 · Desfasajes del Modelo v1.7 vs. el PRD Interno v1.13** (en todos manda el
+  Interno, que es más nuevo; avisar a producto para que corrija el Modelo):
+  (a) glosario dice `Directo_JUK` = Colegio cliente, contradiciendo RV-05 y el Interno.
+  (b) §4.7 dice "10 registros" de pasos pero define 11 (incluye Paso 0); valen 11.
+  (c) RV-10 exige estado "Confirmado" en PASO_VIAJE que el ENUM no tiene; es el sub-estado
+  "Confirmado" de Pasajes.
+  (d) al ENUM de `PASO_INSCRIPCION.estado` le falta **Vencido** (A1 lo requiere).
+  (e) ESTUDIANTE con 4 estados (`Pre-inscripto|Activo|Baja|Pausado`) vs. los 6 del Interno
+  (`Pre-inscripto|Inscripto|Activo|Viajando|Finalizado|Baja`); valen los 6 (decidir si
+  `Pausado` se suma como 7°).
+  (f) POLICE_CHECK modelado por **representante** × viaje; el Interno (US-41) lo exige por
+  **cada GL físico** del viaje — vale por GL (la impl. actual ya va por ahí).
+  (g) estados del police check: Interno `Pendiente|En trámite|Aprobado|Vencido` vs. Modelo
+  `Pendiente|Aprobado|Vencido|Rechazado`; implementar la unión (con `en_tramite` y `rechazado`).
+  (h) a CUOTA_PAGO le falta el campo **canal** ('Vía agencia'|'Presencial JUK') que B1/B2 del
+  Interno requieren.
+  (i) RV-14 (desactivación del representante a los 30 días post-viaje) quedó **superseded**
+  por el PRD Representante v1.10: acceso permanente, solo lectura, revocable (ex MIN-05).
+  (j) RV-17 trata la alerta de pasaporte "6 meses post-inicio" como ALTA y solo fuera de UK;
+  el Interno la define CRÍTICA y general (criterio conservador) — vale el Interno.
+  (k) estado de colegio `En_negociacion` solo existe en el Modelo; el Interno tiene
+  Activo|Inactivo. Adoptarlo como extra es barato; decidir al implementar.
+  (l) estado intermedio del ETA: "En trámite" (Interno) = "En_procesamiento" (Modelo y
+  Familias). Canónico en el código: `en_tramite`.
+  (m) `config_visa_immigration` del Modelo "afecta la inicialización de C2"; según el Interno
+  (US-05b y ex MIN-02) Confirmation Letter y VISA/Immigration Letter son **campos de
+  control**, no condiciones de N/A — C2 depende solo de B1.
 
 ---
 

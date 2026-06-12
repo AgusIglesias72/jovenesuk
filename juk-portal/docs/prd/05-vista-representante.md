@@ -271,6 +271,9 @@ Centraliza toda la información por alumno. Tres capas accesibles desde la misma
 | N/A | No aplica a este alumno o viaje. | Blanco / rayado |
 | Bloqueado | No puede avanzar por razón específica (ej: C1 rechazado). | Rojo |
 
+> **Nota (TEC-11.d):** el Interno v1.13 define además el estado **Vencido** (fecha límite pasada sin
+> completar, aplicable a A1), que esta tabla no incluye. Agregarlo al implementar.
+
 #### US-3.1 — Ver el tablero de pasos por alumno
 
 *Como Representante, quiero ver en una sola tabla el estado de todos los trámites de mis alumnos para identificar de forma rápida qué está pendiente sin entrar al perfil de cada uno.*
@@ -484,7 +487,7 @@ Centraliza toda la información por alumno. Tres capas accesibles desde la misma
 
 ### Objetivo
 
-Permitir a la Representante documentar y compartir el día a día del viaje con las familias de su grupo a través del **Portal de Familias** (resuelve la responsabilidad del PRD Portal de Familias v1.3, Módulo 7). Incluye un canal asíncrono de mensajes para recibir y responder consultas individuales de los padres.
+Permitir a la Representante documentar y compartir el día a día del viaje con las familias de su grupo a través del **Portal de Familias** (resuelve la responsabilidad del PRD Portal de Familias v1.11, Módulo 7). Incluye un canal asíncrono de mensajes para recibir y responder consultas individuales de los padres.
 
 **PRIORIDAD de diseño: mobile-first.** La Representante publica desde el destino, en movimiento, desde su teléfono: campos grandes, botón de carga de fotos prominente, sin desplazamiento horizontal. Se recomienda evaluar una app nativa o PWA en una iteración futura.
 

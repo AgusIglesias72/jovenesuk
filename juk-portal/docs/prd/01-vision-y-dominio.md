@@ -40,7 +40,7 @@ Cada viaje tiene un representante (group leader). El tipo determina el **flujo d
 
 | Tipo | Descripción | Flujo de pago |
 |---|---|---|
-| **Representante Independiente** | Persona física que trae alumnos a JUK de forma individual. | Vía agencia externa. **Último pago presencial con JUK** (paso B2 activo). |
+| **Representante Independiente** | Persona física que trae alumnos a JUK de forma individual. | Vía agencia externa. **Último pago presencial con JUK** (paso B2 activo; históricamente, para evitar la comisión ~6% de la agencia — racionalidad comercial, fuera del PRD desde v1.8). |
 | **Instituto** | Institución de inglés u organismo que agrupa alumnos y opera como representante. | Vía agencia. **Último pago presencial con JUK** (igual que Independiente). |
 | **Colegio cliente** | Institución educativa argentina (ej: NEA). El grupo viaja organizado por el colegio. No tiene módulo propio: es un tipo de representante. | Vía agencia **SIN excepción presencial**: TODOS los pagos —incluido el último— van por la agencia. **B2 = N/A.** |
 | **JUK (directo)** | El alumno llega sin intermediario externo; JUK opera como representante de facto. | **Directo JUK**: sin agencia, comisión de agencia = N/A, fee = N/A, **B2 = N/A**. Sin credenciales de portal de representante (no hay persona externa). |
@@ -51,7 +51,9 @@ Cada viaje tiene un representante (group leader). El tipo determina el **flujo d
   estudian. Tiene Application Form, Parental Consent, Confirmation Letter, VISA/Immigration
   Letter (template), cursos y alojamientos. Se gestiona en el **Módulo 3**.
 - **Colegio cliente**: institución argentina (ej: NEA). Actúa como representante de tipo
-  'Colegio cliente'. **No tiene ABM propio** — sus particularidades son atributos del viaje (M4).
+  'Colegio cliente'. **No tiene módulo propio** — su lógica son atributos del viaje (M4);
+  en el catálogo de colegios solo existe como entrada de directorio (tipo "cliente") para el
+  dropdown de origen del viaje.
 - El proceso documental (Application Form, Parental Consent, Immigration Letter, Accommodation
   Letter) ocurre **SIEMPRE en el colegio destino**, sea cual sea el tipo de representante.
 - La agencia de excursiones NO cobra comisión de JUK; su costo va al precio del programa.

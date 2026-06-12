@@ -34,8 +34,11 @@ Detalle completo en doc 03. Los 8 grupos, en orden de impacto:
 | 7 | **users** | rol `admin_juk`; sin `sub_rol_admin`, `apellido`, lockout | ENUM `Admin`/`SuperAdmin`, `sub_rol_admin`, `intentos_fallidos`/`bloqueado_hasta` (US-01) |
 | 8 | **Misc** | `alumnos.dni` sin UNIQUE; salud en un texto libre; `pasos_viaje` sin estado `na`; auditoría PK UUID | DNI único, salud en 6 campos, `na` en pasos del viaje (RV-24), `id_organizacion` reservado v2 |
 
-**Además:** el schema actual de `alumnos` todavía tiene **datos de facturación**, que el PRD
-eliminó en v1.2. Decidir: borrar columnas o conservarlas como extra propio (no romper nada).
+**Además:** datos de facturación del alumno — discrepancia entre PRDs (**MIN-15**): el
+changelog del Interno dice que se eliminaron en v1.2, pero el mismo Interno (US-15) y el
+Modelo v1.7 (`cuil_cuit`/`razon_social`/`condicion_fiscal`, protegidos por RV-20) los
+conservan. El schema actual los tiene → **conservarlos** (visibles solo Admin) hasta que
+producto lo cierre.
 
 ## B — Deltas del portal interno por módulo
 

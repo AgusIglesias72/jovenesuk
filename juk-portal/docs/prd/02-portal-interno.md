@@ -115,7 +115,9 @@ hoy, qué viajes se aproximan, alertas críticas y estado general del año.
 ## Módulo 3 — ABM de Colegios Destino
 
 **Objetivo:** registro centralizado de colegios destino (instituciones educativas en UK u otros
-países anglófonos). Los colegios clientes NO van acá (son tipo de representante, M4).
+países anglófonos). Los colegios clientes **no tienen módulo propio** (su lógica es del tipo de
+representante, M4), pero el catálogo sí admite filas de tipo "cliente" — solo como entrada de
+directorio para el dropdown "Colegio cliente (origen)" del viaje (campo Tipo y filtro de US-09).
 
 ### Campos del formulario
 
@@ -144,7 +146,8 @@ países anglófonos). Los colegios clientes NO van acá (son tipo de representan
 ### Configuración de requisitos documentales por colegio (US-05b) — pieza clave
 
 Al crear/editar un colegio destino, el admin configura cada documento estándar como
-**Requerido / Opcional / N-A** (default: **Opcional**). Esa configuración determina
+**Requerido / Opcional / N-A** (default: **Opcional** — ⚠️ **MIN-11**: el Modelo v1.7 da
+defaults distintos por documento). Esa configuración determina
 automáticamente los pasos activos del tablero del alumno (M6) al asignarlo a un viaje de ese
 colegio — **sin reglas hardcodeadas**:
 
@@ -188,7 +191,8 @@ colegio — **sin reglas hardcodeadas**:
 - Un viaje tiene SIEMPRE un colegio destino; el tipo de representante es atributo del viaje.
 - Viaje con dos colegios destino: **fuera de alcance v1** (si pasara: un viaje por colegio).
 - NEA usa el formulario JUK (no hay Application Form diferenciado) — cerrado por María.
-- **Precio por semana**: cerrado que hace falta para viajes Individuales (duraciones variables).
+- **Precio por semana**: cerrado que hace falta para viajes Individuales (duraciones variables:
+  2, 3 o más semanas; los Grupales suelen ser 2 o 3 fijas).
   *Pendiente de incluir como campo en el ABM de Viajes en una próxima versión del PRD.*
 - v1 NO calcula precios/presupuestos (cerrado por Felix). Comisiones = referencia interna.
 
@@ -333,6 +337,10 @@ Usuario que procesó el alta ★ (automático), Notas internas ◇ (visibles par
 - **US-16 — Asignar a viaje.** Dropdown solo con viajes en 'Inscripción abierta' **con
   vacantes**. Contador se actualiza. Al límite de capacidad → advertencia antes de confirmar.
   Al asignar → **activa el tablero M6** y **valida el pasaporte** contra el viaje.
+
+> ⚠️ AMBIGUO (**MIN-12**): "solo Inscripción abierta" contradice a US-11 (altas también en
+> Confirmado) y deja inasignables a los viajes Individuales, que nacen Confirmados (US-10b).
+> Recomendación: incluir Inscripción abierta y Confirmado con vacantes.
 - **US-17 — Buscar/filtrar.** Por nombre, apellido o número de pasaporte. Filtros: viaje,
   estado general, alertas activas, paso de trámite pendiente. Indicador visual de alertas por
   alumno en la lista.
@@ -343,7 +351,9 @@ Usuario que procesó el alta ★ (automático), Notas internas ◇ (visibles par
 - **US-19 — Dar de baja.** Estado 'Baja', contador del viaje se actualiza. Fecha + motivo
   (opcional). Sigue visible en historial; desaparece de vistas activas.
 - **US-19b — Credenciales del Portal de Familias.** Se **generan automáticamente al CREAR el
-  alumno** (webhook o manual): usuario = email del Tutor 1 + contraseña temporal. **NO se
+  alumno** (webhook o manual): usuario = email del Tutor 1 + contraseña temporal.
+  *⚠️ AMBIGUO (****MIN-07****): el Modelo v1.7 y Familias v1.11 dicen "usuario = DNI del
+  alumno", contradiciendo este "email del Tutor 1". No asumir hasta cerrarlo.* **NO se
   envían automáticamente** — el envío es acción deliberada del admin (botón "Enviar acceso al
   Portal de Familias" en el perfil). El perfil muestra el estado: 'Acceso no enviado' /
   'Acceso enviado — fecha'. El email sale de info@jovenesenuk.com con usuario, contraseña
@@ -420,7 +430,7 @@ primer pago de B1.
 |---|---|
 | A1 | Colegio lo configura N/A |
 | A2 | Colegio lo configura N/A |
-| A3 | Colegio lo configura N/A **o** alumno ≥18 años al inicio del viaje |
+| A3 | Colegio lo configura N/A **o** alumno ≥18 años al inicio del viaje (⚠️ **MIN-13**: Familias v1.11 trata "Opcional" también como N/A — acá solo "N/A" desactiva) |
 | B2 | Tipo de representante = Colegio cliente o JUK (directo) |
 | C1 | País destino ≠ UK (Irlanda: no requiere nada; USA/Canadá: VISA obligatoria, flujo v2) |
 | D1 | Alumno ≥18 años al inicio del viaje |
@@ -457,6 +467,9 @@ inicio del viaje: <16 años y 16–17 años.** N/A si el colegio lo configura N/
 es ≥18 al inicio.
 - **US-28:** el sistema calcula la edad al inicio del viaje y muestra qué versión aplica
   (<16 / 16-17). **Advierte si el alumno cumple 16 entre el alta y el inicio del viaje.**
+  *⚠️ AMBIGUO (****MIN-01****): Familias v1.11 y el Modelo (RV-11) determinan la versión "al
+  momento de la descarga", no por edad al inicio. Además el M3 tiene UN archivo de Parental
+  Consent pero acá hay DOS versiones: ¿el colegio sube ambas?*
 - **US-29:** sub-estados **Enviado a familia / Firmado por familia / Recibido y archivado**. Se
   puede cargar el escaneado firmado; al cargarlo → Completado.
 - Alerta: menor de 18 sin PC devuelto **3 meses antes** del viaje.
