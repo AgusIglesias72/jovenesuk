@@ -13,6 +13,12 @@ interface LoginPageProps {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
+  // "/" es la landing pública, no una pantalla del portal: post-login va al dashboard.
+  // Solo aceptamos paths internos (evita open redirects con URLs absolutas).
+  const returnTo =
+    params.returnTo && params.returnTo.startsWith("/") && !params.returnTo.startsWith("//") && params.returnTo !== "/"
+      ? params.returnTo
+      : "/dashboard";
 
   return (
     <div>
@@ -25,10 +31,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </p>
       </div>
 
-      <LoginForm
-        defaultEmail={params.email ?? ""}
-        returnTo={params.returnTo ?? "/dashboard"}
-      />
+      <LoginForm defaultEmail={params.email ?? ""} returnTo={returnTo} />
 
       <p className="mt-6 text-center text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
         ¿Olvidaste tu contraseña?{" "}

@@ -11,6 +11,9 @@ export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const sessionToken = request.cookies.get("juk.session_token");
 
+  // La raíz es la landing pública de jovenesenuk.com (sin auth).
+  const isLandingPath = path === "/";
+
   const isAuthPath = path.startsWith("/login") || path.startsWith("/reset-password");
   const isApiAuthPath = path.startsWith("/api/auth");
 
@@ -26,13 +29,14 @@ export function proxy(request: NextRequest) {
   const isDesignPath = path.startsWith("/design");
   const isPublicAsset =
     path.startsWith("/_next") ||
+    path.startsWith("/landing/") ||
     path === "/favicon.ico" ||
     path === "/manifest.webmanifest" ||
     path === "/manifest.json" ||
     path === "/globe-loader.html";
 
   // Always allow these
-  if (isApiAuthPath || isWebhookPath || isPublicAsset || isDesignPath) {
+  if (isLandingPath || isApiAuthPath || isWebhookPath || isPublicAsset || isDesignPath) {
     return NextResponse.next();
   }
 
