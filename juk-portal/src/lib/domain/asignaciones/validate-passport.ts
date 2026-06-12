@@ -1,23 +1,44 @@
 /**
- * Validación de pasaporte para asignar un alumno a un viaje.
- *
- * CRIT-02 (OPEN_DECISIONS.md): la regla legal de UK es que el pasaporte esté
- * vigente hasta el fin del viaje (`vto >= fechaFin`). María podría querer una
- * política más conservadora (6 meses extra). Hasta cerrar la decisión, dejamos
- * la regla legal por defecto y la variante estricta detrás de un flag que se
- * cambia con una línea.
+ * Validación de pasaporte (ex CRIT-02, regla cerrada por los PRDs jun 2026):
+ * - UK: el pasaporte debe estar vigente hasta el FIN del viaje (sin 6 meses extra).
+ * - Otros países: debe estar vigente hasta 6 meses DESPUÉS del fin del viaje.
+ * - Alerta conservadora del dashboard (aparte): vence dentro de los 6 meses
+ *   posteriores al INICIO del viaje → crítica.
  */
-export const STRICT_UK_RULE = false;
 
+type PaisDestino =
+  | "reino_unido"
+  | "irlanda"
+  | "canada"
+  | "malta"
+  | "australia"
+  | "argentina"
+  | "otro";
+
+function masSeisMeses(fecha: Date): Date {
+  const d = new Date(fecha);
+  d.setUTCMonth(d.getUTCMonth() + 6);
+  return d;
+}
+
+/** ¿El pasaporte cumple el requisito legal para este viaje? */
 export function pasaporteVigenteParaViaje(
   vencimientoPasaporte: Date,
   fechaFinViaje: Date,
-  strict: boolean = STRICT_UK_RULE
+  paisDestino: PaisDestino = "reino_unido"
 ): boolean {
-  if (!strict) {
-    return vencimientoPasaporte.getTime() >= fechaFinViaje.getTime();
-  }
-  const minimo = new Date(fechaFinViaje);
-  minimo.setUTCMonth(minimo.getUTCMonth() + 6);
+  const minimo =
+    paisDestino === "reino_unido" ? fechaFinViaje : masSeisMeses(fechaFinViaje);
   return vencimientoPasaporte.getTime() >= minimo.getTime();
+}
+
+/**
+ * Criterio CONSERVADOR del panel de alertas (M2): pasaporte vencido o que
+ * vence dentro de los 6 meses posteriores al inicio del viaje.
+ */
+export function pasaporteEnAlertaConservadora(
+  vencimientoPasaporte: Date,
+  fechaInicioViaje: Date
+): boolean {
+  return vencimientoPasaporte.getTime() < masSeisMeses(fechaInicioViaje).getTime();
 }

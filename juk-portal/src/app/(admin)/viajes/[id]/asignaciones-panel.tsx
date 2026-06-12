@@ -49,11 +49,15 @@ export function AsignacionesPanel({
     if (!sel) return;
     startTransition(async () => {
       setError(null);
-      const r = await asignarAlumnoAction(viajeId, sel);
+      let r = await asignarAlumnoAction(viajeId, sel);
+      // Advertencias no bloqueantes (sobre-cupo, pasaporte): confirmación explícita.
+      if (!r.ok && r.requiereConfirmacion && window.confirm(r.error)) {
+        r = await asignarAlumnoAction(viajeId, sel, { confirmar: true });
+      }
       if (r.ok) {
         setSel("");
         router.refresh();
-      } else {
+      } else if (!r.requiereConfirmacion) {
         setError(r.error);
       }
     });
@@ -90,7 +94,7 @@ export function AsignacionesPanel({
       ) : (
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="w-72">
-            <Select value={sel} onChange={(e) => setSel(e.target.value)} disabled={isPending || sinCupo}>
+            <Select value={sel} onChange={(e) => setSel(e.target.value)} disabled={isPending}>
               <option value="">
                 {elegibles.length === 0 ? "No hay alumnos disponibles" : "Elegí un alumno…"}
               </option>
@@ -101,10 +105,14 @@ export function AsignacionesPanel({
               ))}
             </Select>
           </div>
-          <Button type="button" onClick={asignar} disabled={isPending || !sel || sinCupo}>
+          <Button type="button" onClick={asignar} disabled={isPending || !sel}>
             Asignar
           </Button>
-          {sinCupo && <span className="text-sm text-amber-700">El viaje no tiene cupo disponible.</span>}
+          {sinCupo && (
+            <span className="text-sm text-amber-700">
+              Cupo completo: asignar más requiere confirmación explícita.
+            </span>
+          )}
         </div>
       )}
 

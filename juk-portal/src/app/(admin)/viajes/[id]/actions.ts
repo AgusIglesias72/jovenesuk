@@ -12,13 +12,16 @@ import {
   createAsignacion,
 } from "@/lib/db/queries/asignaciones";
 import { registrarAuditoria } from "@/lib/db/queries/auditoria";
-import { getViajeById } from "@/lib/db/queries/viajes";
+import { getColegioById, getConfigDocumental } from "@/lib/db/queries/colegios";
+import { crearPasosParaAsignacion } from "@/lib/db/queries/pasos-alumno";
+import { getViajeById, setViajeEstado } from "@/lib/db/queries/viajes";
 import { AsignacionNotFoundError, pasaporteVigenteParaViaje } from "@/lib/domain/asignaciones";
+import { edadAlInicioDelViaje, pasosIniciales } from "@/lib/domain/pasos";
 import type { NewAuditoriaEntry } from "@/lib/db/schema/auditoria";
 
 export type ActionResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string };
+  | { ok: false; error: string; requiereConfirmacion?: boolean };
 
 async function safeAudit(entry: NewAuditoriaEntry) {
   try {
@@ -34,7 +37,8 @@ function isYaAsignado(err: unknown): boolean {
 
 export async function asignarAlumnoAction(
   viajeId: string,
-  alumnoId: string
+  alumnoId: string,
+  opts?: { confirmar?: boolean }
 ): Promise<ActionResult<{ id: string }>> {
   const session = await requireAdminJuk();
 
@@ -48,28 +52,73 @@ export async function asignarAlumnoAction(
     getAlumnoById(alumnoId),
   ]);
   if (!viaje || !alumno) return { ok: false, error: "Viaje o alumno inexistente." };
-  if (viaje.estado === "cancelado") return { ok: false, error: "El viaje está cancelado." };
+  // US-11/MIN-12: altas solo en Inscripción abierta y Confirmado.
+  if (viaje.estado !== "inscripcion_abierta" && viaje.estado !== "confirmado") {
+    return { ok: false, error: "Solo se puede inscribir en viajes en Inscripción abierta o Confirmado." };
+  }
   if (alumno.estado === "baja") return { ok: false, error: "El alumno está dado de baja." };
 
-  // CRIT-02: validación de pasaporte detrás del flag STRICT_UK_RULE.
-  if (!pasaporteVigenteParaViaje(alumno.fechaVencimientoPasaporte, viaje.fechaFin)) {
-    return { ok: false, error: "El pasaporte del alumno vence antes del fin del viaje." };
-  }
-
-  const activas = await countAsignacionesActivas(viajeId);
-  if (activas >= viaje.capacidadMaxima) {
-    return { ok: false, error: "El viaje no tiene cupo disponible." };
+  // Advertencias confirmables (US-11: advierte pero NO bloquea; US-16: pasaporte).
+  if (!opts?.confirmar) {
+    const advertencias: string[] = [];
+    if (!pasaporteVigenteParaViaje(alumno.fechaVencimientoPasaporte, viaje.fechaFin, viaje.paisDestino)) {
+      advertencias.push("el pasaporte del alumno no cumple el requisito de vigencia para este destino");
+    }
+    const activas = await countAsignacionesActivas(viajeId);
+    if (activas >= viaje.capacidadMaxima) {
+      advertencias.push("el viaje queda por encima de su capacidad máxima");
+    }
+    if (advertencias.length > 0) {
+      return {
+        ok: false,
+        requiereConfirmacion: true,
+        error: `Atención: ${advertencias.join(" y ")}. ¿Asignar igual?`,
+      };
+    }
   }
 
   try {
     const asig = await createAsignacion({ alumnoId, viajeId });
+
+    // Trigger de asignación (PRD §6.2): crear el tablero con los N/A automáticos.
+    const colegio = await getColegioById(viaje.colegioDestinoId);
+    const configDocumental = await getConfigDocumental(viaje.colegioDestinoId);
+    const pasos = pasosIniciales({
+      configDocumental,
+      tipoEntrada: colegio?.tipoEntradaRequerida ?? "eta",
+      origenViaje: viaje.origen,
+      tipoViaje: viaje.tipo,
+      edadAlInicio: edadAlInicioDelViaje(alumno.fechaNacimiento, viaje.fechaInicio),
+      // El webhook del Google Form todavía no existe: toda alta es manual.
+      canalAlta: "alta_manual",
+    });
+    await crearPasosParaAsignacion(asig.id, pasos, alumno.fechaAlta, session.user.id);
+
     await safeAudit({
       accion: "asignar_a_viaje",
       entidadTipo: "asignacion",
       entidadId: asig.id,
       usuarioId: session.user.id,
-      metadata: { viajeId, alumnoId },
+      metadata: { viajeId, alumnoId, pasosCreados: pasos.length },
     });
+
+    // Confirmado AUTOMÁTICO al llegar a 5 inscriptos (solo Grupales, US-13).
+    const activasAhora = await countAsignacionesActivas(viajeId);
+    if (
+      viaje.tipo === "grupal" &&
+      viaje.estado === "inscripcion_abierta" &&
+      activasAhora >= 5
+    ) {
+      await setViajeEstado(viajeId, "confirmado");
+      await safeAudit({
+        accion: "cambio_estado_viaje",
+        entidadTipo: "viaje",
+        entidadId: viajeId,
+        usuarioId: session.user.id,
+        metadata: { estadoAnterior: "inscripcion_abierta", estado: "confirmado", motivo: "auto_5_alumnos" },
+      });
+    }
+
     revalidatePath(`/viajes/${viajeId}`);
     return { ok: true, data: { id: asig.id } };
   } catch (err) {
