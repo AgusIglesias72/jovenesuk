@@ -47,7 +47,33 @@ export async function countAsignacionesActivas(viajeId: string): Promise<number>
   return rows[0]?.c ?? 0;
 }
 
+// Crea la asignación o, si el par (alumno, viaje) ya existe en estado
+// "cancelada", la reactiva con un UPDATE. La constraint uniq_alumno_viaje no
+// incluye el estado, así que un INSERT sobre una asignación cancelada chocaría
+// (23505): por eso reusamos la fila existente.
 export async function createAsignacion(data: NewAsignacion): Promise<Asignacion> {
+  const { alumnoId, viajeId } = data;
+
+  const existentes = await db
+    .select()
+    .from(asignaciones)
+    .where(and(eq(asignaciones.alumnoId, alumnoId), eq(asignaciones.viajeId, viajeId)));
+  const existente = existentes[0];
+
+  if (existente && existente.estado === "cancelada") {
+    const reactivadas = await db
+      .update(asignaciones)
+      .set({
+        estado: data.estado ?? "activa",
+        fechaAsignacion: data.fechaAsignacion ?? new Date(),
+        fechaCancelacion: null,
+        motivoCancelacion: null,
+      })
+      .where(eq(asignaciones.id, existente.id))
+      .returning();
+    return reactivadas[0]!;
+  }
+
   const rows = await db.insert(asignaciones).values(data).returning();
   return rows[0]!;
 }
