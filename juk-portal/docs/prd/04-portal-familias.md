@@ -417,8 +417,8 @@ actualiza a mano.
 
 > ⚠️ AMBIGUO: el PRD de Familias fija los montos de cuotas en **USD**, mientras la convención del
 > portal interno (CLAUDE.md) es GBP para montos del viaje y ARS para conceptos locales. Hay que
-> alinear la moneda del plan de cuotas antes de modelarlo. Además, en el portal interno todo el
-> módulo de Pagos está **bloqueado por CRIT-01** (flujo de pago del colegio cliente / NEA).
+> alinear la moneda del plan de cuotas antes de modelarlo → **CRIT-05** en `OPEN_DECISIONS.md`.
+> (El flujo de pago por tipo de representante —ex CRIT-01— ya está cerrado: ver doc 01.)
 
 ### 3.1 User stories
 
@@ -1034,17 +1034,18 @@ notificaciones), y la política de cierre de acceso post-viaje.
 ### Lo que falta para soportar el Portal de Familias
 
 - **Seguimiento M6 (Paso 0 + A/B/C/D) por alumno:** no construido; es el prerequisito directo del
-  Módulo 1 de familias. Parcialmente **bloqueado por CRIT-01** (pagos B1/B2) y **CRIT-03**
-  (psicofísico D2: el PRD de familias asume que es del alumno, pero en el interno sigue abierto si
-  es del alumno o del group leader).
+  Módulo 1 de familias. Ya **desbloqueado**: los ex CRIT-01/03 quedaron resueltos por el PRD
+  Interno v1.13 (D2 es del alumno, en Grupales con GL; B2 = N/A para Colegio cliente y JUK
+  directo). Solo la moneda de B1 espera **CRIT-05**.
 - **Credenciales de familia (US-19b interno):** generación al crear el alumno, botón "Enviar acceso",
   estado enviado/no enviado, desactivación en baja — nada de esto existe aún.
 - **Login por DNI:** Better-Auth hoy autentica admins por email; el acceso de familias es DNI +
   contraseña, lo que requiere extender la estrategia de auth.
 - **Upload de archivos a R2:** inexistente (hoy los documentos del M7 van como URL manual). Es
   crítico: las familias suben Parental Consent, App Form del Colegio, psicofísico, capturas de ETA.
-- **Módulo de Pagos / plan de cuotas:** bloqueado por CRIT-01. Además hay que resolver la moneda
-  (el PRD de familias dice **USD**; la convención del código es GBP/ARS).
+- **Módulo de Pagos / plan de cuotas:** desbloqueado en lo funcional (ex CRIT-01 resuelto);
+  falta resolver la moneda (**CRIT-05**: el PRD de familias dice USD; la convención del código
+  es GBP/ARS).
 - **Campo `config_parental_consent` (ENUM)** en el ABM de Colegios Destino y la regla de visibilidad
   de C1 por país de destino.
 - **WhatsApp como canal de notificación:** sin infraestructura; solo existe email (Resend).

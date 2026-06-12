@@ -652,7 +652,7 @@ Leyenda: ✅ completo · ⚠️ limitado (ver nota) · 🚫 sin acceso.
 | Pre-inscripto | Estado inicial del ESTUDIANTE al entrar por webhook del Google Form |
 | Alumno_Adulto / Padre_Tutor | Valores de `CUENTA_FAMILIAS.titular`. Alumno_Adulto si cumple 18 antes del inicio del viaje (cambia lenguaje del portal y marca Pasos 5/8 como NA); Padre_Tutor es el default |
 
-> ⚠️ AMBIGUO: el glosario del PRD dice que **Directo_JUK** "aplica a viajes con representante de tipo *Colegio_cliente*", lo que **contradice** RV-05 y la definición de `VIAJE.flujo_pago` (Colegio_cliente → `Via_agencia`; `Directo_JUK` es exclusivo del tipo `JUK_Directo`). La entrada del glosario es texto desactualizado de una versión previa a v1.3; **manda RV-05**. Coincide con el blocker CRIT-01 de `OPEN_DECISIONS.md` (flujo de pago de NEA): confirmar con negocio antes de implementar pagos.
+> ⚠️ AMBIGUO: el glosario del PRD dice que **Directo_JUK** "aplica a viajes con representante de tipo *Colegio_cliente*", lo que **contradice** RV-05 y la definición de `VIAJE.flujo_pago` (Colegio_cliente → `Via_agencia`; `Directo_JUK` es exclusivo del tipo `JUK_Directo`). La entrada del glosario es texto desactualizado de una versión previa a v1.3; **manda RV-05**, que coincide con el PRD Interno v1.13 (ex CRIT-01, ya resuelto: Colegio cliente = vía agencia sin excepción presencial). Registrado como **TEC-11(a)** en `OPEN_DECISIONS.md` para que producto corrija el doc.
 
 ---
 
@@ -717,7 +717,7 @@ Falta crear completa (§3.2): vínculo 1:1 con alumno, DNI como username, `activ
 #### VIAJE → `viajes` (`viajes.ts`)
 
 - **Faltan:** `tipo_viaje` ENUM `Grupal|Individual` (con todo su efecto: capacidad fija 1, estado inicial Confirmado, `paso9_aplica`, RV-24), `id_representante` FK NOT NULL, `flujo_pago` ENUM `Via_agencia|Directo_JUK` calculado (RV-05), `paso9_aplica`, `paso10_aplica`, `comision_agencia_pct`, `id_organizacion`.
-- **`ultimo_pago_presencial`** (text `'si'|'no'`, carga manual por CRIT-01) es el placeholder de `paso10_aplica`; el PRD lo deriva del tipo de representante (RV-05). Migrar cuando se cierre CRIT-01.
+- **`ultimo_pago_presencial`** (text `'si'|'no'`, carga manual — quedó del ex CRIT-01) es el placeholder de `paso10_aplica`; el PRD lo deriva del tipo de representante (RV-05). El ex CRIT-01 ya está resuelto → migrar a campo derivado al implementar las fundaciones (doc 06, ítem 1.1).
 - **`origen`** (enum propio del viaje) debe reemplazarse por la FK al representante + su `tipo`.
 - **`creado_por`:** impl. uuid nullable sin FK; PRD lo exige NOT NULL FK → CUENTA_ADMIN.
 - **Extra impl.** (no está en el PRD, conservar como extensión): `codigo` UNIQUE (`UK-2026-JUL-LONDON`), `nombre` descriptivo separado, `pais_destino`, `colegio_cliente_id`, `curso`, `tipo_alojamiento_solicitado`, `capacidad_minima` (default 5 — en el PRD el umbral 5 es la regla RV-04, no una columna), `updatedAt`.
@@ -790,4 +790,4 @@ Faltan crear completas (§3.16 y §3.17). Dependen del Portal de Familias y la V
 
 - **Trazabilidad:** el PRD exige `actualizado_por`/`fecha_actualizacion` en toda tabla de estado; impl. lo cumple en pasos (`updated_by`) pero no en `cuotas` (`registrado_por` ausente).
 - **`id_organizacion` (multi-tenant v2):** no existe en ninguna tabla actual; agregarlo a `viajes`, `group_leaders`/representantes y `colegios` cuesta poco ahora y mucho después (§7).
-- **Reglas RV sin soporte de schema hoy:** RV-00 (Paso 0), RV-03/RV-04 para Individuales (`tipo_viaje`), RV-05/RV-06 (flujo de pago — bloqueado por CRIT-01), RV-C1 (`tipo_entrada_requerida`), RV-13/RV-14 (cuenta del representante), RV-15/RV-21 (NPS), RV-22 (partial unique), RV-23 (recalculo explícito al editar fechas).
+- **Reglas RV sin soporte de schema hoy:** RV-00 (Paso 0), RV-03/RV-04 para Individuales (`tipo_viaje`), RV-05/RV-06 (flujo de pago — regla ya cerrada, falta el schema), RV-C1 (`tipo_entrada_requerida`), RV-13/RV-14 (cuenta del representante), RV-15/RV-21 (NPS), RV-22 (partial unique), RV-23 (recalculo explícito al editar fechas).

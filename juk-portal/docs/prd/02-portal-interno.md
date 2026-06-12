@@ -471,6 +471,11 @@ JUK') **auto-asignado** según el tipo de representante del viaje.
 - Campos por cuota: plan de pagos ★ (número de cuotas y montos acordados), N° de cuota ★,
   monto ★ (en la moneda acordada), fecha de vencimiento ★, fecha de pago efectivo ◇, canal ★
   (calculado), observaciones ◇.
+
+> ⚠️ AMBIGUO (**CRIT-05** en `OPEN_DECISIONS.md`): el PRD del Modelo de Datos v1.7 y el del
+> Portal de Familias v1.11 fijan los montos en **USD**; la convención del repo es GBP/ARS y el
+> PRD interno solo dice "moneda acordada". Definir moneda (¿multi-moneda + cotización?) antes
+> de modelar cuotas.
 - **US-22:** alta de cuotas con vencimiento y monto; al confirmar pago se registra fecha
   efectiva y canal; **saldo pendiente calculado automáticamente**; B1 Completado cuando todas
   las cuotas están saldadas.
@@ -571,6 +576,10 @@ JUK carga propuestas; el representante aprueba desde su portal.
   representante aprueba/rechaza desde su vista; **un admin puede aprobar en nombre del
   representante cuando éste lo comunica por email — debe quedar registrado con una nota**
   (cerrado por María). Todas confirmadas → paso Completado.
+
+> ⚠️ AMBIGUO (**CRIT-04** en `OPEN_DECISIONS.md`): el PRD de la Vista del Representante v1.10
+> contradice esta US — dice que el representante NO aprueba actividades, solo envía solicitudes
+> de cambio (SLA 7 días). No asumir el mecanismo de aprobación hasta cerrarlo con el equipo.
 
 ### Paso 3 — Transfers
 
