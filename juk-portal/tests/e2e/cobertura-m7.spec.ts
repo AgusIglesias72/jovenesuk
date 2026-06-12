@@ -25,8 +25,9 @@ test("tarjeta de transporte por alumno: marcar a todos completa el paso", async 
   await expect(roster.getByText("0/1")).toBeVisible();
 
   // Marcar al único alumno → cobertura completa → paso Completado
-  // (force: el checkbox estilizado superpone un span decorativo)
-  await roster.locator('input[type="checkbox"]').check({ force: true });
+  // (click+force: checkbox controlado por estado del server con overlay decorativo;
+  // check() exigiría cambio de estado inmediato y el cambio llega con el refresh)
+  await roster.locator('input[type="checkbox"]').click({ force: true });
   await expect(roster.getByText("1/1")).toBeVisible();
   await expect(
     page
@@ -37,7 +38,7 @@ test("tarjeta de transporte por alumno: marcar a todos completa el paso", async 
   ).toBeVisible();
 
   // Desmarcar → el paso se reabre
-  await roster.locator('input[type="checkbox"]').uncheck({ force: true });
+  await roster.locator('input[type="checkbox"]').click({ force: true });
   await expect(roster.getByText("0/1")).toBeVisible();
   await expect(
     page

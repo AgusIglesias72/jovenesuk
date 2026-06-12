@@ -12,3 +12,4 @@ export * from "./cuotas";
 export * from "./documentos";
 export * from "./alertas";
 export * from "./auditoria";
+export * from "./notificaciones";

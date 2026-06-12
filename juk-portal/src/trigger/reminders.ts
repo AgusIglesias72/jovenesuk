@@ -13,33 +13,27 @@ import { task, schedules } from "@trigger.dev/sdk/v3";
 export const dailyReminderScan = schedules.task({
   id: "daily-reminder-scan",
   cron: {
-    pattern: "0 9 * * *",  // 09:00 UTC daily
+    pattern: "0 9 * * *",  // 09:00 UTC daily (06:00 ART)
     timezone: "UTC",
   },
   maxDuration: 600,
-  run: async (payload, { ctx }) => {
-    // TODO: Implement with @/lib/jobs/scan-deadlines.ts
-    // Scan pasos_alumno where fechaLimite is in [today, today + 14]
-    // For each step, check whether a reminder for this distance has been sent
-    // If not, enqueue sendReminderEmail with the right template
-    return { scanned: 0, enqueued: 0 };
+  run: async () => {
+    const { scanRecordatorios } = await import("@/lib/jobs/scan-recordatorios");
+    // Dedup contra notificaciones_enviadas: re-correr el job no duplica envíos.
+    return scanRecordatorios(new Date());
   },
 });
 
 /**
- * One-off task that sends a single reminder email.
- * Called by dailyReminderScan and also can be triggered manually for tests.
+ * Corrida manual del scan (para probar sin esperar el cron). El parámetro
+ * `enviarEmails: false` permite un dry-run que solo registra ocurrencias.
  */
-export const sendReminderEmail = task({
-  id: "send-reminder-email",
-  maxDuration: 60,
-  run: async (payload: {
-    asignacionId: string;
-    pasoTipo: string;
-    diasAntesDelLimite: number;
-  }) => {
-    // TODO: Implement with @/lib/email/send-reminder.ts
-    return { sent: true };
+export const runReminderScan = task({
+  id: "run-reminder-scan",
+  maxDuration: 600,
+  run: async (payload: { enviarEmails?: boolean }) => {
+    const { scanRecordatorios } = await import("@/lib/jobs/scan-recordatorios");
+    return scanRecordatorios(new Date(), { enviarEmails: payload.enviarEmails ?? true });
   },
 });
 

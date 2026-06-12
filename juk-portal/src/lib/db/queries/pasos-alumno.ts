@@ -20,7 +20,11 @@ export async function crearPasosParaAsignacion(
   asignacionId: string,
   pasos: PasoInicial[],
   fechaAltaAlumno: Date,
-  updatedBy: string | null
+  updatedBy: string | null,
+  opts?: {
+    /** Default de A1 heredado del viaje (US-20); sobreescribible por alumno. */
+    fechaLimiteA1?: Date | null;
+  }
 ): Promise<void> {
   await db.delete(pasosAlumno).where(eq(pasosAlumno.asignacionId, asignacionId));
   await db.insert(pasosAlumno).values(
@@ -29,6 +33,7 @@ export async function crearPasosParaAsignacion(
       codigo: p.codigo,
       estado: p.estado,
       metadata: p.metadata,
+      fechaLimite: p.codigo === "a1" ? (opts?.fechaLimiteA1 ?? null) : null,
       fechaCompletado: p.codigo === "paso_0" ? fechaAltaAlumno : null,
       updatedBy,
     }))

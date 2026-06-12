@@ -37,7 +37,13 @@ export async function asignarConTablero(opts: {
     edadAlInicio: edadAlInicioDelViaje(alumno.fechaNacimiento, viaje.fechaInicio),
     canalAlta: alumno.canalAlta,
   });
-  await crearPasosParaAsignacion(asig.id, pasos, alumno.fechaAlta, usuarioId);
+  // Default de la fecha límite de A1 (US-20): 30 días antes del inicio del
+  // viaje (el principio operativo "todo resuelto con margen"); editable por alumno.
+  const fechaLimiteA1 = new Date(viaje.fechaInicio);
+  fechaLimiteA1.setUTCDate(fechaLimiteA1.getUTCDate() - 30);
+  await crearPasosParaAsignacion(asig.id, pasos, alumno.fechaAlta, usuarioId, {
+    fechaLimiteA1,
+  });
 
   // El alumno asignado deja de ser pre-inscripto (PRD §5.5).
   if (alumno.estado === "pre_inscripto") {
