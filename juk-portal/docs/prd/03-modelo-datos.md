@@ -108,7 +108,7 @@ Portal de acceso único para el equipo JUK (rol Admin) y Representantes externos
 
 Cuenta del Portal de Familias. Se genera **automáticamente** al crear el alumno (RV-12); el envío de credenciales es una acción manual separada del equipo JUK. El DNI del alumno es el username.
 
-> ⚠️ AMBIGUO (**MIN-07**): el identificador de login del Portal de Familias está contradicho entre fuentes. El Interno v1.13 (US-19b) dice usuario = **email del Tutor 1**; este Modelo y el PRD de Familias dicen usuario = **DNI del alumno**. No asumir ninguno al implementar: resolver MIN-07 en `OPEN_DECISIONS.md` primero.
+> ✅ RESUELTO (**MIN-07**, decisión 11/06/2026): el Interno (US-19b) decía usuario = email del Tutor 1; este Modelo y Familias, DNI del alumno. Decisión: la identidad de auth es el **email del Tutor 1** (Better-Auth); el DNI del alumno queda como **selector/búsqueda**. Permite N alumnos por grupo familiar con una sola cuenta.
 
 | Campo | Tipo | Oblig. | Notas |
 |---|---|---|---|
@@ -170,7 +170,7 @@ Institución educativa en el extranjero (principalmente UK) donde estudian los a
 
 > **Nota de implementación (Interno v1.13, US-05b):** la nota de arquitectura del Interno exige modelar la configuración de documentos como **entidad independiente** (`colegio_documento_config`, una fila por documento), NO como columnas fijas. La implementación va a seguir al Interno; las columnas `config_*` de esta tabla quedan como referencia de los 5 documentos a configurar.
 
-> ⚠️ AMBIGUO (**MIN-11**): los defaults de `config_*` difieren entre fuentes — el Interno v1.13 dice default **"Opcional" para todos** los documentos; este Modelo da defaults por documento (Requerido/NA según el caso). No asumir.
+> ✅ RESUELTO (**MIN-11**, decisión 11/06/2026): el Interno decía default "Opcional" para todos los documentos; valen los **defaults por documento de este Modelo v1.7** — App Form Requerido, Test de Nivel NA, Parental Consent NA, Confirmation Letter Requerido, Visa/Immigration Requerido.
 
 > **Nota (TEC-11.k):** el estado `En_negociacion` no existe en el Interno v1.13, que solo define `Activo|Inactivo` para el colegio. Decidir al implementar.
 
@@ -336,7 +336,7 @@ Cada cuota del plan de pagos de un alumno por viaje. Los pagos **no son online**
 
 **Constraints:** `UNIQUE(id_inscripcion, numero_cuota)` · partial unique index `UNIQUE(id_inscripcion) WHERE es_ultimo_pago = TRUE` (PostgreSQL; en MySQL/MariaDB: trigger o CHECK compuesto — RV-22).
 
-> ⚠️ AMBIGUO: el PRD fija la moneda de las cuotas en **USD** (`monto_usd`), mientras que la convención del proyecto (`CLAUDE.md`) y el schema actual usan **GBP** para montos del viaje. Hay que cerrar la moneda canónica antes de migrar la tabla de cuotas.
+> ✅ RESUELTO (**CRIT-05**, decisión 11/06/2026 — ⭐ validar con Felix): el PRD fijaba las cuotas en **USD** (`monto_usd`) y la convención del proyecto usaba **GBP**. Decisión: **multi-moneda** — campo `moneda` ENUM (`USD|GBP|ARS`) + monto + cotización opcional, **default USD**.
 
 > **Nota (TEC-11.h):** a esta tabla le falta el campo **`canal`** (`'Vía agencia'` \| `'Presencial JUK'`) que B1/B2 del Interno v1.13 requieren por cuota. Agregarlo al implementar.
 
@@ -388,7 +388,7 @@ Los **5 trámites** coordinados a nivel de viaje (no por alumno), responsabilida
 
 Excursiones y actividades del programa. Pueden ser **fijas** (estándar, siempre incluidas) o **variables** (opcionales, sujetas a confirmación). El Representante puede proponer variables, pero JUK debe aprobarlas. Las aprobadas se reflejan automáticamente en el calendario visible por el Representante.
 
-> ⚠️ AMBIGUO (**CRIT-04**): el mecanismo de aprobación está contradicho entre fuentes — el Interno v1.13 (US-38) dice que el **representante aprueba/rechaza** las actividades variables; este Modelo dice que el representante solo **propone** y JUK aprueba. No asumir el mecanismo: resolver CRIT-04 antes de implementar.
+> ✅ RESUELTO (**CRIT-04**, decisión 11/06/2026 — ⭐ validar con equipo): el Interno v1.13 (US-38) decía que el representante aprueba/rechaza las actividades variables; este Modelo, que solo propone y JUK aprueba. Decisión: el **representante aprueba/rechaza desde su vista**; las solicitudes de cambio quedan como mecanismo adicional para proponer modificaciones.
 
 | Campo | Tipo | Oblig. | Notas |
 |---|---|---|---|
@@ -565,7 +565,7 @@ El PRD no especifica reglas `ON DELETE` explícitas por FK; todas las relaciones
 
 > ⚠️ AMBIGUO (**MIN-01**) — RV-11: el Interno v1.13 (US-28) determina la versión del Parental Consent por la **edad al inicio del viaje**, no por la edad en la fecha de descarga. No asumir.
 
-> ⚠️ AMBIGUO (**MIN-14**) — RV-C1 / `tipo_entrada_requerida`: el Interno v1.13 dice que la regla de documentación de entrada la determina el **país del viaje**; este Modelo la pone como atributo del **colegio destino**. Recomendación registrada en `OPEN_DECISIONS.md`: atributo del colegio con default por país. No asumir.
+> ✅ RESUELTO (**MIN-14**, decisión 11/06/2026) — RV-C1 / `tipo_entrada_requerida`: el Interno decía que la regla la determina el país del viaje; este Modelo, el colegio. Decisión: vive en el **colegio destino**, con default derivado de su país (UK → ETA, Irlanda → Ninguna, USA/Canadá → VISA).
 
 ---
 
@@ -756,7 +756,7 @@ Falta crear completa (§3.2): vínculo 1:1 con alumno, DNI como username, `activ
 #### ESTUDIANTE → `alumnos` (`alumnos.ts`)
 
 - **Faltan:** `pais_pasaporte`, `origen_alta` ENUM `Google_Form|Manual`, UNIQUE en `dni` (impl. lo tiene NOT NULL pero sin unique), y el desglose de salud del PRD: `alergias_alimentarias`, `alergias_ambientales`, `alergias_medicamentos`, `condiciones_cronicas`, `medicacion_habitual`, `observaciones_salud` — impl. tiene un único `alergias_salud` TEXT.
-- **Facturación:** impl. la guarda como JSON `facturacion` (razonSocial, direccion, localidad, provincia, codigoPostal, cuilCuit, condicionFiscal); el PRD pide columnas planas `cuil_cuit`, `razon_social`, `condicion_fiscal` (sensibles — RV-20). El JSON impl. tiene más campos (dirección fiscal) que el PRD no contempla. Ver **MIN-15**: hay discrepancia con el changelog del Interno v1.13 sobre estos datos de facturación; se conservan, visibles solo para Admin (RV-20).
+- **Facturación:** impl. la guarda como JSON `facturacion` (razonSocial, direccion, localidad, provincia, codigoPostal, cuilCuit, condicionFiscal); el PRD pide columnas planas `cuil_cuit`, `razon_social`, `condicion_fiscal` (sensibles — RV-20). El JSON impl. tiene más campos (dirección fiscal) que el PRD no contempla. ✅ RESUELTO (**MIN-15**, decisión 11/06/2026): pese a la discrepancia con el changelog del Interno v1.13, los datos de facturación del alumno **se conservan**, visibles solo para Admin (RV-20).
 - **Enum `estado`:** impl. `pre_inscripto|inscripto|activo|viajando|finalizado|baja` vs. PRD `Pre-inscripto|Activo|Baja|Pausado`. Falta `pausado`. Los valores `inscripto|viajando|finalizado` de impl. **sí existen en el PRD**: el Interno v1.13 define los 6 estados `Pre-inscripto|Inscripto|Activo|Viajando|Finalizado|Baja` (TEC-11.e); este Modelo solo lista 4.
 - **Extra impl.:** `telefono_alumno`, `preferencias_alojamiento`, `nivel_ingles_autoevaluacion`, `procesado_por`, `fecha_baja`, `motivo_baja`, `updatedAt` (el PRD registra bajas a nivel inscripción, no alumno).
 - Coinciden: `notas_internas` ≈ `observaciones_internas` (renombre menor), tutores 1/2, pasaporte, `fecha_alta`. ✓
@@ -778,7 +778,7 @@ Falta crear completa (§3.2): vínculo 1:1 con alumno, DNI como username, `activ
 
 #### CUOTA_PAGO → `cuotas` (`cuotas.ts`)
 
-- **Moneda:** impl. `monto` NUMERIC(12,2) + `moneda` default `'GBP'`; PRD `monto_usd` DECIMAL(10,2) en USD. Ver ambigüedad en §3.9.
+- **Moneda:** impl. `monto` NUMERIC(12,2) + `moneda` default `'GBP'`; PRD `monto_usd` DECIMAL(10,2) en USD. ✅ Resuelto por **CRIT-05** (11/06/2026 — ⭐ validar con Felix): multi-moneda — `moneda` ENUM (`USD|GBP|ARS`) + cotización opcional, **default USD** (ver §3.9).
 - **`es_ultimo_pago`:** impl. lo modela como `es_ultima_cuota` INTEGER 0/1 — pasar a BOOLEAN y agregar el **partial unique index** `UNIQUE(asignacion_id) WHERE es_ultimo_pago = TRUE` (RV-22, hoy inexistente).
 - **Falta** `UNIQUE(asignacion_id, numero)` (PRD: `UNIQUE(id_inscripcion, numero_cuota)`).
 - **Enum `estado`:** impl. `pendiente|pagada|vencida`; PRD agrega `NA`.

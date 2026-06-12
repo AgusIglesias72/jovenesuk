@@ -56,9 +56,10 @@ Atributos comunes a ambos perfiles:
 - **Email de contacto:** del tutor (perfil a) o del propio alumno (perfil b). Se usa para
   credenciales y notificaciones.
 
-> ⚠️ AMBIGUO (**MIN-07**): el usuario de login está contradicho entre fuentes — el Interno v1.13
-> (US-19b) dice usuario = **email del Tutor 1**; este PRD y el Modelo de Datos dicen usuario =
-> **DNI del alumno**. No asumir ninguno al implementar: resolver MIN-07 en `OPEN_DECISIONS.md` primero.
+> ✅ RESUELTO (**MIN-07**, decisión 11/06/2026): el Interno (US-19b) decía usuario = email del
+> Tutor 1; este PRD y el Modelo, DNI del alumno. Decisión: la identidad de auth es el **email del
+> Tutor 1** (Better-Auth); el DNI del alumno queda como **selector/búsqueda**. Permite N alumnos
+> por grupo familiar con una sola cuenta.
 
 Diferencias funcionales del **alumno adulto (18+)**: sin Parental Consent (A3 = N/A), sin
 Autorización por escribano (D1 = N/A, la sección se omite por completo en Módulo 4), el seguro lo
@@ -312,9 +313,11 @@ revisión → 🔴 Rechazado — Requiere corrección / ✅ Aprobado por JUK.
   (2) N/A si alumno 18+ al inicio del viaje; (3) ambas condiciones a la vez → igualmente N/A;
   (4) A3 activo solo con colegio `'Requerido'` AND alumno menor de 18.
 
-> ⚠️ AMBIGUO (**MIN-13**): el Interno v1.13 solo desactiva el paso con config `'NA'`; con
-> `'Opcional'` el paso queda **activo** (como opcional). Este PRD trata `'Opcional'` igual que
-> `'NA'` (módulo oculto, paso N/A). Cambia qué ve la familia: no asumir.
+> ✅ RESUELTO (**MIN-13**, decisión 11/06/2026): el Interno solo desactiva el paso con `'NA'`; este
+> PRD trataba `'Opcional'` igual que `'NA'` (módulo oculto, paso N/A). Decisión: con `'Opcional'`
+> el paso queda **activo** — el módulo SÍ aparece para la familia — pero **excluido del % de
+> completitud y de las alertas de pasos obligatorios**. La lectura "Opcional = oculto" de este PRD
+> no va.
 
 - **Alumno adulto:** D1 (autorización escribano) tampoco aparece. El resto aplica normal.
 - **D2 (Psicofísico):** aplica para menores y adultos en viajes **Grupales** (N/A en Individuales —
@@ -429,9 +432,9 @@ de pago**. JUK actualiza los estados manualmente con la información que recibe 
 cobro. La agencia comunica los estados a JUK periódicamente (frecuencia a definir) y el operador los
 actualiza a mano.
 
-> ⚠️ AMBIGUO: el PRD de Familias fija los montos de cuotas en **USD**, mientras la convención del
-> portal interno (CLAUDE.md) es GBP para montos del viaje y ARS para conceptos locales. Hay que
-> alinear la moneda del plan de cuotas antes de modelarlo → **CRIT-05** en `OPEN_DECISIONS.md`.
+> ✅ RESUELTO (**CRIT-05**, decisión 11/06/2026 — ⭐ validar con Felix): este PRD fijaba las cuotas
+> en **USD** y la convención del portal interno era GBP/ARS. Decisión: **multi-moneda** — campo
+> `moneda` ENUM (`USD|GBP|ARS`) + monto + cotización opcional, **default USD**.
 > (El flujo de pago por tipo de representante —ex CRIT-01— ya está cerrado: ver doc 01.)
 
 ### 3.1 User stories
@@ -954,9 +957,10 @@ dato** (quién escribe; el otro lado consume).
   del alumno; ojo: la US-19b del Interno dice usuario = **email del Tutor 1**). No se envían
   automáticamente.
 
-> ⚠️ AMBIGUO (**MIN-07**): el identificador de login está contradicho entre fuentes. El Interno
-> v1.13 (US-19b) dice usuario = **email del Tutor 1**; este PRD de Familias y el Modelo de Datos
-> dicen usuario = **DNI del alumno**. No asumir.
+> ✅ RESUELTO (**MIN-07**, decisión 11/06/2026): el Interno (US-19b) decía usuario = email del
+> Tutor 1; este PRD y el Modelo, DNI del alumno. Decisión: identidad de auth = **email del Tutor 1**
+> (Better-Auth); el DNI del alumno queda como selector/búsqueda. Permite N alumnos por grupo
+> familiar con una sola cuenta.
 - **Envío manual por el admin:** botón "Enviar acceso al Portal de Familias" en el perfil del alumno,
   con estado visible "Acceso no enviado" / "Acceso enviado — fecha", y posibilidad de reenviar. El
   acceso queda activo desde el envío, **independientemente del estado del viaje**.
@@ -1058,16 +1062,17 @@ notificaciones), y la política de cierre de acceso post-viaje.
 - **Seguimiento M6 (Paso 0 + A/B/C/D) por alumno:** no construido; es el prerequisito directo del
   Módulo 1 de familias. Ya **desbloqueado**: los ex CRIT-01/03 quedaron resueltos por el PRD
   Interno v1.13 (D2 es del alumno, en Grupales con GL; B2 = N/A para Colegio cliente y JUK
-  directo). Solo la moneda de B1 espera **CRIT-05**.
+  directo). La moneda de B1 también quedó resuelta (**CRIT-05**, 11/06/2026: multi-moneda
+  `USD|GBP|ARS` + cotización opcional, default USD — ⭐ validar con Felix).
 - **Credenciales de familia (US-19b interno):** generación al crear el alumno, botón "Enviar acceso",
   estado enviado/no enviado, desactivación en baja — nada de esto existe aún.
 - **Login por DNI:** Better-Auth hoy autentica admins por email; el acceso de familias es DNI +
   contraseña, lo que requiere extender la estrategia de auth.
 - **Upload de archivos a R2:** inexistente (hoy los documentos del M7 van como URL manual). Es
   crítico: las familias suben Parental Consent, App Form del Colegio, psicofísico, capturas de ETA.
-- **Módulo de Pagos / plan de cuotas:** desbloqueado en lo funcional (ex CRIT-01 resuelto);
-  falta resolver la moneda (**CRIT-05**: el PRD de familias dice USD; la convención del código
-  es GBP/ARS).
+- **Módulo de Pagos / plan de cuotas:** desbloqueado en lo funcional (ex CRIT-01 resuelto) y en la
+  moneda (**CRIT-05** resuelto 11/06/2026: multi-moneda `USD|GBP|ARS` + cotización opcional,
+  default USD — ⭐ validar con Felix).
 - **Campo `config_parental_consent` (ENUM)** en el ABM de Colegios Destino y la regla de visibilidad
   de C1 por país de destino.
 - **WhatsApp como canal de notificación:** sin infraestructura; solo existe email (Resend).

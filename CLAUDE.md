@@ -28,18 +28,15 @@ jovenesuk/
 ## Regla de oro: chequeá los gates antes de codear
 
 Las specs de producto viven en **`juk-portal/docs/prd/`** (empezar por `00-indice.md`); las
-decisiones abiertas en `juk-portal/OPEN_DECISIONS.md`. Los 3 CRITs históricos (pagos NEA,
-pasaporte UK, psicofísico) quedaron **resueltos** por los PRDs de junio 2026. Antes de tocar un
-área sensible, corré `/juk-gate <área>` o consultá el agente `juk-prd-analyst`:
+decisiones en `juk-portal/OPEN_DECISIONS.md`. **No hay gates ROJOS**: los CRITs históricos los
+resolvieron los PRDs de junio 2026, y CRIT-04 (excursiones: el representante aprueba) y
+CRIT-05 (cuotas: multi-moneda, default USD) se decidieron el 11/06/2026 con ⭐ "validar con el
+equipo" — mantené esas dos reglas acotadas y fáciles de revertir. Ante un área sensible, corré
+`/juk-gate <área>` o consultá el agente `juk-prd-analyst`. Quedan abiertos (no bloquean):
+MIN-01 (versión del Parental Consent), MIN-04 (diario multi-GL), MIN-08 (retención familias),
+MIN-09 (email emisor), MIN-10 (precios).
 
-| Área | Bloqueado por | No codear hasta resolver |
-|---|---|---|
-| **Aprobación de excursiones** (M7 Paso 2) | CRIT-04 | ¿el representante aprueba o solo solicita? (contradicción entre PRDs) |
-| **Moneda de cuotas** (B1/B2, resumen de pagos) | CRIT-05 | ¿USD, GBP o multi-moneda? |
-
-Lo que **SÍ** se puede codear sin riesgo: todo lo demás — ABMs, tablero M6 completo (Paso 0 +
-Grupos A/B/C/D), validación de pasaporte, trigger de asignación, M7 (salvo el mecanismo de
-aprobación de excursiones), dashboard, viajes Individuales, config documental por colegio.
+El plan de implementación vigente: `juk-portal/docs/prd/06-deltas-implementacion.md` §D.
 
 ## Cómo trabajar acá
 

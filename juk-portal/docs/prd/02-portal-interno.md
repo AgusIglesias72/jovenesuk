@@ -146,8 +146,9 @@ directorio para el dropdown "Colegio cliente (origen)" del viaje (campo Tipo y f
 ### Configuración de requisitos documentales por colegio (US-05b) — pieza clave
 
 Al crear/editar un colegio destino, el admin configura cada documento estándar como
-**Requerido / Opcional / N-A** (default: **Opcional** — ⚠️ **MIN-11**: el Modelo v1.7 da
-defaults distintos por documento). Esa configuración determina
+**Requerido / Opcional / N-A** (✅ MIN-11 resuelto: valen los **defaults por documento del
+Modelo v1.7** — App Form Requerido, Test de Nivel N/A, Parental Consent N/A, Confirmation
+Letter Requerido, VISA/Immigration Requerido — y no el "todo Opcional" de esta US). Esa configuración determina
 automáticamente los pasos activos del tablero del alumno (M6) al asignarlo a un viaje de ese
 colegio — **sin reglas hardcodeadas**:
 
@@ -338,9 +339,9 @@ Usuario que procesó el alta ★ (automático), Notas internas ◇ (visibles par
   vacantes**. Contador se actualiza. Al límite de capacidad → advertencia antes de confirmar.
   Al asignar → **activa el tablero M6** y **valida el pasaporte** contra el viaje.
 
-> ⚠️ AMBIGUO (**MIN-12**): "solo Inscripción abierta" contradice a US-11 (altas también en
-> Confirmado) y deja inasignables a los viajes Individuales, que nacen Confirmados (US-10b).
-> Recomendación: incluir Inscripción abierta y Confirmado con vacantes.
+> ✅ RESUELTO (MIN-12, decisión 11/06/2026): el dropdown incluye viajes en **Inscripción
+> abierta Y Confirmado con vacantes** (consistente con US-11; los Individuales nacen
+> Confirmados y deben ser asignables).
 - **US-17 — Buscar/filtrar.** Por nombre, apellido o número de pasaporte. Filtros: viaje,
   estado general, alertas activas, paso de trámite pendiente. Indicador visual de alertas por
   alumno en la lista.
@@ -352,8 +353,9 @@ Usuario que procesó el alta ★ (automático), Notas internas ◇ (visibles par
   (opcional). Sigue visible en historial; desaparece de vistas activas.
 - **US-19b — Credenciales del Portal de Familias.** Se **generan automáticamente al CREAR el
   alumno** (webhook o manual): usuario = email del Tutor 1 + contraseña temporal.
-  *⚠️ AMBIGUO (****MIN-07****): el Modelo v1.7 y Familias v1.11 dicen "usuario = DNI del
-  alumno", contradiciendo este "email del Tutor 1". No asumir hasta cerrarlo.* **NO se
+  *✅ RESUELTO (MIN-07, decisión 11/06/2026): identidad de auth = **email del Tutor 1**
+  (compatible Better-Auth); el **DNI del alumno es selector/búsqueda**, lo que además permite
+  N alumnos por grupo familiar con una sola cuenta.* **NO se
   envían automáticamente** — el envío es acción deliberada del admin (botón "Enviar acceso al
   Portal de Familias" en el perfil). El perfil muestra el estado: 'Acceso no enviado' /
   'Acceso enviado — fecha'. El email sale de info@jovenesenuk.com con usuario, contraseña
@@ -430,7 +432,7 @@ primer pago de B1.
 |---|---|
 | A1 | Colegio lo configura N/A |
 | A2 | Colegio lo configura N/A |
-| A3 | Colegio lo configura N/A **o** alumno ≥18 años al inicio del viaje (⚠️ **MIN-13**: Familias v1.11 trata "Opcional" también como N/A — acá solo "N/A" desactiva) |
+| A3 | Colegio lo configura N/A **o** alumno ≥18 años al inicio del viaje (✅ MIN-13 resuelto: "Opcional" = paso ACTIVO pero excluido de completitud y alertas; solo "N/A" desactiva) |
 | B2 | Tipo de representante = Colegio cliente o JUK (directo) |
 | C1 | País destino ≠ UK (Irlanda: no requiere nada; USA/Canadá: VISA obligatoria, flujo v2) |
 | D1 | Alumno ≥18 años al inicio del viaje |
@@ -485,10 +487,9 @@ JUK') **auto-asignado** según el tipo de representante del viaje.
   monto ★ (en la moneda acordada), fecha de vencimiento ★, fecha de pago efectivo ◇, canal ★
   (calculado), observaciones ◇.
 
-> ⚠️ AMBIGUO (**CRIT-05** en `OPEN_DECISIONS.md`): el PRD del Modelo de Datos v1.7 y el del
-> Portal de Familias v1.11 fijan los montos en **USD**; la convención del repo es GBP/ARS y el
-> PRD interno solo dice "moneda acordada". Definir moneda (¿multi-moneda + cotización?) antes
-> de modelar cuotas.
+> ✅ RESUELTO (CRIT-05, decisión 11/06/2026 ⭐ validar con Felix): **multi-moneda** — `moneda`
+> ENUM (`USD|GBP|ARS`) + monto + cotización opcional, **default USD** (lo que dicen Modelo
+> v1.7 y Familias v1.11).
 - **US-22:** alta de cuotas con vencimiento y monto; al confirmar pago se registra fecha
   efectiva y canal; **saldo pendiente calculado automáticamente**; B1 Completado cuando todas
   las cuotas están saldadas.
@@ -590,9 +591,9 @@ JUK carga propuestas; el representante aprueba desde su portal.
   representante cuando éste lo comunica por email — debe quedar registrado con una nota**
   (cerrado por María). Todas confirmadas → paso Completado.
 
-> ⚠️ AMBIGUO (**CRIT-04** en `OPEN_DECISIONS.md`): el PRD de la Vista del Representante v1.10
-> contradice esta US — dice que el representante NO aprueba actividades, solo envía solicitudes
-> de cambio (SLA 7 días). No asumir el mecanismo de aprobación hasta cerrarlo con el equipo.
+> ✅ RESUELTO (CRIT-04, decisión 11/06/2026 ⭐ validar con equipo): **el representante aprueba**
+> (esta US manda); las "solicitudes de cambio" del PRD Representante v1.10 quedan como
+> mecanismo adicional para proponer modificaciones, no reemplazan la aprobación.
 
 ### Paso 3 — Transfers
 

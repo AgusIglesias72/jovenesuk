@@ -20,15 +20,17 @@ if (!filePath) process.exit(0);
 const norm = filePath.replace(/\\/g, "/").toLowerCase();
 if (!/\.(ts|tsx)$/.test(norm)) process.exit(0);
 
+// Decisiones ⭐ del 11/06/2026: decididas para desarrollo pero pendientes de validación del
+// equipo. El aviso recuerda mantener la regla ACOTADA (fácil de revertir), no bloquea.
 const gates = [
   {
-    crit: "CRIT-04",
-    tema: "aprobación de excursiones: ¿el representante aprueba o solo solicita cambios? (contradicción entre PRDs)",
+    crit: "CRIT-04 (decidido ⭐)",
+    tema: "excursiones: el representante APRUEBA (decisión 11/06, validar con equipo) — mantené el mecanismo de aprobación desacoplado/auditado",
     patterns: ["excursion", "actividad-viaje", "actividad_viaje", "solicitud-cambio", "solicitud_cambio"],
   },
   {
-    crit: "CRIT-05",
-    tema: "moneda del plan de cuotas: ¿USD, GBP o multi-moneda? (PRD dice USD, el repo usa GBP)",
+    crit: "CRIT-05 (decidido ⭐)",
+    tema: "cuotas: multi-moneda (USD|GBP|ARS) default USD (decisión 11/06, validar con Felix) — no hardcodear la moneda en UI ni lógica",
     patterns: ["cuota", "/pagos/", "plan-de-pagos", "ultimo_pago", "mora"],
   },
 ];
