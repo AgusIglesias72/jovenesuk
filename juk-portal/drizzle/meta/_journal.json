@@ -22,6 +22,20 @@
       "when": 1780253201418,
       "tag": "0002_puzzling_miek",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781229943818,
+      "tag": "0003_medical_siren",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781229961357,
+      "tag": "0004_narrow_quicksilver",
+      "breakpoints": true
     }
   ]
 }

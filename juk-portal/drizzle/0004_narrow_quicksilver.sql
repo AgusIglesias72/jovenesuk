@@ -1,0 +1,1 @@
+ALTER TABLE "viajes" DROP COLUMN "ultimo_pago_presencial";

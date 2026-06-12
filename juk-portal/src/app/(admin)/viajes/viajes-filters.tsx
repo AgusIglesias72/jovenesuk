@@ -9,6 +9,8 @@ import {
   VIAJE_ESTADOS,
   VIAJE_ORIGEN_LABELS,
   VIAJE_ORIGENES,
+  VIAJE_TIPO_LABELS,
+  VIAJE_TIPOS,
 } from "@/lib/domain/viajes";
 
 export function ViajesFilters() {
@@ -63,6 +65,20 @@ export function ViajesFilters() {
           {VIAJE_ORIGENES.map((o) => (
             <option key={o} value={o}>
               {VIAJE_ORIGEN_LABELS[o]}
+            </option>
+          ))}
+        </Select>
+      </div>
+
+      <div className="w-40">
+        <Select
+          value={sp.get("tipo") ?? ""}
+          onChange={(e) => pushParam("tipo", e.target.value || null)}
+        >
+          <option value="">Todos los tipos</option>
+          {VIAJE_TIPOS.map((t) => (
+            <option key={t} value={t}>
+              {VIAJE_TIPO_LABELS[t]}
             </option>
           ))}
         </Select>

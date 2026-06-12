@@ -15,11 +15,15 @@ import {
 import {
   VIAJE_ESTADO_LABELS,
   ViajeNotFoundError,
+  aplicaComisionAgencia,
+  aplicaFeeRepresentante,
   capacidadMaxima,
+  estadoInicialViaje,
   puedeTransicionar,
   viajeCreateSchema,
   viajeUpdateSchema,
 } from "@/lib/domain/viajes";
+import type { ViajeCreateData } from "@/lib/domain/viajes";
 import type { Viaje } from "@/lib/db/schema/viajes";
 import type { NewAuditoriaEntry } from "@/lib/db/schema/auditoria";
 import { fieldErrorsFromZod } from "@/lib/utils/zod";
@@ -40,6 +44,19 @@ function isCodigoDuplicado(err: unknown): boolean {
   return typeof err === "object" && err !== null && "code" in err && (err as { code?: string }).code === "23505";
 }
 
+// Normaliza los campos de comisiones según el origen (N/A donde no aplican) y
+// adapta el fee al tipo string que espera la columna numeric de Drizzle.
+function comisionesNormalizadas(data: ViajeCreateData) {
+  return {
+    comisionAgenciaPct: aplicaComisionAgencia(data.origen) ? data.comisionAgenciaPct : null,
+    feeRepresentante:
+      aplicaFeeRepresentante(data.origen) && data.feeRepresentante != null
+        ? String(data.feeRepresentante)
+        : null,
+    feeRepresentanteEsPorcentaje: data.feeRepresentanteEsPorcentaje,
+  };
+}
+
 export async function createViajeAction(
   input: unknown
 ): Promise<ActionResult<Viaje>> {
@@ -57,7 +74,10 @@ export async function createViajeAction(
   try {
     const viaje = await createViaje({
       ...parsed.data,
-      capacidadMaxima: capacidadMaxima(parsed.data.cantidadGroupLeaders),
+      ...comisionesNormalizadas(parsed.data),
+      capacidadMaxima: capacidadMaxima(parsed.data.cantidadGroupLeaders, parsed.data.tipo),
+      // Grupal nace en inscripción abierta; Individual nace Confirmado (US-10b).
+      estado: estadoInicialViaje(parsed.data.tipo),
       createdBy: session.user.id,
     });
     await safeAudit({
@@ -114,8 +134,11 @@ export async function updateViajeAction(
   try {
     const viaje = await updateViaje(id, {
       ...data,
+      ...comisionesNormalizadas(data),
       estado,
-      capacidadMaxima: capacidadMaxima(data.cantidadGroupLeaders),
+      // El tipo no se cambia post-creación (el form lo deshabilita en edit).
+      tipo: actual.tipo,
+      capacidadMaxima: capacidadMaxima(data.cantidadGroupLeaders, actual.tipo),
     });
     await safeAudit({
       accion: "update",

@@ -17,6 +17,7 @@ export async function listViajes(filters: ViajeFilters = {}): Promise<ViajeListI
   }
   if (filters.estado) conditions.push(eq(viajes.estado, filters.estado));
   if (filters.origen) conditions.push(eq(viajes.origen, filters.origen));
+  if (filters.tipo) conditions.push(eq(viajes.tipo, filters.tipo));
 
   const rows = await db
     .select({ viaje: viajes, colegioDestinoNombre: colegios.nombre })

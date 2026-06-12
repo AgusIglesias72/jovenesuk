@@ -22,6 +22,7 @@ export default async function ViajesPage({
     q: str(sp.q),
     estado: str(sp.estado),
     origen: str(sp.origen),
+    tipo: str(sp.tipo),
   });
   const filters = parsed.success ? parsed.data : {};
   const viajes = await listViajes(filters);

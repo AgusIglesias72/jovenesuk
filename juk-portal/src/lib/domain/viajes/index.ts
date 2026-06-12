@@ -2,3 +2,4 @@ export * from "./schema";
 export * from "./errors";
 export * from "./labels";
 export * from "./transiciones";
+export * from "./flujo-pago";

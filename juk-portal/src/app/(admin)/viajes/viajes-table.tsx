@@ -52,7 +52,14 @@ export function ViajesTable({ viajes }: { viajes: ViajeListItem[] }) {
                 <CodeCell code={v.codigo} />
               </TD>
               <TD>
-                <div className="font-semibold text-juk-navy-950">{v.nombre}</div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-juk-navy-950">{v.nombre}</span>
+                  {v.tipo === "individual" && (
+                    <span className="rounded-full border border-juk-navy-200 bg-juk-navy-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-juk-navy-700">
+                      Individual
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs text-gray-500">
                   {v.colegioDestinoNombre ?? "—"} · {PAIS_LABELS[v.paisDestino]}
                 </div>

@@ -19,11 +19,18 @@ import {
   TIPOS_ALOJAMIENTO,
 } from "@/lib/domain/colegios";
 import {
+  FLUJO_PAGO_LABELS,
   VIAJE_ESTADO_LABELS,
   VIAJE_ESTADOS,
   VIAJE_ORIGEN_LABELS,
   VIAJE_ORIGENES,
+  VIAJE_TIPO_LABELS,
+  VIAJE_TIPOS,
+  aplicaComisionAgencia,
+  aplicaFeeRepresentante,
+  aplicaUltimoPagoPresencial,
   capacidadMaxima,
+  flujoPago,
   opcionesEstado,
 } from "@/lib/domain/viajes";
 import type { Viaje } from "@/lib/db/schema/viajes";
@@ -39,6 +46,7 @@ type ColegioOption = { id: string; nombre: string };
 type FormValues = {
   codigo: string;
   nombre: string;
+  tipo: (typeof VIAJE_TIPOS)[number];
   fechaInicio: string;
   fechaFin: string;
   origen: (typeof VIAJE_ORIGENES)[number];
@@ -49,7 +57,9 @@ type FormValues = {
   tipoAlojamientoSolicitado: (typeof TIPOS_ALOJAMIENTO)[number];
   cantidadGroupLeaders: string;
   capacidadMinima: string;
-  ultimoPagoPresencial: "si" | "no";
+  comisionAgenciaPct: string;
+  feeRepresentante: string;
+  feeRepresentanteEsPorcentaje: boolean;
   estado: (typeof VIAJE_ESTADOS)[number];
   notasInternas: string;
 };
@@ -62,6 +72,7 @@ function initialValues(initial?: Viaje): FormValues {
   return {
     codigo: initial?.codigo ?? "",
     nombre: initial?.nombre ?? "",
+    tipo: initial?.tipo ?? "grupal",
     fechaInicio: fechaInput(initial?.fechaInicio),
     fechaFin: fechaInput(initial?.fechaFin),
     origen: initial?.origen ?? "representante_independiente",
@@ -73,7 +84,9 @@ function initialValues(initial?: Viaje): FormValues {
       initial?.tipoAlojamientoSolicitado ?? "familia_anfitriona",
     cantidadGroupLeaders: String(initial?.cantidadGroupLeaders ?? 1),
     capacidadMinima: String(initial?.capacidadMinima ?? 5),
-    ultimoPagoPresencial: (initial?.ultimoPagoPresencial as "si" | "no") ?? "si",
+    comisionAgenciaPct: initial?.comisionAgenciaPct != null ? String(initial.comisionAgenciaPct) : "",
+    feeRepresentante: initial?.feeRepresentante != null ? String(initial.feeRepresentante) : "",
+    feeRepresentanteEsPorcentaje: initial?.feeRepresentanteEsPorcentaje ?? false,
     estado: initial?.estado ?? "inscripcion_abierta",
     notasInternas: initial?.notasInternas ?? "",
   };
@@ -101,10 +114,21 @@ export function ViajeForm({
   }
 
   const fe = (k: string) => fieldErrors[k]?.[0];
-  const capMax = (Number(values.cantidadGroupLeaders) || 0) * 12;
+  const esIndividual = values.tipo === "individual";
+  const capMax = capacidadMaxima(Number(values.cantidadGroupLeaders) || 0, values.tipo);
   const estadosDisponibles = initial
     ? opcionesEstado(initial.estado)
     : VIAJE_ESTADOS;
+
+  function setTipo(tipo: FormValues["tipo"]) {
+    setValues((v) => ({
+      ...v,
+      tipo,
+      // Individual viaja sin GLs y con capacidad fija 1 (US-10b).
+      cantidadGroupLeaders: tipo === "individual" ? "0" : v.cantidadGroupLeaders === "0" ? "1" : v.cantidadGroupLeaders,
+      capacidadMinima: tipo === "individual" ? "1" : v.capacidadMinima,
+    }));
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -115,6 +139,7 @@ export function ViajeForm({
       ...(mode === "edit" && initial ? { id: initial.id, estado: values.estado } : {}),
       codigo: values.codigo,
       nombre: values.nombre,
+      tipo: values.tipo,
       fechaInicio: values.fechaInicio,
       fechaFin: values.fechaFin,
       origen: values.origen,
@@ -125,7 +150,9 @@ export function ViajeForm({
       tipoAlojamientoSolicitado: values.tipoAlojamientoSolicitado,
       cantidadGroupLeaders: values.cantidadGroupLeaders,
       capacidadMinima: values.capacidadMinima,
-      ultimoPagoPresencial: values.ultimoPagoPresencial,
+      comisionAgenciaPct: aplicaComisionAgencia(values.origen) ? values.comisionAgenciaPct : "",
+      feeRepresentante: aplicaFeeRepresentante(values.origen) ? values.feeRepresentante : "",
+      feeRepresentanteEsPorcentaje: values.feeRepresentanteEsPorcentaje,
       notasInternas: values.notasInternas,
     };
 
@@ -187,6 +214,28 @@ export function ViajeForm({
             onChange={(e) => set("nombre", e.target.value)}
             placeholder="Londres en Julio · Campus"
           />
+        </Field>
+        <Field
+          label="Tipo de viaje"
+          required
+          error={fe("tipo")}
+          help={
+            esIndividual
+              ? "Individual: sin group leaders, capacidad 1, nace Confirmado."
+              : "Grupal: con group leaders, nace en Inscripción abierta."
+          }
+        >
+          <Select
+            value={values.tipo}
+            disabled={mode === "edit"}
+            onChange={(e) => setTipo(e.target.value as FormValues["tipo"])}
+          >
+            {VIAJE_TIPOS.map((t) => (
+              <option key={t} value={t}>
+                {VIAJE_TIPO_LABELS[t]}
+              </option>
+            ))}
+          </Select>
         </Field>
         <Field label="Fecha de inicio" required error={fe("fechaInicio")}>
           <Input
@@ -298,52 +347,108 @@ export function ViajeForm({
       </Section>
 
       <Section title="Capacidad">
-        <Field
-          label="Group Leaders"
-          required
-          error={fe("cantidadGroupLeaders")}
-          help={`Capacidad máxima: ${capMax} alumnos (GL × 12)`}
-        >
-          <Input
-            type="number"
-            min={1}
-            max={20}
-            value={values.cantidadGroupLeaders}
-            invalid={!!fe("cantidadGroupLeaders")}
-            onChange={(e) => set("cantidadGroupLeaders", e.target.value)}
-          />
-        </Field>
-        <Field
-          label="Cupo mínimo"
-          required
-          error={fe("capacidadMinima")}
-          help="Mínimo de alumnos para confirmar el viaje"
-        >
-          <Input
-            type="number"
-            min={1}
-            value={values.capacidadMinima}
-            invalid={!!fe("capacidadMinima")}
-            onChange={(e) => set("capacidadMinima", e.target.value)}
-          />
-        </Field>
+        {esIndividual ? (
+          <Field
+            label="Capacidad"
+            help="Viaje individual: 1 alumno, sin group leaders."
+          >
+            <Input value="1 alumno (fija)" disabled />
+          </Field>
+        ) : (
+          <>
+            <Field
+              label="Group Leaders"
+              required
+              error={fe("cantidadGroupLeaders")}
+              help={`Capacidad máxima: ${capMax} alumnos (GL × 12)`}
+            >
+              <Input
+                type="number"
+                min={1}
+                max={20}
+                value={values.cantidadGroupLeaders}
+                invalid={!!fe("cantidadGroupLeaders")}
+                onChange={(e) => set("cantidadGroupLeaders", e.target.value)}
+              />
+            </Field>
+            <Field
+              label="Cupo mínimo"
+              required
+              error={fe("capacidadMinima")}
+              help="Mínimo de alumnos para confirmar el viaje"
+            >
+              <Input
+                type="number"
+                min={1}
+                value={values.capacidadMinima}
+                invalid={!!fe("capacidadMinima")}
+                onChange={(e) => set("capacidadMinima", e.target.value)}
+              />
+            </Field>
+          </>
+        )}
       </Section>
 
       <Section title="Pago y estado">
         <Field
-          label="Último pago presencial"
-          help="Provisional: el cálculo automático según el origen depende de una decisión pendiente (CRIT-01)."
+          label="Flujo de pago"
+          help={
+            aplicaUltimoPagoPresencial(values.origen)
+              ? "El último pago se cobra presencialmente en JUK (paso B2 activo)."
+              : values.origen === "colegio_cliente"
+                ? "Todos los pagos van vía agencia, incluido el último (B2 = N/A)."
+                : "Sin agencia externa: comisión y fee no aplican (B2 = N/A)."
+          }
         >
-          <Select
-            value={values.ultimoPagoPresencial}
-            onChange={(e) =>
-              set("ultimoPagoPresencial", e.target.value as "si" | "no")
-            }
-          >
-            <option value="si">Sí</option>
-            <option value="no">No</option>
-          </Select>
+          <Input value={FLUJO_PAGO_LABELS[flujoPago(values.origen)]} disabled />
         </Field>
+
+        {aplicaComisionAgencia(values.origen) && (
+          <Field
+            label="Comisión de la agencia (%)"
+            error={fe("comisionAgenciaPct")}
+            help="Referencia interna, visible solo para admins."
+          >
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={values.comisionAgenciaPct}
+              invalid={!!fe("comisionAgenciaPct")}
+              onChange={(e) => set("comisionAgenciaPct", e.target.value)}
+              placeholder="6"
+            />
+          </Field>
+        )}
+
+        {aplicaFeeRepresentante(values.origen) && (
+          <Field
+            label="Fee del representante"
+            error={fe("feeRepresentante")}
+            help="Monto fijo o porcentaje que el representante suma al precio base."
+          >
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={values.feeRepresentante}
+                invalid={!!fe("feeRepresentante")}
+                onChange={(e) => set("feeRepresentante", e.target.value)}
+                placeholder="0"
+              />
+              <Select
+                value={values.feeRepresentanteEsPorcentaje ? "pct" : "monto"}
+                onChange={(e) =>
+                  set("feeRepresentanteEsPorcentaje", e.target.value === "pct")
+                }
+              >
+                <option value="monto">Monto</option>
+                <option value="pct">%</option>
+              </Select>
+            </div>
+          </Field>
+        )}
 
         {mode === "edit" && (
           <Field
