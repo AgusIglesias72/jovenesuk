@@ -112,7 +112,8 @@ export async function asignarAlumnoAction(
 
 export async function desasignarAlumnoAction(
   asignacionId: string,
-  viajeId: string
+  viajeId: string,
+  opts?: { confirmar?: boolean; motivo?: string }
 ): Promise<ActionResult<{ id: string }>> {
   const session = await requireAdminJuk();
 
@@ -121,8 +122,23 @@ export async function desasignarAlumnoAction(
     .safeParse({ asignacionId, viajeId });
   if (!parsed.success) return { ok: false, error: "Datos inválidos." };
 
+  // US-11: en En curso / Finalizado la baja es EXTRAORDINARIA y requiere
+  // confirmación explícita.
+  const viaje = await getViajeById(viajeId);
+  if (!viaje) return { ok: false, error: "El viaje no existe." };
+  if (
+    (viaje.estado === "en_curso" || viaje.estado === "finalizado") &&
+    !opts?.confirmar
+  ) {
+    return {
+      ok: false,
+      requiereConfirmacion: true,
+      error: `El viaje está ${viaje.estado === "en_curso" ? "en curso" : "finalizado"}: la baja es extraordinaria. ¿Quitar al alumno igual?`,
+    };
+  }
+
   try {
-    await cancelarAsignacion(asignacionId, viajeId, null);
+    await cancelarAsignacion(asignacionId, viajeId, opts?.motivo ?? null);
     await safeAudit({
       accion: "desasignar_de_viaje",
       entidadTipo: "asignacion",

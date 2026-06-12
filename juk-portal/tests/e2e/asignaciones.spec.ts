@@ -16,6 +16,7 @@ function selectorElegibles(page: Page) {
 }
 
 test("asigna un alumno a un viaje y descuenta el cupo", async ({ page }) => {
+  page.on("dialog", (d) => d.accept());
   const alumno = await crearAlumno(page);
   await crearViaje(page);
   const panel = alumnosPanel(page);
@@ -31,6 +32,7 @@ test("asigna un alumno a un viaje y descuenta el cupo", async ({ page }) => {
 // estado, así que re-asignar un alumno previamente desasignado (cancelado) debía
 // reactivar la fila en vez de fallar con "ya está asignado".
 test("permite re-asignar un alumno que fue desasignado del mismo viaje", async ({ page }) => {
+  page.on("dialog", (d) => d.accept());
   const alumno = await crearAlumno(page);
   await crearViaje(page);
   const panel = alumnosPanel(page);

@@ -15,6 +15,7 @@ function selectorElegibles(page: Page) {
 }
 
 test("asigna un Group Leader a un viaje, lo marca principal y lo quita", async ({ page }) => {
+  page.on("dialog", (d) => d.accept());
   const gl = await crearGroupLeader(page);
   await crearViaje(page);
   const panel = glPanel(page);
