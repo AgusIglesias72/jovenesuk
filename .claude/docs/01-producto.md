@@ -52,21 +52,29 @@ Los usuarios desactivados (`isActive = false`) no pueden entrar aunque tengan se
 
 ## Decisiones de negocio abiertas (gating)
 
-Hay 3 decisiones críticas sin cerrar que **bloquean** módulos enteros (detalle en
-`juk-portal/OPEN_DECISIONS.md`). El código las respeta: donde tocan, los campos quedan manuales y sin
-lógica derivada.
+**Los 3 CRITs históricos (pagos NEA, pasaporte UK, psicofísico) quedaron RESUELTOS por los PRDs
+de junio 2026** — la regla vigente está en las specs de `juk-portal/docs/prd/`. Los gates
+vigentes hoy son dos contradicciones entre PRDs (detalle en `juk-portal/OPEN_DECISIONS.md`):
 
 | Gate | Qué bloquea |
 |---|---|
-| **CRIT-01** — flujo de pago del Colegio Cliente (NEA) | Todo el módulo de Pagos, el campo `viaje.ultimoPagoPresencial`, el trigger de cuotas al asignar |
-| **CRIT-02** — validación de pasaporte UK (¿6 meses extra?) | La regla de validación de pasaporte al asignar |
-| **CRIT-03** — el psicofísico, ¿del alumno o del group leader? | El Paso 9 del M6 y la estructura del M7 |
+| **CRIT-04** — ¿el representante aprueba excursiones o solo solicita cambios? | El mecanismo de aprobación del Paso 2 del M7 y el modelo `ACTIVIDAD_VIAJE`/`SOLICITUD_CAMBIO` |
+| **CRIT-05** — moneda del plan de cuotas (¿USD, GBP, multi?) | El schema de cuotas (B1/B2) y el resumen de pagos |
 
-Por eso, al **asignar un alumno a un viaje** se crea solo la relación: la generación automática de los
-10 pasos del M6 y de las cuotas queda afuera hasta resolver CRIT-01 y CRIT-03.
+El trigger de asignación (crear los 11 pasos del M6 + validar pasaporte) ya NO está bloqueado;
+solo la parte de cuotas espera CRIT-05.
 
-## Estado (mayo 2026)
+## Specs de producto
 
-Fase 0-1 completas (infra, auth, design system). Fase 2-3 cubiertas por los ABMs de Colegios, Viajes,
-Alumnos, Group Leaders y Usuarios. Próximo gran bloque: cerrar los CRIT con el equipo y arrancar
-Pagos + el seguimiento de pasos (M6/M7).
+La referencia funcional completa vive en **`juk-portal/docs/prd/`** (empezar por `00-indice.md`):
+los 4 PRDs de junio 2026 convertidos en `fuentes/` + specs internas consolidadas (visión,
+portal interno M1–M7, modelo de datos objetivo, Portal de Familias, Vista del Representante)
++ el gap analysis con plan de adecuación (`06-deltas-implementacion.md`).
+
+## Estado (junio 2026)
+
+Fase 0-1 completas (infra, auth, design system). Fase 2-3 cubiertas por los ABMs de Colegios,
+Viajes, Alumnos, Group Leaders y Usuarios; M7 parcial. PRDs nuevos procesados (11/06/2026):
+desbloquean Pagos, pasaporte y M6 completo. Próximo gran bloque: el plan del doc
+`docs/prd/06-deltas-implementacion.md` (fundaciones del modelo → trigger de asignación →
+tablero M6 → dashboard v2).

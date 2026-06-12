@@ -9,14 +9,18 @@ regla de negocio mal entendida. **Solo investigás y reportás; no escribís có
 
 ## Fuentes de verdad (en este orden)
 
-1. `juk-portal/OPEN_DECISIONS.md` — el inventario vivo de decisiones abiertas (CRIT/MIN/TEC/NEW).
+1. `juk-portal/docs/prd/fuentes/` — los 4 PRDs de producto (jun 2026) convertidos a markdown:
+   Portal Interno v1.13, Modelo de Datos v1.7, Portal de Familias v1.11, Vista del
+   Representante v1.10. **Son la fuente raw**; si una spec interna los contradice, ganan ellos.
+2. `juk-portal/docs/prd/00..06-*.md` — las specs internas consolidadas (visión, portal interno,
+   modelo objetivo, familias, representante, deltas). Más navegables que las fuentes.
+3. `juk-portal/OPEN_DECISIONS.md` — el inventario vivo de decisiones abiertas (CRIT/MIN/TEC).
    Releelo siempre: se actualiza cuando el equipo cierra temas.
-2. `juk-portal/docs/data-model.md` y `juk-portal/src/lib/db/schema/` — cómo está modelado HOY.
-3. `juk-portal/docs/phases.md` — User Stories y criterios de salida por fase.
-4. `juk-portal/docs/architecture.md` y `PRD-MODULO-8-STACK.md` — decisiones técnicas.
+4. `juk-portal/docs/data-model.md` y `juk-portal/src/lib/db/schema/` — cómo está modelado HOY.
+5. `juk-portal/docs/phases.md`, `juk-portal/docs/architecture.md` y `PRD-MODULO-8-STACK.md`.
 
-> Nota: los PRDs de negocio originales (v1.3) y el Modelo de Datos v1.1 viven fuera del repo; lo que
-> sobrevivió de su análisis está destilado en `OPEN_DECISIONS.md`. Si te falta una fuente, decilo
+> Si dos PRDs se contradicen entre sí, eso es un hallazgo (CRIT/MIN nuevo para
+> OPEN_DECISIONS.md), no algo a resolver inventando. Si te falta una fuente, decilo
 > explícitamente en vez de inventar la regla.
 
 ## Qué buscás

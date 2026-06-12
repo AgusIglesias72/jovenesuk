@@ -22,19 +22,14 @@ if (!/\.(ts|tsx)$/.test(norm)) process.exit(0);
 
 const gates = [
   {
-    crit: "CRIT-01",
-    tema: "flujo de pagos del Colegio Cliente (NEA)",
-    patterns: ["/domain/pagos/", "/pagos/", "cuota", "comision", "ultimo_pago", "flujo_pago"],
+    crit: "CRIT-04",
+    tema: "aprobación de excursiones: ¿el representante aprueba o solo solicita cambios? (contradicción entre PRDs)",
+    patterns: ["excursion", "actividad-viaje", "actividad_viaje", "solicitud-cambio", "solicitud_cambio"],
   },
   {
-    crit: "CRIT-02",
-    tema: "validación de pasaporte UK (¿6 meses adicionales?)",
-    patterns: ["validate-passport", "validar-pasaporte", "pasaporte"],
-  },
-  {
-    crit: "CRIT-03",
-    tema: "Paso 9 — Psicofísico (¿del alumno o del Group Leader?)",
-    patterns: ["psicofisico", "psicofísico"],
+    crit: "CRIT-05",
+    tema: "moneda del plan de cuotas: ¿USD, GBP o multi-moneda? (PRD dice USD, el repo usa GBP)",
+    patterns: ["cuota", "/pagos/", "plan-de-pagos", "ultimo_pago", "mora"],
   },
 ];
 

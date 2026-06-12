@@ -1,48 +1,60 @@
 ---
 name: juk-gate
-description: Chequea si un módulo/área del JUK Portal está bloqueado por una decisión de negocio abierta en OPEN_DECISIONS.md antes de codear. Usalo antes de arrancar cualquier feature sensible (pagos, pasaporte, pasos, parental consent).
+description: Chequea si un módulo/área del JUK Portal está bloqueado por una decisión de negocio abierta en OPEN_DECISIONS.md antes de codear. Usalo antes de arrancar cualquier feature sensible (excursiones, cuotas/pagos, parental consent, portales externos).
 ---
 
 # /juk-gate — ¿Puedo codear esto?
 
-Antes de escribir código de un módulo, verificá que no esté bloqueado por una decisión de negocio
-sin cerrar. Fuente de verdad: **`juk-portal/OPEN_DECISIONS.md`** (releelo, puede haber cambiado).
+Antes de escribir código de un módulo, verificá que no esté bloqueado por una decisión de
+negocio sin cerrar. Fuente de verdad: **`juk-portal/OPEN_DECISIONS.md`** (releelo, puede haber
+cambiado). Las specs funcionales completas viven en **`juk-portal/docs/prd/`**.
 
 ## Cómo responder
 
 1. Leé `juk-portal/OPEN_DECISIONS.md`.
 2. Mapeá el área que te pasaron contra los gates de abajo.
-3. Devolvé un veredicto claro: **VERDE** (codeá tranquilo) / **ROJO** (bloqueado, no asumas la regla)
-   / **AMARILLO** (clarificación menor, podés avanzar con cuidado).
+3. Devolvé un veredicto claro: **VERDE** (codeá tranquilo) / **ROJO** (bloqueado, no asumas la
+   regla) / **AMARILLO** (clarificación menor, podés avanzar con cuidado).
 4. Si está ROJO/AMARILLO, decí qué se puede hacer mientras tanto.
 
-## Mapa de gates (al mayo 2026 — verificar contra el archivo)
+## Mapa de gates (al 11/06/2026 — verificar contra el archivo)
 
-### 🚨 ROJO — críticos, no codear la regla de negocio
+### ✅ Ex-gates RESUELTOS por los PRDs de junio 2026
+
+CRIT-01 (flujo de pago Colegio cliente), CRIT-02 (pasaporte UK) y CRIT-03 (psicofísico) están
+**cerrados** — la regla vigente está en `docs/prd/01-vision-y-dominio.md` y
+`docs/prd/02-portal-interno.md`. Pagos, validación de pasaporte y el tablero M6 completo se
+pueden construir.
+
+### 🚨 ROJO — contradicciones entre PRDs, no asumas la regla
 
 | Área | Gate | Qué hacer mientras tanto |
 |---|---|---|
-| Pagos, cuotas, comisiones, Paso 2, Paso 10, `viaje.flujo_pago` | **CRIT-01** (flujo de pago NEA: ¿directo a JUK o vía agencia externa?) | Codear todo lo que NO sea pagos. |
-| Validación de pasaporte, alertas de pasaporte, validación al asignar (US-16) | **CRIT-02** (¿UK exige 6 meses adicionales?) | Dejar la validación detrás de `STRICT_UK_RULE` (cambiable en 1 línea). |
-| Paso 9 (psicofísico), inicialización del tablero M6, estructura del M7 | **CRIT-03** (¿el psicofísico es del alumno o del Group Leader?) | Codear los pasos 1, 3-8 del M6 sin tocar el 9. |
+| Aprobación de excursiones por el representante (M7 Paso 2, `ACTIVIDAD_VIAJE`, `SOLICITUD_CAMBIO`) | **CRIT-04** (¿aprueba desde su portal o solo solicita cambios?) | Codear excursiones con estados y auditoría; dejar el mecanismo de aprobación del representante desacoplado. |
+| Moneda del plan de cuotas (B1/B2, resumen de pagos, mora) | **CRIT-05** (¿USD, GBP o multi-moneda con cotización?) | Modelar `moneda` como ENUM + `monto` genérico; no hardcodear la moneda en UI ni en lógica. |
 
 ### 🔶 AMARILLO — clarificar pero no bloquea
 
-- **MIN-01** Parental Consent: versión al descargar (no al inicio del viaje) — usar la regla del Portal Familias.
-- **MIN-02** Confirmation Letter / VISA Letter: ¿documentos nuevos o ya mapeados? (afecta si hay Paso 11).
-- **MIN-03** Wimbledon edge case: refactor de las 2 URLs de Parental Consent a principal/alterno + edad_corte.
-- **MIN-04** "La representante" singular vs múltiples GLs (campo `es_principal`).
-- **MIN-05** Acceso post-viaje del representante: 30 días vs indefinido.
+- **MIN-01** Parental Consent: versión por edad ¿al inicio del viaje o al descargar? ¿1 o 2 archivos por colegio?
+- **MIN-04** Diario con múltiples GLs: ¿publica solo el principal?
+- **MIN-06** Definición de "paso obligatorio" para alertas de viaje próximo.
+- **MIN-07** Login del Portal de Familias por DNI sobre Better-Auth + cuentas por grupo familiar.
+- **MIN-08** Retención del acceso post-viaje de familias (representante ya es permanente).
+- **MIN-09** Email emisor de recordatorios (info@ vs noreply@).
+- **MIN-10** Precio por alumno / cálculo de precio final (v1 no calcula precios).
 
-### ⚙️ Técnicos (decidibles por el dev, documentar en data-model.md)
+### ⚙️ Técnicos (decidibles por el dev, documentar al resolver)
 
-TEC-01 moneda (ARS/USD/GBP) · TEC-02 storage R2 · TEC-03 soft-delete unificado · TEC-04 tabla
-`configuracion` · TEC-05 reglas del canal · TEC-06 tabla `notificacion_enviada` · TEC-07 importer de
-planillas · TEC-08 métricas históricas (no hard-delete).
+TEC-02 storage R2 · TEC-03 soft-delete unificado · TEC-04 tabla `configuracion` · TEC-05
+reglas del canal · TEC-06 tabla `notificacion_enviada` · TEC-07 importer de planillas ·
+TEC-11 inconsistencias internas del Modelo v1.7 (gana el PRD Interno v1.13).
 
 ## Verde garantizado (sin gate)
 
-ABM de Colegios, ABM de Viajes, ABM de Alumnos, Asignaciones (excepto la validación de pasaporte),
-dashboard layout, shell/navegación, pasos 1 y 3-8 del M6, emails transaccionales ya existentes.
+ABMs (Colegios, Viajes, Alumnos, GLs, Usuarios), asignaciones **con** validación de pasaporte
+(regla cerrada), tablero M6 completo (Paso 0 + A/B/C/D) salvo la moneda de B1, M7 completo
+salvo el mecanismo de aprobación de excursiones, dashboard, webhook del Google Form,
+credenciales de familias, recordatorios, uploads R2, viajes Individuales, `tipo_viaje`,
+config documental por colegio.
 
 > Si la duda es profunda (cruza varios PRDs), delegá al agente **`juk-prd-analyst`**.

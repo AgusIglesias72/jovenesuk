@@ -11,13 +11,16 @@ Construí una feature respetando las reglas de `juk-portal/CLAUDE.md` y las ADRs
 ## Paso 0 — Gate check (OBLIGATORIO)
 
 Antes de escribir nada, corré `/juk-gate <módulo>` o leé `juk-portal/OPEN_DECISIONS.md`.
-Si el módulo es **Pagos, validación de pasaporte o Paso 9**, NO avances con la regla de negocio:
-está bloqueado. Confirmá con el usuario cómo proceder (andamiar con flag vs. esperar).
+Si el módulo toca **aprobación de excursiones (CRIT-04)** o la **moneda de cuotas (CRIT-05)**,
+NO asumas esa regla: confirmá con el usuario cómo proceder (modelar desacoplado vs. esperar).
 
 ## Paso 1 — Entender el alcance
 
-1. Identificá la fase y las User Stories en `juk-portal/docs/phases.md`.
-2. Leé el modelo de datos relevante en `juk-portal/docs/data-model.md` y el/los schema(s) en
+1. Buscá la spec funcional del módulo en `juk-portal/docs/prd/` (02 = portal interno;
+   03 = modelo objetivo; 06 = deltas y plan). Las User Stories con criterios de aceptación
+   están ahí; `docs/phases.md` da el orden por fases.
+2. Leé el modelo de datos relevante en `docs/prd/03-modelo-datos.md` (objetivo) +
+   `juk-portal/docs/data-model.md` (implementado) y el/los schema(s) en
    `juk-portal/src/lib/db/schema/`.
 3. Si la feature es no trivial o cruza varias entidades, delegá el diseño al agente
    **`juk-arquitecto`** y seguí su blueprint.
