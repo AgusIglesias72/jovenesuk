@@ -72,7 +72,7 @@ export const alumnos = pgTable("alumnos", {
 export type Alumno = typeof alumnos.$inferSelect;
 export type NewAlumno = typeof alumnos.$inferInsert;
 
-export interface DatosFacturacion {
+export type DatosFacturacion = {
   razonSocial: string;
   direccion: string;
   localidad: string;
@@ -80,4 +80,4 @@ export interface DatosFacturacion {
   codigoPostal: string;
   cuilCuit: string;
   condicionFiscal: "consumidor_final" | "responsable_inscripto" | "monotributo" | "exento" | "otro";
-}
+};

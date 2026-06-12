@@ -50,6 +50,7 @@ export const colegios = pgTable("colegios", {
 
   // Flags
   requiereCertificadoPsicofisico: boolean("requiere_certificado_psicofisico").default(false).notNull(),
+  requiereTestNivel: boolean("requiere_test_nivel").default(false).notNull(),
 
   // Misc
   comisionAgenciaPorcentaje: integer("comision_agencia_porcentaje"),  // sólo admins ven esto

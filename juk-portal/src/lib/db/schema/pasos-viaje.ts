@@ -1,5 +1,6 @@
-import { pgTable, text, timestamp, pgEnum, uuid, json, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, pgEnum, uuid, json, unique, boolean } from "drizzle-orm/pg-core";
 import { viajes } from "./viajes";
+import { groupLeaders } from "./grupos-leaders";
 
 export const pasoViajeTipo = pgEnum("paso_viaje_tipo", [
   "pasajes",                  // 01
@@ -31,14 +32,9 @@ export const pasosViaje = pgTable(
     estado: pasoViajeEstado("estado").default("pendiente").notNull(),
 
     metadata: json("metadata").$type<Record<string, unknown>>().default({}).notNull(),
-    /*
-     * Por tipo:
-     * pasajes:            { subEstado, aerolinea, numeroVuelo, horaSalida, horaLlegada, eTicketUrl? }
-     * excursiones:        { excursiones: Array<{ nombre, fecha, proveedor, costo, estado }> }
-     * transfers:          { proveedor, costoPorAlumno, asignaciones: Array<{ alumnoId, transferId }> }
-     * tarjeta_transporte: { tipo, cantidad, costo, proveedor, comprobanteUrl? }
-     * police_checks:      { glChecks: Array<{ groupLeaderId, fechaVencimiento }> } -- derived
-     */
+    // La forma de `metadata` por tipo se define y valida en
+    // src/lib/domain/pasos-viaje/metadata.ts (METADATA_SCHEMAS).
+    // police_checks no usa metadata: su estado se deriva de los GLs del viaje.
 
     notas: text("notas"),
 
@@ -64,8 +60,10 @@ export const groupLeadersViaje = pgTable(
     viajeId: uuid("viaje_id")
       .notNull()
       .references(() => viajes.id, { onDelete: "cascade" }),
-    groupLeaderId: uuid("group_leader_id").notNull(),
-    esPrincipal: text("es_principal").default("no").notNull(),  // 'si' para el GL principal
+    groupLeaderId: uuid("group_leader_id")
+      .notNull()
+      .references(() => groupLeaders.id, { onDelete: "cascade" }),
+    esPrincipal: boolean("es_principal").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => ({
