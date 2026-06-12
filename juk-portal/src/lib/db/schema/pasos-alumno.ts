@@ -1,21 +1,23 @@
-import { pgTable, text, timestamp, pgEnum, uuid, integer, date, unique, json } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, pgEnum, uuid, date, unique, json } from "drizzle-orm/pg-core";
 import { asignaciones } from "./asignaciones";
 
 /**
- * Catálogo de los 10 pasos del seguimiento de alumno (PRD §6).
- * Definido como enum para garantizar consistencia y permitir queries por paso.
+ * Tablero del alumno (PRD v1.13 §6, estructura v1.8+): Paso 0 de referencia +
+ * cuatro grupos temáticos. Equivalencia con la numeración vieja:
+ * a1=P1 · a2=P4 · a3=P5 · b1=P2 · b2=P10 · c1=P7 · c2=P3 · c3=P6 · d1=P8 · d2=P9.
  */
-export const pasoTipo = pgEnum("paso_tipo", [
-  "application_form",        // 01
-  "pagos",                    // 02
-  "immigration_letter",       // 03
-  "test_nivel",               // 04
-  "parental_consent",         // 05
-  "accommodation_letter",     // 06
-  "eta",                      // 07
-  "autorizacion_escribano",   // 08
-  "certificado_psicofisico",  // 09
-  "ultimo_pago_presencial",   // 10
+export const pasoCodigo = pgEnum("paso_codigo", [
+  "paso_0", // Origen del alumno en JUK (solo lectura)
+  "a1",     // Application Form del colegio
+  "a2",     // Test de Nivel
+  "a3",     // Parental Consent
+  "b1",     // Plan de cuotas
+  "b2",     // Último pago presencial (vista sobre la última cuota de B1)
+  "c1",     // ETA
+  "c2",     // Immigration Letter (requiere B1 completado)
+  "c3",     // Accommodation Letter
+  "d1",     // Autorización de viaje ante escribano
+  "d2",     // Certificado de aptitud psicofísica
 ]);
 
 export const pasoEstado = pgEnum("paso_estado", [
@@ -23,14 +25,14 @@ export const pasoEstado = pgEnum("paso_estado", [
   "en_progreso",
   "completado",
   "bloqueado",
-  "na",  // no aplica (ej: paso 9 si colegio no requiere psicofísico)
+  "na",       // no aplica (config del colegio, edad, representante, país, tipo de viaje)
+  "vencido",  // solo A1: pasó la fecha límite sin completar (no bloquea)
 ]);
 
 /**
- * Pasos del alumno por asignación.
- *
- * Una fila por (asignación × tipo de paso) = 10 filas por asignación.
- * Si el alumno tiene 2 asignaciones (= 2 viajes en el año), tiene 20 filas acá.
+ * Pasos del alumno por asignación: una fila por (asignación × código) = 11
+ * filas por asignación, creadas por el trigger de asignación con los N/A
+ * automáticos ya resueltos. Reasignación a otro viaje → se resetean.
  */
 export const pasosAlumno = pgTable(
   "pasos_alumno",
@@ -39,19 +41,17 @@ export const pasosAlumno = pgTable(
     asignacionId: uuid("asignacion_id")
       .notNull()
       .references(() => asignaciones.id, { onDelete: "cascade" }),
-    tipo: pasoTipo("tipo").notNull(),
+    codigo: pasoCodigo("codigo").notNull(),
     estado: pasoEstado("estado").default("pendiente").notNull(),
 
-    // Metadata por paso, varía según el tipo
+    // Metadata por paso (shapes tipadas en src/lib/domain/pasos/)
     metadata: json("metadata").$type<Record<string, unknown>>().default({}).notNull(),
 
-    // Fecha límite (settable por tipo, ej: Application Form puede heredarla del viaje)
+    // Fecha límite (A1 la hereda del viaje y es sobreescribible por alumno)
     fechaLimite: date("fecha_limite", { mode: "date" }),
 
-    // Cuándo se completó (null mientras no esté completado)
     fechaCompletado: timestamp("fecha_completado"),
 
-    // Observaciones libres por paso (motivo de bloqueo, etc.)
     notas: text("notas"),
 
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -59,26 +59,9 @@ export const pasosAlumno = pgTable(
     updatedBy: uuid("updated_by"),
   },
   (t) => ({
-    uniqAsignacionTipo: unique("uniq_asignacion_paso_tipo").on(t.asignacionId, t.tipo),
+    uniqAsignacionCodigo: unique("uniq_asignacion_paso_codigo").on(t.asignacionId, t.codigo),
   })
 );
 
 export type PasoAlumno = typeof pasosAlumno.$inferSelect;
 export type NewPasoAlumno = typeof pasosAlumno.$inferInsert;
-
-/**
- * Tipos de metadata por paso. Documentación para Claude Code.
- * No se enforza en el schema porque varía; los lectores deben tiparlo en
- * domain/pasos/<tipo>.ts.
- *
- * application_form: { archivoUrl?: string, fechaEntrega?: string }
- * pagos: { saldoPendiente: number, cuotasPagadas: number, cuotasTotales: number }
- * immigration_letter: { archivoUrl?: string, datosVerificados: boolean }
- * test_nivel: { nivel?: string, viaImmigrationLetter?: boolean }
- * parental_consent: { subEstado: "enviado"|"firmado"|"recibido", archivoUrl?: string }
- * accommodation_letter: { archivoUrl?: string, familiaValido?: boolean }
- * eta: { subEstado: "pendiente"|"en_tramite"|"aprobado"|"rechazado", numeroAutorizacion?: string }
- * autorizacion_escribano: { confirmadoPorFamilia?: boolean, fechaTramite?: string }
- * certificado_psicofisico: { archivoUrl?: string }
- * ultimo_pago_presencial: { fechaPago?: string, montoConfirmado?: number }
- */
