@@ -1,20 +1,31 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+/* Fuentes de los design labs viejos (editorial/autor/etc.) — la app real usa
+   next/font (Bricolage/Jakarta/Space Mono) desde el root layout. */
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700&display=swap");
+
+/* Dirección visual STUDIO — fuente de verdad de los tokens (la edita el lab). */
+@import "../app/design/studio/tokens.css";
+@import "../app/design/shared/animations.css";
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --color-bg-page: theme("colors.gray.50");
-  --color-text-primary: theme("colors.gray.900");
-}
-
-html, body {
-  font-family: theme("fontFamily.sans");
-  background: var(--color-bg-page);
-  color: var(--color-text-primary);
+html,
+body {
+  font-family: var(--font-body, system-ui, sans-serif);
+  background: var(--c-page, #fbf7f2);
+  color: var(--c-ink, #21302d);
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
 }
 
-* { box-sizing: border-box; }
+/* Fondo con los gradientes gentiles de STUDIO en toda la app. */
+body.v-studio {
+  background-color: var(--c-page);
+  background-image: var(--grad-page);
+  background-attachment: fixed;
+}
+
+* {
+  box-sizing: border-box;
+}

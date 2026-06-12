@@ -1,8 +1,13 @@
 import type { Config } from "tailwindcss";
 
 /**
- * Tailwind config alineado con el JUK Design System.
- * Tokens completos en ../juk-design-system/tokens/tailwind.config.js
+ * Tailwind config — dirección visual STUDIO.
+ *
+ * Fuente de verdad de los tokens: src/app/design/studio/tokens.css (.v-studio).
+ * Las paletas `juk-*` son el PUENTE de migración: las clases viejas
+ * (text-juk-navy-950, etc.) quedan mapeadas a los valores STUDIO para que toda
+ * la app adopte la dirección sin tocar cada archivo. El código nuevo debería
+ * usar las custom properties directamente (bg-[var(--c-surface)]).
  */
 const config: Config = {
   content: [
@@ -11,45 +16,56 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Ex "navy" → escala teal/tinta de STUDIO
         "juk-navy": {
-          50:  "#f5f8fd",
-          100: "#ecf1fa",
-          200: "#dbe5f4",
-          300: "#c2d2ed",
-          400: "#9ab4e2",
-          500: "#6f95d6",
-          600: "#4570bf",
-          700: "#2d5198",
-          800: "#1c3d75",
-          900: "#122d5c",
-          950: "#0A1F44",
+          50:  "#eef9f5",   // --c-brand-50
+          100: "#dcf2ec",   // --c-brand-100
+          200: "#bfe6dd",
+          300: "#9fd9cf",   // --c-brand-300
+          400: "#5e6b67",   // ink-muted (eran tonos de texto secundario)
+          500: "#46b3a0",   // --c-brand-500
+          600: "#339a88",   // --c-brand-600
+          700: "#1f6f63",   // --c-brand
+          800: "#1b5f55",
+          900: "#173f3a",   // --c-surface-inverse
+          950: "#21302d",   // --c-ink (texto principal)
         },
+        // Ex "coral" → durazno/danger de STUDIO
         "juk-coral": {
-          50:  "#fdf3f2",
-          100: "#fbe6e4",
-          400: "#ee948f",
-          500: "#e4726d",
-          600: "#d4524d",
-          700: "#b83d39",
+          50:  "#fff4ee",
+          100: "#ffe8dc",   // --c-accent-soft
+          400: "#ffc4a8",   // --c-accent-300
+          500: "#ff8a5b",   // --c-accent
+          600: "#f5713e",   // --c-accent-600
+          700: "#d65151",   // --c-danger (se usaba para crítico)
         },
+        // Ex "gold" → miel de STUDIO
         "juk-gold": {
-          50:  "#fdf9ec",
-          100: "#fbf2db",
-          500: "#e6b54d",
-          600: "#c89a3a",
+          50:  "#fdf6e9",
+          100: "#fdeccd",   // --c-honey-soft
+          500: "#f7b955",   // --c-honey
+          600: "#d08a16",   // --c-warning
         },
       },
       fontFamily: {
-        display: ['"Fraunces"', "Georgia", "serif"],
-        sans:    ['"Inter"', "system-ui", "-apple-system", "sans-serif"],
-        mono:    ['"JetBrains Mono"', '"SF Mono"', "Consolas", "monospace"],
+        display: ["var(--font-display)", '"Bricolage Grotesque"', "system-ui", "sans-serif"],
+        sans:    ["var(--font-body)", '"Plus Jakarta Sans"', "system-ui", "sans-serif"],
+        mono:    ["var(--font-mono)", '"Space Mono"', "ui-monospace", "monospace"],
       },
       boxShadow: {
-        xs: "0 1px 2px rgba(10, 31, 68, 0.04)",
-        sm: "0 1px 3px rgba(10, 31, 68, 0.06), 0 1px 2px rgba(10, 31, 68, 0.04)",
-        md: "0 4px 12px rgba(10, 31, 68, 0.08), 0 2px 4px rgba(10, 31, 68, 0.04)",
-        lg: "0 12px 32px rgba(10, 31, 68, 0.12), 0 4px 8px rgba(10, 31, 68, 0.06)",
-        focus: "0 0 0 3px rgba(69, 112, 191, 0.25)",
+        xs: "var(--shadow-soft)",
+        sm: "var(--shadow-1)",
+        md: "var(--shadow-2)",
+        lg: "var(--shadow-3)",
+        focus: "var(--ring-focus)",
+      },
+      borderRadius: {
+        // Radios grandes, el sello de STUDIO
+        DEFAULT: "10px",
+        md: "10px",
+        lg: "14px",
+        xl: "20px",
+        "2xl": "28px",
       },
     },
   },
