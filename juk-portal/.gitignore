@@ -11,3 +11,8 @@ build/
 coverage/
 .turbo/
 .trigger/
+
+# Playwright
+test-results/
+playwright-report/
+.playwright-mcp/
