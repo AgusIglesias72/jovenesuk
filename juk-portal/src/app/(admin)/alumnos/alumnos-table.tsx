@@ -52,12 +52,20 @@ export function AlumnosTable({ alumnos }: { alumnos: Alumno[] }) {
                 </Badge>
               </TD>
               <TD>
-                <Link
-                  href={`/alumnos/${a.id}/editar`}
-                  className="text-sm font-semibold text-juk-navy-700 hover:text-juk-navy-900"
-                >
-                  Editar
-                </Link>
+                <div className="flex items-center gap-3">
+                  <Link
+                    href={`/alumnos/${a.id}`}
+                    className="text-sm font-semibold text-juk-navy-700 hover:text-juk-navy-900"
+                  >
+                    Ver
+                  </Link>
+                  <Link
+                    href={`/alumnos/${a.id}/editar`}
+                    className="text-sm font-medium text-[var(--c-ink-subtle)] hover:text-juk-navy-900"
+                  >
+                    Editar
+                  </Link>
+                </div>
               </TD>
             </TR>
           ))}

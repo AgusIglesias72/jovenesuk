@@ -1,4 +1,4 @@
-import { and, asc, count, eq, ne, notInArray, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, ne, notInArray, type SQL } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { alumnos, type Alumno } from "@/lib/db/schema/alumnos";
@@ -7,6 +7,7 @@ import {
   type Asignacion,
   type NewAsignacion,
 } from "@/lib/db/schema/asignaciones";
+import { viajes } from "@/lib/db/schema/viajes";
 import { AsignacionNotFoundError } from "@/lib/domain/asignaciones";
 
 export type AlumnoAsignado = {
@@ -117,4 +118,36 @@ export async function alumnosElegibles(viajeId: string): Promise<Alumno[]> {
     .from(alumnos)
     .where(and(...conds))
     .orderBy(asc(alumnos.apellido), asc(alumnos.nombre));
+}
+
+export type AsignacionConViaje = {
+  asignacionId: string;
+  estado: Asignacion["estado"];
+  fechaAsignacion: Date;
+  viajeId: string;
+  viajeCodigo: string;
+  viajeNombre: string;
+  viajeEstado: string;
+  fechaInicio: Date;
+  fechaFin: Date;
+};
+
+export async function listAsignacionesByAlumno(alumnoId: string): Promise<AsignacionConViaje[]> {
+  const rows = await db
+    .select({
+      asignacionId: asignaciones.id,
+      estado: asignaciones.estado,
+      fechaAsignacion: asignaciones.fechaAsignacion,
+      viajeId: viajes.id,
+      viajeCodigo: viajes.codigo,
+      viajeNombre: viajes.nombre,
+      viajeEstado: viajes.estado,
+      fechaInicio: viajes.fechaInicio,
+      fechaFin: viajes.fechaFin,
+    })
+    .from(asignaciones)
+    .innerJoin(viajes, eq(asignaciones.viajeId, viajes.id))
+    .where(eq(asignaciones.alumnoId, alumnoId))
+    .orderBy(desc(asignaciones.fechaAsignacion));
+  return rows;
 }

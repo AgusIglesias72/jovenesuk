@@ -135,9 +135,12 @@ export function AsignacionesPanel({
               {asignados.map((a) => (
                 <TR key={a.asignacionId}>
                   <TD>
-                    <div className="font-semibold text-juk-navy-950">
+                    <a
+                      href={`/alumnos/${a.alumno.id}`}
+                      className="font-semibold text-juk-navy-950 hover:text-[var(--c-brand)] hover:underline"
+                    >
                       {a.alumno.apellido}, {a.alumno.nombre}
-                    </div>
+                    </a>
                     <div className="font-mono text-xs text-gray-500">{a.alumno.numeroPasaporte}</div>
                   </TD>
                   <TD>
