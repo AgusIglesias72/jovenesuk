@@ -88,6 +88,12 @@ idempotente), **credenciales del Portal de Familias** (generar/enviar/desactivar
 **documentos** (R2 con fallback local + proxy autenticado, adjuntos en los pasos),
 **transfers/tarjetas por alumno** (M7) y **recordatorios** (notificaciones_enviadas con dedup,
 scan diario en Trigger.dev — el servicio Trigger.dev aún no está conectado; la lógica está
-validada). Próximo: conectar Trigger.dev y credenciales reales de R2 (las actuales parecen
-placeholders), resumen semanal, viajes del próximo año + calendario del dashboard, portales
-externos (Familias/Representante).
+validada). **Auditoría adversarial (12/06/2026)**: 55 hallazgos → 32 confirmados → todos los bugs de
+lógica/seguridad arreglados (mora UTC, metadata C2, sign-up público bloqueado, ownership
+server-side, TOCTOU) y los gaps de spec implementados (sub-estados ETA/A3, filtro por alerta,
+viajes del próximo año, alerta PC >12m, re-validación de pasaportes al editar fechas,
+notificación al cancelar, transiciones automáticas por fecha, fecha de cambio de pasaporte).
+E2E del recorrido completo del negocio; suite 30/30, 116 unit. Backlog UX: reemplazar
+window.confirm/prompt por un modal del design system, guard de cambios sin guardar.
+Próximo: conectar Trigger.dev y credenciales reales de R2 (las actuales parecen placeholders),
+resumen semanal, calendario del dashboard, portales externos (Familias/Representante).
