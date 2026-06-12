@@ -78,6 +78,13 @@
       "when": 1781271177630,
       "tag": "0010_brave_pestilence",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1781272036691,
+      "tag": "0011_silly_katie_power",
+      "breakpoints": true
     }
   ]
 }

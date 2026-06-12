@@ -9,14 +9,11 @@ import { getAlumnoById } from "@/lib/db/queries/alumnos";
 import {
   cancelarAsignacion,
   countAsignacionesActivas,
-  createAsignacion,
 } from "@/lib/db/queries/asignaciones";
+import { asignarConTablero } from "@/lib/db/queries/asignar-alumno";
 import { registrarAuditoria } from "@/lib/db/queries/auditoria";
-import { getColegioById, getConfigDocumental } from "@/lib/db/queries/colegios";
-import { crearPasosParaAsignacion } from "@/lib/db/queries/pasos-alumno";
-import { getViajeById, setViajeEstado } from "@/lib/db/queries/viajes";
+import { getViajeById } from "@/lib/db/queries/viajes";
 import { AsignacionNotFoundError, pasaporteVigenteParaViaje } from "@/lib/domain/asignaciones";
-import { edadAlInicioDelViaje, pasosIniciales } from "@/lib/domain/pasos";
 import type { NewAuditoriaEntry } from "@/lib/db/schema/auditoria";
 
 export type ActionResult<T> =
@@ -78,38 +75,21 @@ export async function asignarAlumnoAction(
   }
 
   try {
-    const asig = await createAsignacion({ alumnoId, viajeId });
-
-    // Trigger de asignación (PRD §6.2): crear el tablero con los N/A automáticos.
-    const colegio = await getColegioById(viaje.colegioDestinoId);
-    const configDocumental = await getConfigDocumental(viaje.colegioDestinoId);
-    const pasos = pasosIniciales({
-      configDocumental,
-      tipoEntrada: colegio?.tipoEntradaRequerida ?? "eta",
-      origenViaje: viaje.origen,
-      tipoViaje: viaje.tipo,
-      edadAlInicio: edadAlInicioDelViaje(alumno.fechaNacimiento, viaje.fechaInicio),
-      // El webhook del Google Form todavía no existe: toda alta es manual.
-      canalAlta: "alta_manual",
+    // Trigger de asignación (PRD §6.2): núcleo compartido con el webhook.
+    const resultado = await asignarConTablero({
+      viaje,
+      alumno,
+      usuarioId: session.user.id,
     });
-    await crearPasosParaAsignacion(asig.id, pasos, alumno.fechaAlta, session.user.id);
 
     await safeAudit({
       accion: "asignar_a_viaje",
       entidadTipo: "asignacion",
-      entidadId: asig.id,
+      entidadId: resultado.asignacionId,
       usuarioId: session.user.id,
-      metadata: { viajeId, alumnoId, pasosCreados: pasos.length },
+      metadata: { viajeId, alumnoId, pasosCreados: resultado.pasosCreados },
     });
-
-    // Confirmado AUTOMÁTICO al llegar a 5 inscriptos (solo Grupales, US-13).
-    const activasAhora = await countAsignacionesActivas(viajeId);
-    if (
-      viaje.tipo === "grupal" &&
-      viaje.estado === "inscripcion_abierta" &&
-      activasAhora >= 5
-    ) {
-      await setViajeEstado(viajeId, "confirmado");
+    if (resultado.autoConfirmado) {
       await safeAudit({
         accion: "cambio_estado_viaje",
         entidadTipo: "viaje",
@@ -120,7 +100,7 @@ export async function asignarAlumnoAction(
     }
 
     revalidatePath(`/viajes/${viajeId}`);
-    return { ok: true, data: { id: asig.id } };
+    return { ok: true, data: { id: resultado.asignacionId } };
   } catch (err) {
     if (isYaAsignado(err)) {
       return { ok: false, error: "El alumno ya está asignado a este viaje." };

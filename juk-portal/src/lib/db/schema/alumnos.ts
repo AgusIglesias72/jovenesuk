@@ -9,6 +9,9 @@ export const alumnoEstado = pgEnum("alumno_estado", [
   "baja",
 ]);
 
+/** Canal de ingreso del alumno al sistema (alimenta el Paso 0 del tablero). */
+export const canalAlta = pgEnum("canal_alta", ["webhook", "alta_manual"]);
+
 export const condicionFiscal = pgEnum("condicion_fiscal", [
   "consumidor_final",
   "responsable_inscripto",
@@ -57,8 +60,15 @@ export const alumnos = pgTable("alumnos", {
 
   estado: alumnoEstado("estado").default("pre_inscripto").notNull(),
 
+  canalAlta: canalAlta("canal_alta").default("alta_manual").notNull(),
   fechaAlta: timestamp("fecha_alta").defaultNow().notNull(),
   procesadoPor: uuid("procesado_por"),  // FK lazy a users.id
+
+  // Credenciales del Portal de Familias (US-19b): se generan al crear el
+  // alumno; el ENVÍO es acción manual del admin. 1 cuenta por grupo familiar
+  // (email del Tutor 1, MIN-07).
+  familiaUserId: uuid("familia_user_id"),
+  accesoFamiliaEnviadoAt: timestamp("acceso_familia_enviado_at"),
 
   notasInternas: text("notas_internas"),
 

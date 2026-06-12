@@ -12,6 +12,7 @@ import type { PasoCodigo, PasoEstado } from "@/lib/domain/pasos";
 import type { ViajeOrigen } from "@/lib/domain/viajes";
 import { formatFecha } from "@/lib/utils/date";
 
+import { AccesoFamilia } from "./acceso-familia";
 import { CuotasPanel, type CuotaView } from "./cuotas-panel";
 import { TableroM6, type PasoView } from "./tablero-m6";
 
@@ -101,6 +102,12 @@ export default async function AlumnoDetailPage({
             />
           )}
         </dl>
+
+        <AccesoFamilia
+          alumnoId={id}
+          tutorEmail={alumno.tutor1Email}
+          enviadoAt={alumno.accesoFamiliaEnviadoAt}
+        />
       </section>
 
       {tableros.length === 0 ? (

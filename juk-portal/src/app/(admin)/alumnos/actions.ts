@@ -13,6 +13,11 @@ import {
   updateAlumno,
 } from "@/lib/db/queries/alumnos";
 import {
+  asegurarCuentaFamilia,
+  desactivarCuentaFamiliaSiCorresponde,
+  prepararEnvioAcceso,
+} from "@/lib/db/queries/familias";
+import {
   AlumnoNotFoundError,
   alumnoCreateSchema,
   alumnoUpdateSchema,
@@ -52,6 +57,13 @@ export async function createAlumnoAction(
       ...parsed.data,
       procesadoPor: session.user.id,
     });
+    // US-19b: las credenciales del Portal de Familias se generan al CREAR el
+    // alumno (el envío es otra acción). Best-effort: no frena el alta.
+    try {
+      await asegurarCuentaFamilia(alumno.id, alumno.tutor1Email, alumno.tutor1Nombre);
+    } catch (err) {
+      Sentry.captureException(err);
+    }
     await safeAudit({
       accion: "create",
       entidadTipo: "alumno",
@@ -63,6 +75,54 @@ export async function createAlumnoAction(
   } catch (err) {
     Sentry.captureException(err);
     return { ok: false, error: "No pudimos crear el alumno. Probá de nuevo." };
+  }
+}
+
+/**
+ * US-19b: envío (o reenvío) del acceso al Portal de Familias. Regenera la
+ * password temporal y manda el email al Tutor 1 desde el remitente del sistema.
+ */
+export async function enviarAccesoFamiliaAction(
+  alumnoId: string
+): Promise<ActionResult<{ enviadoA: string }>> {
+  const session = await requireAdminJuk();
+
+  const parsedId = z.string().uuid().safeParse(alumnoId);
+  if (!parsedId.success) return { ok: false, error: "Alumno inválido." };
+
+  try {
+    const datos = await prepararEnvioAcceso(parsedId.data);
+    if (!datos) {
+      return {
+        ok: false,
+        error:
+          "No se pudo preparar la cuenta de familia (el email del Tutor 1 ya pertenece a un usuario del equipo).",
+      };
+    }
+
+    const { sendWelcomeEmail } = await import("@/lib/email/send-welcome");
+    await sendWelcomeEmail({
+      to: datos.email,
+      name: datos.nombre,
+      temporaryPassword: datos.passwordTemporal,
+      invitedByName: session.user.name,
+    });
+
+    await safeAudit({
+      accion: "update",
+      entidadTipo: "alumno",
+      entidadId: parsedId.data,
+      usuarioId: session.user.id,
+      metadata: { accion: "enviar_acceso_familia", enviadoA: datos.email },
+    });
+    revalidatePath(`/alumnos/${parsedId.data}`);
+    return { ok: true, data: { enviadoA: datos.email } };
+  } catch (err) {
+    Sentry.captureException(err);
+    return {
+      ok: false,
+      error: "No pudimos enviar el email de acceso. Revisá la configuración de Resend.",
+    };
   }
 }
 
@@ -112,6 +172,12 @@ export async function darDeBajaAlumnoAction(
 
   try {
     const alumno = await darDeBajaAlumno(parsedId.data, motivo?.trim() || null);
+    // US-19b: la baja desactiva la cuenta de familia si no quedan hermanos activos.
+    try {
+      await desactivarCuentaFamiliaSiCorresponde(parsedId.data);
+    } catch (err) {
+      Sentry.captureException(err);
+    }
     await safeAudit({
       accion: "soft_delete",
       entidadTipo: "alumno",

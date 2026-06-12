@@ -20,7 +20,7 @@ export async function crearPasosParaAsignacion(
   asignacionId: string,
   pasos: PasoInicial[],
   fechaAltaAlumno: Date,
-  updatedBy: string
+  updatedBy: string | null
 ): Promise<void> {
   await db.delete(pasosAlumno).where(eq(pasosAlumno.asignacionId, asignacionId));
   await db.insert(pasosAlumno).values(
