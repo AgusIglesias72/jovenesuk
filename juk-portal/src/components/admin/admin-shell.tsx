@@ -1,23 +1,17 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import {
-  AppShell,
-  SidebarLogo,
-  SidebarNavSection,
-  SidebarNavItem,
-  SidebarUserChip,
-  Breadcrumb,
-} from "@/components/ui";
+import { cn } from "@/lib/utils/cn";
 
 /**
- * AdminShell — composes AppShell with the JUK navigation tree.
+ * AdminShell — authenticated layout following the STUDIO direction.
  *
  * Owns the sidebar nav items, the topbar layout, and the user chip.
  * Pages inside (admin) only need to focus on their content area.
  *
- * Counts (4 alerts, 62 alumnos, etc.) are hardcoded for now — Fase 6
- * replaces them with real data via server-fetched counts.
+ * Visual: deep-teal gradient sidebar (--grad-brand) with pill nav items,
+ * uppercase section labels and the user chip pinned to the bottom; clean
+ * surface topbar with breadcrumb; warm page gradient behind the content.
  */
 
 interface AdminShellProps {
@@ -47,70 +41,215 @@ export function AdminShell({ user, children }: AdminShellProps) {
       ? "Admin JUK"
       : user.role;
 
-  const sidebar = (
-    <>
-      <SidebarLogo orgName="JUK" subtitle="Portal Interno" />
+  return (
+    <div className="grid min-h-screen grid-cols-[264px_1fr] bg-[var(--c-page)]">
+      <aside className="flex flex-col bg-[image:var(--grad-brand)] p-4 text-[var(--c-ink-onbrand)]">
+        {/* Logo */}
+        <div className="mb-7 flex items-center gap-3 px-2 pt-1">
+          <span
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--r-md)] bg-[image:var(--grad-warm)] text-[var(--c-ink-onaccent)] shadow-[shadow:var(--shadow-accent)]"
+            aria-hidden
+          >
+            <span className="font-display text-lg font-extrabold">J</span>
+          </span>
+          <div className="leading-tight">
+            <p className="font-display text-[15px] font-bold text-[var(--c-ink-onbrand)]">
+              Jóvenes en UK
+            </p>
+            <p className="mt-0.5 text-[length:var(--t-label)] font-semibold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-onbrand-muted)]">
+              Portal Interno
+            </p>
+          </div>
+        </div>
 
-      <SidebarNavSection title="Operación">
-        <SidebarNavItem
-          icon={<IconGrid />}
-          label="Dashboard"
-          href="/dashboard"
-          active={pathname === "/dashboard"}
-        />
-        <SidebarNavItem
-          icon={<IconUser />}
-          label="Alumnos"
-          href="/alumnos"
-          active={pathname.startsWith("/alumnos")}
-        />
-        <SidebarNavItem
-          icon={<IconPlane />}
-          label="Viajes"
-          href="/viajes"
-          active={pathname.startsWith("/viajes")}
-        />
-        <SidebarNavItem
-          icon={<IconSchool />}
-          label="Colegios"
-          href="/colegios"
-          active={pathname.startsWith("/colegios")}
-        />
-        <SidebarNavItem
-          icon={<IconUsers />}
-          label="Group Leaders"
-          href="/group-leaders"
-          active={pathname.startsWith("/group-leaders")}
-        />
-        <SidebarNavItem icon={<IconCard />} label="Pagos" soon />
-      </SidebarNavSection>
-
-      {user.role === "super_admin" && (
-        <SidebarNavSection title="Administración">
-          <SidebarNavItem
-            icon={<IconUsers />}
-            label="Usuarios"
-            href="/usuarios"
-            active={pathname.startsWith("/usuarios")}
+        <SidebarSection title="Operación">
+          <SidebarItem
+            icon={<IconGrid />}
+            label="Dashboard"
+            href="/dashboard"
+            active={pathname === "/dashboard"}
           />
-          <SidebarNavItem icon={<IconGear />} label="Configuración" soon />
-        </SidebarNavSection>
-      )}
+          <SidebarItem
+            icon={<IconUser />}
+            label="Alumnos"
+            href="/alumnos"
+            active={pathname.startsWith("/alumnos")}
+          />
+          <SidebarItem
+            icon={<IconPlane />}
+            label="Viajes"
+            href="/viajes"
+            active={pathname.startsWith("/viajes")}
+          />
+          <SidebarItem
+            icon={<IconSchool />}
+            label="Colegios"
+            href="/colegios"
+            active={pathname.startsWith("/colegios")}
+          />
+          <SidebarItem
+            icon={<IconUsers />}
+            label="Group Leaders"
+            href="/group-leaders"
+            active={pathname.startsWith("/group-leaders")}
+          />
+          <SidebarItem icon={<IconCard />} label="Pagos" soon />
+        </SidebarSection>
 
-      <SidebarUserChip
-        initials={initials || "U"}
-        name={user.name}
-        role={roleLabel}
-      />
-    </>
+        {user.role === "super_admin" && (
+          <SidebarSection title="Administración">
+            <SidebarItem
+              icon={<IconUsers />}
+              label="Usuarios"
+              href="/usuarios"
+              active={pathname.startsWith("/usuarios")}
+            />
+            <SidebarItem icon={<IconGear />} label="Configuración" soon />
+          </SidebarSection>
+        )}
+
+        {/* User chip */}
+        <div className="mt-auto flex items-center gap-3 rounded-[var(--r-lg)] bg-white/10 p-3">
+          <span
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--r-pill)] bg-[image:var(--grad-warm)] text-[11px] font-extrabold text-[var(--c-ink-onaccent)]"
+            aria-hidden
+          >
+            {initials || "U"}
+          </span>
+          <div className="min-w-0 leading-tight">
+            <p className="truncate text-[length:var(--t-small)] font-bold text-[var(--c-ink-onbrand)]">
+              {user.name}
+            </p>
+            <p className="mt-0.5 truncate text-[length:var(--t-label)] text-[var(--c-ink-onbrand-muted)]">
+              {roleLabel}
+            </p>
+          </div>
+        </div>
+      </aside>
+
+      <main className="flex flex-col overflow-hidden">
+        {/* Topbar */}
+        <div className="flex items-center gap-4 border-b border-[var(--c-border)] bg-[var(--c-surface)] px-6 py-3">
+          <Breadcrumb items={buildBreadcrumb(pathname)} />
+        </div>
+        <div className="flex-1 overflow-auto bg-[image:var(--grad-page)] p-6">
+          {children}
+        </div>
+      </main>
+    </div>
   );
+}
 
-  const topbar = <Breadcrumb items={buildBreadcrumb(pathname)} />;
+/* ============================================================
+   Sidebar parts (STUDIO)
+   ============================================================ */
+
+function SidebarSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-6">
+      <p className="mb-2 px-4 text-[length:var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-onbrand-muted)]">
+        {title}
+      </p>
+      <nav className="space-y-1">{children}</nav>
+    </div>
+  );
+}
+
+interface SidebarItemProps {
+  icon: React.ReactNode;
+  label: string;
+  href?: string;
+  active?: boolean;
+  soon?: boolean;
+}
+
+function SidebarItem({ icon, label, href, active, soon }: SidebarItemProps) {
+  if (soon) {
+    return (
+      <div
+        className="flex min-h-[42px] w-full cursor-default select-none items-center gap-3 rounded-[var(--r-pill)] px-4 text-[length:var(--t-small)] font-semibold text-[var(--c-ink-onbrand-muted)] opacity-60"
+        aria-disabled="true"
+      >
+        <span className="h-4 w-4 flex-shrink-0 opacity-80">{icon}</span>
+        <span className="flex-1 text-left">{label}</span>
+        <span className="rounded-[var(--r-pill)] bg-white/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-onbrand-muted)]">
+          Pronto
+        </span>
+      </div>
+    );
+  }
 
   return (
-    <AppShell sidebar={sidebar} topbar={topbar}>
-      {children}
-    </AppShell>
+    <a
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex min-h-[42px] w-full items-center gap-3 rounded-[var(--r-pill)] px-4 text-[length:var(--t-small)] transition-colors duration-150",
+        active
+          ? "bg-white/10 font-bold text-[var(--c-ink-onbrand)]"
+          : "font-semibold text-[var(--c-ink-onbrand-muted)] hover:bg-white/5 hover:text-[var(--c-ink-onbrand)]"
+      )}
+    >
+      <span
+        className={cn(
+          "h-4 w-4 flex-shrink-0",
+          active ? "text-[var(--c-accent-300)]" : "opacity-80"
+        )}
+      >
+        {icon}
+      </span>
+      <span className="flex-1 text-left">{label}</span>
+      {active && (
+        <span
+          className="h-1.5 w-1.5 rounded-[var(--r-pill)] bg-[var(--c-accent)]"
+          aria-hidden
+        />
+      )}
+    </a>
+  );
+}
+
+/* ============================================================
+   Topbar breadcrumb (STUDIO)
+   ============================================================ */
+
+function Breadcrumb({ items }: { items: { label: string; href?: string }[] }) {
+  return (
+    <nav
+      className="text-[length:var(--t-small)] text-[var(--c-ink-subtle)]"
+      aria-label="Breadcrumb"
+    >
+      {items.map((it, i) => {
+        const isLast = i === items.length - 1;
+        return (
+          <span key={i}>
+            {it.href && !isLast ? (
+              <a
+                href={it.href}
+                className="transition-colors hover:text-[var(--c-brand)]"
+              >
+                {it.label}
+              </a>
+            ) : (
+              <span className={isLast ? "font-semibold text-[var(--c-ink)]" : ""}>
+                {it.label}
+              </span>
+            )}
+            {!isLast && (
+              <span className="mx-1.5 opacity-50" aria-hidden>
+                ›
+              </span>
+            )}
+          </span>
+        );
+      })}
+    </nav>
   );
 }
 

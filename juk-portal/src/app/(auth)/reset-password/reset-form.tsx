@@ -83,8 +83,8 @@ function RequestResetForm() {
           />
         </Field>
 
-        <Button type="submit" size="lg" disabled={isPending} className="mt-2">
-          {isPending ? "Enviando…" : "Enviar link"}
+        <Button type="submit" size="lg" disabled={isPending} className="mt-2 w-full">
+          {isPending ? "Enviando…" : "Mandarme el link"}
         </Button>
       </div>
     </form>
@@ -162,8 +162,8 @@ function SetNewPasswordForm({ token }: { token: string }) {
           />
         </Field>
 
-        <Button type="submit" size="lg" disabled={isPending} className="mt-2">
-          {isPending ? "Guardando…" : "Cambiar contraseña"}
+        <Button type="submit" size="lg" disabled={isPending} className="mt-2 w-full">
+          {isPending ? "Guardando…" : "Guardar contraseña"}
         </Button>
       </div>
     </form>

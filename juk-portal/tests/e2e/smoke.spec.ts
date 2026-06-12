@@ -22,7 +22,7 @@ test("navega por las secciones principales", async ({ page }) => {
 
 test("una ruta inexistente muestra el 404 con marca", async ({ page }) => {
   await page.goto("/ruta-que-no-existe");
-  await expect(page.getByText("Esta página no existe")).toBeVisible();
+  await expect(page.getByText("Esta página se fue de excursión")).toBeVisible();
 });
 
 test("el alta de colegio valida los campos requeridos", async ({ page }) => {

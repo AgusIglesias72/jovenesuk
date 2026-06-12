@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils/cn";
  *
  * Density rules:
  *  - Row padding 12px vertical (NOT 16-24px like generic SaaS)
- *  - Hover state highlights with juk-navy-50
+ *  - Hover state highlights with var(--c-overlay)
  *  - Compound cells (StudentCell, MoneyCell, etc) reused everywhere
  *
  * Monospace columns must use font-mono + tabular-nums for proper alignment.
@@ -37,18 +37,27 @@ import { cn } from "@/lib/utils/cn";
 
 export function TableWrap({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("border border-gray-200 rounded-lg overflow-hidden bg-white", className)}>
+    <div
+      className={cn(
+        "border border-[var(--c-border)] rounded-[var(--r-lg)] overflow-hidden bg-[var(--c-surface)] shadow-[shadow:var(--shadow-1)]",
+        className
+      )}
+    >
       <div className="overflow-x-auto">{children}</div>
     </div>
   );
 }
 
 export function Table({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <table className={cn("w-full border-collapse text-sm", className)}>{children}</table>;
+  return (
+    <table className={cn("w-full border-collapse text-[length:var(--t-small)]", className)}>
+      {children}
+    </table>
+  );
 }
 
 export function THead({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <thead className={cn("bg-gray-50", className)}>{children}</thead>;
+  return <thead className={cn("bg-[var(--c-surface-2)]", className)}>{children}</thead>;
 }
 
 export function TBody({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -63,7 +72,7 @@ export function TR({ hoverable = true, className, ...props }: TRProps) {
   return (
     <tr
       className={cn(
-        hoverable && "hover:bg-juk-navy-50 transition-colors duration-150",
+        hoverable && "hover:bg-[var(--c-overlay)] transition-colors duration-150",
         props.onClick && "cursor-pointer",
         className
       )}
@@ -80,8 +89,8 @@ export function TH({ numeric, className, ...props }: THProps) {
   return (
     <th
       className={cn(
-        "text-left font-semibold text-xs uppercase tracking-wide text-gray-600",
-        "px-4 py-3 border-b border-gray-200",
+        "text-left font-bold text-[length:var(--t-label)] uppercase tracking-[var(--ls-label)] text-[var(--c-ink-muted)]",
+        "px-4 py-3 border-b border-[var(--c-border)]",
         numeric && "text-right",
         className
       )}
@@ -98,7 +107,7 @@ export function TD({ numeric, className, ...props }: TDProps) {
   return (
     <td
       className={cn(
-        "px-4 py-3 border-b border-gray-200 text-gray-900 align-middle last:border-b-0",
+        "px-4 py-3 border-b border-[var(--c-border)] text-[var(--c-ink)] align-middle last:border-b-0",
         numeric && "text-right tabular-nums font-mono",
         className
       )}
@@ -114,9 +123,11 @@ export function TD({ numeric, className, ...props }: TDProps) {
 export function StudentCell({ name, passport }: { name: string; passport?: string }) {
   return (
     <>
-      <div className="font-semibold text-juk-navy-950">{name}</div>
+      <div className="font-semibold text-[var(--c-ink)]">{name}</div>
       {passport && (
-        <div className="font-mono text-xs text-gray-500 tabular-nums mt-px">{passport}</div>
+        <div className="font-mono text-[length:var(--t-mono)] text-[var(--c-ink-subtle)] tabular-nums mt-px">
+          {passport}
+        </div>
       )}
     </>
   );
@@ -124,14 +135,18 @@ export function StudentCell({ name, passport }: { name: string; passport?: strin
 
 export function CodeCell({ code }: { code: string }) {
   return (
-    <span className="font-mono text-xs font-semibold tracking-wide text-juk-navy-700">
+    <span className="font-mono text-[length:var(--t-mono)] font-bold tracking-wide text-[var(--c-brand)]">
       {code}
     </span>
   );
 }
 
 export function DateCell({ date }: { date: string }) {
-  return <span className="font-mono text-xs text-gray-700 tabular-nums">{date}</span>;
+  return (
+    <span className="font-mono text-[length:var(--t-mono)] text-[var(--c-ink-muted)] tabular-nums">
+      {date}
+    </span>
+  );
 }
 
 type Currency = "GBP" | "ARS" | "USD";
@@ -139,7 +154,7 @@ type Currency = "GBP" | "ARS" | "USD";
 export function MoneyCell({ amount, currency = "GBP" }: { amount: number; currency?: Currency }) {
   const symbol = currency === "GBP" ? "£" : currency === "USD" ? "$" : "AR$";
   return (
-    <span className="font-mono text-sm tabular-nums">
+    <span className="font-mono text-[length:var(--t-small)] tabular-nums text-[var(--c-ink)]">
       {symbol} {amount.toLocaleString("es-AR")}
     </span>
   );

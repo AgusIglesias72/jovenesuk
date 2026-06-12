@@ -3,8 +3,8 @@ import { cn } from "@/lib/utils/cn";
 /**
  * StatCard — Dashboard metric tile.
  *
- * The big number uses the Fraunces display serif (font-display). This is
- * the JUK signature — don't replace with sans.
+ * The big number uses the display face (font-display, Bricolage Grotesque).
+ * This is the JUK signature — don't replace with sans.
  *
  * Tone: "neutral" by default, "critical" (coral) for numbers that ARE
  * the alert (e.g. alumnos en mora).
@@ -32,28 +32,35 @@ export function StatCard({
   className,
 }: StatCardProps) {
   return (
-    <div className={cn("bg-white border border-gray-200 rounded-lg p-5", className)}>
-      <div className="text-xs font-medium uppercase tracking-wider text-gray-500 mb-2">
+    <div
+      className={cn(
+        "bg-[var(--c-surface)] border border-[var(--c-border)] rounded-[var(--r-lg)] p-5 shadow-[shadow:var(--shadow-1)]",
+        className
+      )}
+    >
+      <div className="text-[length:var(--t-small)] font-semibold text-[var(--c-ink-muted)] mb-2">
         {label}
       </div>
       <div
         className={cn(
-          "font-display font-semibold leading-none text-4xl tabular-nums tracking-[-0.02em]",
-          tone === "critical" ? "text-juk-coral-700" : "text-juk-navy-950"
+          "font-display font-extrabold leading-none text-4xl tabular-nums tracking-[var(--ls-tight)]",
+          tone === "critical" ? "text-[var(--c-accent-600)]" : "text-[var(--c-ink)]"
         )}
       >
         {value}
       </div>
       {delta && (
-        <div
-          className={cn(
-            "text-xs mt-2 flex items-center gap-1",
-            deltaTone === "up" && "text-green-700",
-            deltaTone === "down" && "text-red-700",
-            deltaTone === "neutral" && "text-gray-600"
-          )}
-        >
-          {delta}
+        <div className="mt-2.5">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded-[var(--r-pill)] px-2 py-0.5 text-[11px] font-bold",
+              deltaTone === "up" && "text-[var(--c-success)] bg-[var(--c-success-bg)]",
+              deltaTone === "down" && "text-[var(--c-danger)] bg-[var(--c-danger-bg)]",
+              deltaTone === "neutral" && "text-[var(--c-ink-muted)] bg-[var(--c-surface-2)]"
+            )}
+          >
+            {delta}
+          </span>
         </div>
       )}
     </div>
@@ -81,10 +88,26 @@ export function StatCard({
 type AlertLevel = "critical" | "warning" | "info" | "success";
 
 const ALERT_STYLES: Record<AlertLevel, { container: string; iconBg: string; glyph: string }> = {
-  critical: { container: "bg-red-50 border-red-100 text-red-700",                 iconBg: "bg-red-600 text-white",        glyph: "!" },
-  warning:  { container: "bg-amber-50 border-amber-100 text-amber-700",            iconBg: "bg-amber-600 text-white",      glyph: "⚠" },
-  info:     { container: "bg-juk-navy-50 border-juk-navy-200 text-juk-navy-900",   iconBg: "bg-juk-navy-700 text-white",   glyph: "i" },
-  success:  { container: "bg-green-50 border-green-100 text-green-700",            iconBg: "bg-green-600 text-white",      glyph: "✓" },
+  critical: {
+    container: "bg-[var(--c-danger-bg)] border-[color-mix(in_srgb,var(--c-danger)_25%,transparent)]",
+    iconBg: "bg-[var(--c-danger)] text-[var(--c-surface)]",
+    glyph: "!",
+  },
+  warning: {
+    container: "bg-[var(--c-warning-bg)] border-[color-mix(in_srgb,var(--c-warning)_25%,transparent)]",
+    iconBg: "bg-[var(--c-warning)] text-[var(--c-surface)]",
+    glyph: "⚠",
+  },
+  info: {
+    container: "bg-[var(--c-info-bg)] border-[color-mix(in_srgb,var(--c-info)_25%,transparent)]",
+    iconBg: "bg-[var(--c-info)] text-[var(--c-surface)]",
+    glyph: "i",
+  },
+  success: {
+    container: "bg-[var(--c-success-bg)] border-[color-mix(in_srgb,var(--c-success)_25%,transparent)]",
+    iconBg: "bg-[var(--c-success)] text-[var(--c-surface)]",
+    glyph: "✓",
+  },
 };
 
 interface AlertProps {
@@ -100,7 +123,7 @@ export function Alert({ level, title, children, action, className }: AlertProps)
   return (
     <div
       className={cn(
-        "flex gap-3 rounded-md border px-4 py-3 text-sm leading-snug",
+        "flex items-start gap-3 rounded-[var(--r-lg)] border p-4 text-[length:var(--t-small)] leading-[var(--lh-snug)]",
         cfg.container,
         className
       )}
@@ -108,7 +131,7 @@ export function Alert({ level, title, children, action, className }: AlertProps)
     >
       <span
         className={cn(
-          "flex-shrink-0 w-5 h-5 rounded-full inline-flex items-center justify-center text-[11px] font-bold mt-0.5",
+          "flex-shrink-0 grid h-7 w-7 place-items-center rounded-[var(--r-pill)] text-[13px] font-bold",
           cfg.iconBg
         )}
         aria-hidden
@@ -116,8 +139,8 @@ export function Alert({ level, title, children, action, className }: AlertProps)
         {cfg.glyph}
       </span>
       <div className="flex-1 min-w-0">
-        <div className="font-semibold mb-0.5">{title}</div>
-        {children && <div>{children}</div>}
+        <div className="font-semibold text-[var(--c-ink)] mb-0.5">{title}</div>
+        {children && <div className="text-[var(--c-ink-muted)]">{children}</div>}
       </div>
       {action && <div className="flex-shrink-0">{action}</div>}
     </div>

@@ -3,8 +3,8 @@ import { cn } from "@/lib/utils/cn";
 /**
  * AppShell — main authenticated layout.
  *
- * Navy-950 sidebar (left) + topbar + scrollable content.
- * The deep navy on the left provides constant orientation.
+ * Deep-teal sidebar (--c-surface-inverse, left) + topbar + scrollable content.
+ * The dark panel on the left provides constant orientation.
  *
  * Login, password-reset, and 404 pages do NOT use this — they have their
  * own simpler shells.
@@ -38,10 +38,12 @@ interface AppShellProps {
 
 export function AppShell({ sidebar, topbar, children, className }: AppShellProps) {
   return (
-    <div className={cn("min-h-screen grid grid-cols-[256px_1fr] bg-gray-50", className)}>
-      <aside className="bg-juk-navy-950 text-juk-navy-200 p-5 flex flex-col">{sidebar}</aside>
+    <div className={cn("min-h-screen grid grid-cols-[256px_1fr] bg-[var(--c-page)]", className)}>
+      <aside className="bg-[var(--c-surface-inverse)] text-[var(--c-ink-onbrand-muted)] p-5 flex flex-col">
+        {sidebar}
+      </aside>
       <main className="flex flex-col overflow-hidden">
-        <div className="bg-white border-b border-gray-200 px-5 py-3 flex items-center gap-4">
+        <div className="bg-[var(--c-surface)] border-b border-[var(--c-border)] px-5 py-3 flex items-center gap-4">
           {topbar}
         </div>
         <div className="p-6 flex-1 overflow-auto">{children}</div>
@@ -63,12 +65,14 @@ export function SidebarLogo({
 }) {
   return (
     <div className="flex items-center gap-2 mb-8 px-1">
-      <div className="w-9 h-9 bg-juk-coral-600 rounded-md flex items-center justify-center text-white font-display font-bold text-base">
+      <div className="w-9 h-9 bg-[image:var(--grad-warm)] rounded-[var(--r-md)] flex items-center justify-center text-[var(--c-ink-onaccent)] font-display font-bold text-base shadow-[shadow:var(--shadow-accent)]">
         J
       </div>
       <div className="flex flex-col leading-tight">
-        <span className="text-white font-display font-semibold text-[15px] tracking-tight">{orgName}</span>
-        <span className="text-juk-navy-400 text-[10px] uppercase tracking-widest font-medium mt-0.5">
+        <span className="text-[var(--c-ink-onbrand)] font-display font-semibold text-[15px] tracking-[var(--ls-tight)]">
+          {orgName}
+        </span>
+        <span className="text-[var(--c-ink-onbrand-muted)] text-[10px] uppercase tracking-widest font-medium mt-0.5">
           {subtitle}
         </span>
       </div>
@@ -85,7 +89,7 @@ export function SidebarNavSection({ title, children }: SidebarNavSectionProps) {
   return (
     <div className="mb-6">
       {title && (
-        <div className="text-[10px] uppercase tracking-widest text-juk-navy-400 px-3 mb-2 font-semibold">
+        <div className="text-[10px] uppercase tracking-widest text-[var(--c-ink-onbrand-muted)] px-3 mb-2 font-semibold">
           {title}
         </div>
       )}
@@ -118,12 +122,12 @@ export function SidebarNavItem({
   if (soon) {
     return (
       <div
-        className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-juk-navy-400 cursor-default select-none opacity-60"
+        className="w-full flex items-center gap-3 px-3 py-2 rounded-[var(--r-sm)] text-sm font-medium text-[var(--c-ink-onbrand-muted)] cursor-default select-none opacity-60"
         aria-disabled="true"
       >
         <span className="w-4 h-4 flex-shrink-0 opacity-70">{icon}</span>
         <span className="flex-1 text-left">{label}</span>
-        <span className="text-[9px] uppercase tracking-wide font-semibold px-1.5 py-px rounded-full bg-white/10 text-juk-navy-300">
+        <span className="text-[9px] uppercase tracking-wide font-semibold px-1.5 py-px rounded-[var(--r-pill)] bg-white/10 text-[var(--c-ink-onbrand-muted)]">
           Pronto
         </span>
       </div>
@@ -132,15 +136,20 @@ export function SidebarNavItem({
   const inner = (
     <>
       {active && (
-        <span className="absolute -left-5 top-0 bottom-0 w-[3px] bg-juk-coral-500" aria-hidden />
+        <span
+          className="absolute -left-5 top-0 bottom-0 w-[3px] rounded-r bg-[var(--c-accent)]"
+          aria-hidden
+        />
       )}
       <span className="w-4 h-4 flex-shrink-0 opacity-80">{icon}</span>
       <span className="flex-1 text-left">{label}</span>
       {count !== undefined && (
         <span
           className={cn(
-            "font-mono text-[10px] px-1.5 py-px rounded-full",
-            countUrgent ? "bg-juk-coral-600 text-white" : "bg-white/10 text-juk-navy-200"
+            "font-mono text-[10px] px-1.5 py-px rounded-[var(--r-pill)]",
+            countUrgent
+              ? "bg-[var(--c-accent)] text-[var(--c-ink-onaccent)] font-bold"
+              : "bg-white/10 text-[var(--c-ink-onbrand-muted)]"
           )}
         >
           {count}
@@ -150,11 +159,11 @@ export function SidebarNavItem({
   );
 
   const cls = cn(
-    "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium",
+    "w-full flex items-center gap-3 px-3 py-2 rounded-[var(--r-sm)] text-sm font-medium",
     "transition-colors duration-150 relative",
     active
-      ? "bg-juk-navy-800 text-white"
-      : "text-juk-navy-200 hover:bg-white/5 hover:text-white"
+      ? "bg-white/10 text-[var(--c-ink-onbrand)]"
+      : "text-[var(--c-ink-onbrand-muted)] hover:bg-white/5 hover:text-[var(--c-ink-onbrand)]"
   );
 
   if (href) {
@@ -182,13 +191,13 @@ export function SidebarUserChip({
   role: string;
 }) {
   return (
-    <div className="mt-auto flex items-center gap-3 p-3 bg-white/5 rounded-md">
-      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-juk-gold-500 to-juk-coral-500 flex items-center justify-center font-bold text-xs text-juk-navy-950">
+    <div className="mt-auto flex items-center gap-3 p-3 bg-white/5 rounded-[var(--r-md)]">
+      <div className="w-8 h-8 rounded-[var(--r-pill)] bg-[image:var(--grad-warm)] flex items-center justify-center font-bold text-xs text-[var(--c-ink-onaccent)]">
         {initials}
       </div>
       <div className="flex flex-col leading-tight">
-        <span className="text-white text-sm font-semibold">{name}</span>
-        <span className="text-juk-navy-400 text-[10px]">{role}</span>
+        <span className="text-[var(--c-ink-onbrand)] text-sm font-semibold">{name}</span>
+        <span className="text-[var(--c-ink-onbrand-muted)] text-[10px]">{role}</span>
       </div>
     </div>
   );
@@ -204,19 +213,19 @@ interface BreadcrumbProps {
 
 export function Breadcrumb({ items }: BreadcrumbProps) {
   return (
-    <nav className="text-sm text-gray-500" aria-label="Breadcrumb">
+    <nav className="text-[length:var(--t-small)] text-[var(--c-ink-muted)]" aria-label="Breadcrumb">
       {items.map((it, i) => {
         const isLast = i === items.length - 1;
         return (
           <span key={i}>
             {it.href && !isLast ? (
-              <a href={it.href} className="hover:text-juk-navy-900">
+              <a href={it.href} className="hover:text-[var(--c-brand)] hover:underline">
                 {it.label}
               </a>
             ) : (
-              <span className={isLast ? "text-juk-navy-900 font-semibold" : ""}>{it.label}</span>
+              <span className={isLast ? "text-[var(--c-ink)] font-semibold" : ""}>{it.label}</span>
             )}
-            {!isLast && <span className="mx-1.5 opacity-40">›</span>}
+            {!isLast && <span className="mx-1.5 text-[var(--c-ink-subtle)]">›</span>}
           </span>
         );
       })}
@@ -232,7 +241,7 @@ export function TopbarSearch({
     <div className="flex-1 max-w-md relative">
       <svg
         viewBox="0 0 16 16"
-        className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500"
+        className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--c-ink-subtle)]"
         fill="none"
         stroke="currentColor"
         strokeWidth={1.6}
@@ -242,7 +251,7 @@ export function TopbarSearch({
       </svg>
       <input
         placeholder={placeholder}
-        className="w-full pl-8 pr-3 py-1.5 border border-gray-200 rounded-md bg-gray-50 text-sm focus:outline-none focus:bg-white focus:border-juk-navy-700 focus:shadow-focus"
+        className="w-full pl-9 pr-4 py-2 border border-[var(--c-border)] rounded-[var(--r-pill)] bg-[var(--c-surface-2)] text-[length:var(--t-small)] text-[var(--c-ink)] placeholder:text-[var(--c-ink-subtle)] transition-[border-color,box-shadow,background-color] duration-150 focus:outline-none focus:bg-[var(--c-surface)] focus:border-[var(--c-brand-300)] focus:shadow-[shadow:var(--ring-focus)]"
         {...rest}
       />
     </div>

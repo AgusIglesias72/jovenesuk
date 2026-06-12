@@ -12,8 +12,8 @@ import { TripBadge, type TripState } from "./badge";
  *   - "minimum"    → enrollment count vs the 5-student minimum
  *                    (used for trips far from departure, still filling up)
  *
- * The progress mode chooses the bar color: navy gradient for completion,
- * amber for trips approaching the minimum.
+ * The progress mode chooses the bar color: brand gradient (--grad-brand) for
+ * completion, warm gradient (--grad-warm) for trips approaching the minimum.
  *
  * @example
  *   <TripCard
@@ -70,24 +70,25 @@ export function TripCard({
         }
       }}
       className={cn(
-        "bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-3",
-        "transition-all duration-150",
-        onClick && "cursor-pointer hover:shadow-md hover:-translate-y-px focus:outline-none focus-visible:shadow-focus",
+        "bg-[var(--c-surface)] border border-[var(--c-border)] rounded-[var(--r-lg)] p-5 flex flex-col gap-3 shadow-[shadow:var(--shadow-1)]",
+        "transition-[transform,box-shadow,border-color] duration-150",
+        onClick &&
+          "cursor-pointer hover:shadow-[shadow:var(--shadow-2)] hover:-translate-y-px hover:border-[var(--c-brand-300)] focus:outline-none focus-visible:shadow-[shadow:var(--ring-focus)]",
         className
       )}
     >
       <div className="flex items-center justify-between">
-        <span className="font-mono text-xs font-semibold tracking-wide uppercase text-juk-coral-700">
+        <span className="font-mono text-[length:var(--t-mono)] font-bold tracking-wide uppercase text-[var(--c-accent-600)]">
           {code}
         </span>
         <TripBadge state={state} />
       </div>
 
-      <h3 className="font-display text-xl font-semibold text-juk-navy-950 leading-snug m-0 tracking-[-0.015em]">
+      <h3 className="font-display text-[length:var(--t-h3)] font-semibold text-[var(--c-ink)] leading-[var(--lh-snug)] m-0 tracking-[var(--ls-tight)]">
         {name}
       </h3>
 
-      <div className="flex gap-3 flex-wrap text-sm text-gray-600">
+      <div className="flex gap-3 flex-wrap text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
         <span className="inline-flex items-center gap-1">
           <CalendarIcon /> {dates}
         </span>
@@ -100,17 +101,17 @@ export function TripCard({
       </div>
 
       <div className="mt-1">
-        <div className="flex justify-between text-xs text-gray-600 mb-1">
-          <span>{isMin ? "Hacia cupo mínimo (5)" : "Trámites completados"}</span>
-          <span><strong>{progressPct}%</strong></span>
+        <div className="flex justify-between text-[length:var(--t-small)] mb-1.5">
+          <span className="font-semibold text-[var(--c-ink)]">
+            {isMin ? "Hacia cupo mínimo (5)" : "Trámites completados"}
+          </span>
+          <span className="font-mono text-[var(--c-ink-muted)]">{progressPct}%</span>
         </div>
-        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-2.5 bg-[var(--c-surface-2)] rounded-[var(--r-pill)] overflow-hidden">
           <div
             className={cn(
-              "h-full rounded-full bg-gradient-to-r transition-all duration-300",
-              isMin
-                ? "from-amber-600 to-amber-500"
-                : "from-juk-navy-700 to-juk-navy-500"
+              "h-full rounded-[var(--r-pill)] transition-[width] duration-500",
+              isMin ? "bg-[image:var(--grad-warm)]" : "bg-[image:var(--grad-brand)]"
             )}
             style={{ width: `${Math.min(100, Math.max(0, progressPct))}%` }}
           />

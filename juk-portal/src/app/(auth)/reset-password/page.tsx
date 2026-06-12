@@ -13,25 +13,22 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
   return (
     <div>
       <div className="mb-8">
-        <h1
-          className="font-display font-semibold text-3xl text-juk-navy-950 leading-tight"
-          style={{ letterSpacing: "-0.02em" }}
-        >
-          {token ? "Definir nueva contraseña" : "Restablecer contraseña"}
+        <h1 className="font-display text-[length:var(--t-h1)] font-extrabold tracking-[var(--ls-tight)] text-[var(--c-ink)]">
+          {token ? "Crear nueva contraseña" : "Recuperar contraseña"}
         </h1>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="mt-1 text-[length:var(--t-small)] leading-[var(--lh-body)] text-[var(--c-ink-muted)]">
           {token
             ? "Elegí una contraseña nueva. Mínimo 8 caracteres."
-            : "Te enviamos un link al email para restablecerla."}
+            : "Decinos tu email del equipo y te mandamos un link para crear una nueva."}
         </p>
       </div>
 
       <ResetPasswordForm token={token ?? null} />
 
-      <p className="mt-6 text-sm text-gray-600 text-center">
+      <p className="mt-6 text-center text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
         <Link
           href="/login"
-          className="text-juk-navy-700 font-medium hover:text-juk-navy-900"
+          className="font-semibold text-[var(--c-brand)] hover:underline"
         >
           ← Volver al login
         </Link>

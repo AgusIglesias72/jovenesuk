@@ -40,11 +40,12 @@ export type Step = {
 };
 
 const STEP_PILL_CLASSES: Record<StepState, string> = {
-  pendiente:   "bg-gray-100 text-gray-500 border-gray-200",
-  en_progreso: "bg-blue-50 text-blue-700 border-blue-100",
-  completado:  "bg-green-50 text-green-700 border-green-100",
-  bloqueado:   "bg-red-50 text-red-700 border-red-100",
-  na:          "bg-white text-gray-400 border-gray-200 border-dashed",
+  pendiente:   "bg-[var(--b-paso-pendiente-bg)] text-[var(--b-paso-pendiente)] border-transparent",
+  // "_" escapado: en arbitrary values de Tailwind v3 el underscore es espacio.
+  en_progreso: "bg-[var(--b-paso-en\\_progreso-bg)] text-[var(--b-paso-en\\_progreso)] border-transparent",
+  completado:  "bg-[var(--b-paso-completado-bg)] text-[var(--b-paso-completado)] border-transparent",
+  bloqueado:   "bg-[var(--b-paso-bloqueado-bg)] text-[var(--b-paso-bloqueado)] border-transparent",
+  na:          "bg-[var(--b-paso-na-bg)] text-[var(--b-paso-na)] border-[var(--c-border-strong)] border-dashed",
 };
 
 interface StepStripProps {
@@ -64,9 +65,9 @@ export function StepStrip({ steps, onStepClick, className }: StepStripProps) {
           onClick={() => onStepClick?.(s.num)}
           aria-label={`Paso ${s.num}: ${s.label} (${s.state})`}
           className={cn(
-            "h-7 flex items-center justify-center rounded-sm border font-mono text-[11px] font-bold",
-            "transition-transform duration-150 hover:-translate-y-px",
-            "focus-visible:outline-none focus-visible:shadow-focus",
+            "h-8 flex items-center justify-center rounded-[var(--r-sm)] border font-mono text-[11px] font-bold",
+            "transition-[transform,box-shadow] duration-150 hover:-translate-y-px hover:shadow-[shadow:var(--shadow-soft)]",
+            "focus-visible:outline-none focus-visible:shadow-[shadow:var(--ring-focus)]",
             STEP_PILL_CLASSES[s.state]
           )}
         >
@@ -83,11 +84,16 @@ export function StepStrip({ steps, onStepClick, className }: StepStripProps) {
  */
 export function StepLegend({ className }: { className?: string }) {
   return (
-    <p className={cn("text-xs text-gray-500 m-0 flex flex-wrap gap-x-3 gap-y-1", className)}>
-      <span className="text-green-700">■ Completado</span>
-      <span className="text-blue-700">■ En progreso</span>
-      <span className="text-gray-600">■ Pendiente</span>
-      <span className="text-red-700">■ Bloqueado</span>
+    <p
+      className={cn(
+        "text-[length:var(--t-small)] text-[var(--c-ink-subtle)] m-0 flex flex-wrap gap-x-3 gap-y-1",
+        className
+      )}
+    >
+      <span className="text-[var(--b-paso-completado)]">■ Completado</span>
+      <span className="text-[var(--b-paso-en\_progreso)]">■ En progreso</span>
+      <span className="text-[var(--b-paso-pendiente)]">■ Pendiente</span>
+      <span className="text-[var(--b-paso-bloqueado)]">■ Bloqueado</span>
       <span>◌ N/A</span>
     </p>
   );

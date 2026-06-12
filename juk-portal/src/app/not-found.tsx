@@ -4,16 +4,36 @@ export const metadata = { title: "Página no encontrada" };
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-6 text-center">
-      <p className="font-display text-7xl font-semibold text-juk-navy-950 leading-none">404</p>
-      <h1 className="mt-4 text-lg font-semibold text-juk-navy-900">
-        Esta página no existe
-      </h1>
-      <p className="mt-1 max-w-sm text-sm text-gray-600">
-        Puede que la sección todavía no esté disponible o que el enlace sea viejo.
-      </p>
-      <div className="mt-6">
-        <LinkButton href="/dashboard">Volver al dashboard</LinkButton>
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[var(--c-page)] bg-[image:var(--grad-page)] px-6 text-center">
+      <div
+        className="absolute -left-24 -top-24 h-72 w-72 rounded-[var(--r-pill)] bg-[image:var(--grad-warm)] opacity-20 blur-3xl"
+        aria-hidden
+      />
+      <div
+        className="absolute -bottom-24 -right-24 h-72 w-72 rounded-[var(--r-pill)] bg-[var(--c-brand-300)] opacity-20 blur-3xl"
+        aria-hidden
+      />
+
+      <div className="relative w-full max-w-md">
+        <p
+          className="font-display text-[80px] font-extrabold leading-none tracking-[var(--ls-tight)] text-[var(--c-brand-300)]"
+          aria-hidden
+        >
+          404
+        </p>
+        <h1 className="mt-2 font-display text-[length:var(--t-h1)] font-extrabold tracking-[var(--ls-tight)] text-[var(--c-ink)]">
+          Esta página se fue de excursión
+        </h1>
+        <p className="mt-2 text-[length:var(--t-body)] leading-[var(--lh-body)] text-[var(--c-ink-muted)]">
+          La dirección no existe o se movió. Si llegaste por un link interno,
+          avisanos y lo arreglamos.
+        </p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <LinkButton href="/dashboard">Ir al dashboard</LinkButton>
+          <LinkButton href="/alumnos" variant="secondary">
+            Buscar un alumno
+          </LinkButton>
+        </div>
       </div>
     </div>
   );

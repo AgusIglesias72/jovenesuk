@@ -28,13 +28,13 @@ export function Label({ children, required, className, ...props }: LabelProps) {
   return (
     <label
       className={cn(
-        "text-xs font-semibold uppercase tracking-wide text-gray-700",
+        "text-[length:var(--t-small)] font-semibold text-[var(--c-ink)]",
         className
       )}
       {...props}
     >
       {children}
-      {required && <span className="text-juk-coral-600 ml-0.5">*</span>}
+      {required && <span className="text-[var(--c-accent-600)] ml-0.5">*</span>}
     </label>
   );
 }
@@ -47,19 +47,29 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   invalid?: boolean;
 }
 
+const controlBase = cn(
+  "w-full rounded-[var(--r-md)] border bg-[var(--c-surface)] px-4 text-[length:var(--t-body)] text-[var(--c-ink)]",
+  "placeholder:text-[var(--c-ink-subtle)]",
+  "transition-[border-color,box-shadow] duration-150",
+  "focus:outline-none",
+  "disabled:bg-[var(--c-surface-2)] disabled:text-[var(--c-ink-subtle)] disabled:cursor-not-allowed"
+);
+
+const controlState = {
+  normal:
+    "border-[var(--c-border-strong)] focus:border-[var(--c-brand-300)] focus:shadow-[shadow:var(--ring-focus)]",
+  error:
+    "border-[var(--c-danger)] shadow-[shadow:var(--ring-error)] focus:border-[var(--c-danger)] focus:shadow-[shadow:var(--ring-error)]",
+} as const;
+
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ invalid, className, ...props }, ref) => (
     <input
       ref={ref}
       className={cn(
-        "w-full rounded-md border bg-white px-3 py-2 text-sm text-gray-900",
-        "placeholder:text-gray-400",
-        "transition-colors duration-150",
-        "focus:outline-none focus:shadow-focus",
-        invalid
-          ? "border-red-600 focus:border-red-600"
-          : "border-gray-300 hover:border-gray-400 focus:border-juk-navy-700",
-        "disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed",
+        controlBase,
+        "min-h-[var(--tap)]",
+        invalid ? controlState.error : controlState.normal,
         className
       )}
       {...props}
@@ -81,13 +91,9 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     <textarea
       ref={ref}
       className={cn(
-        "w-full min-h-[80px] rounded-md border bg-white px-3 py-2 text-sm text-gray-900 leading-normal resize-y",
-        "placeholder:text-gray-400",
-        "transition-colors duration-150",
-        "focus:outline-none focus:shadow-focus",
-        invalid
-          ? "border-red-600 focus:border-red-600"
-          : "border-gray-300 hover:border-gray-400 focus:border-juk-navy-700",
+        controlBase,
+        "min-h-[96px] resize-y py-3 leading-[var(--lh-body)]",
+        invalid ? controlState.error : controlState.normal,
         className
       )}
       {...props}
@@ -110,12 +116,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
       <select
         ref={ref}
         className={cn(
-          "w-full appearance-none rounded-md border bg-white px-3 py-2 pr-8 text-sm text-gray-900",
-          "transition-colors duration-150",
-          "focus:outline-none focus:shadow-focus",
-          invalid
-            ? "border-red-600"
-            : "border-gray-300 hover:border-gray-400 focus:border-juk-navy-700",
+          controlBase,
+          "min-h-[var(--tap)] cursor-pointer appearance-none pr-11",
+          invalid ? controlState.error : controlState.normal,
           className
         )}
         {...props}
@@ -123,15 +126,15 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         {children}
       </select>
       <svg
-        viewBox="0 0 12 8"
-        className="pointer-events-none absolute right-3 top-1/2 h-2 w-3 -translate-y-1/2 text-gray-600"
+        viewBox="0 0 20 20"
+        className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--c-ink-subtle)]"
         fill="none"
         stroke="currentColor"
-        strokeWidth={1.6}
+        strokeWidth={1.8}
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <path d="M1 1.5L6 6.5L11 1.5" />
+        <path d="M5 7.5 10 12.5 15 7.5" />
       </svg>
     </div>
   )
@@ -143,12 +146,19 @@ Select.displayName = "Select";
    ============================================================ */
 
 export function HelpText({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <span className={cn("text-xs text-gray-500 mt-0.5", className)}>{children}</span>;
+  return (
+    <span className={cn("text-[length:var(--t-small)] text-[var(--c-ink-subtle)] mt-0.5", className)}>
+      {children}
+    </span>
+  );
 }
 
 export function ErrorText({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <span className={cn("text-xs font-medium text-red-700 mt-0.5", className)} role="alert">
+    <span
+      className={cn("text-[length:var(--t-small)] font-medium text-[var(--c-danger)] mt-0.5", className)}
+      role="alert"
+    >
       {children}
     </span>
   );
@@ -196,8 +206,13 @@ interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>
 
 export function Checkbox({ label, className, ...props }: CheckboxProps) {
   return (
-    <label className={cn("inline-flex items-center gap-2 cursor-pointer select-none text-sm", className)}>
-      <span className="relative inline-flex h-4 w-4 items-center justify-center">
+    <label
+      className={cn(
+        "inline-flex min-h-[var(--tap)] items-center gap-3 cursor-pointer select-none text-[length:var(--t-body)]",
+        className
+      )}
+    >
+      <span className="relative inline-flex h-5 w-5 items-center justify-center">
         <input
           type="checkbox"
           className="peer absolute h-full w-full opacity-0 cursor-pointer"
@@ -205,25 +220,25 @@ export function Checkbox({ label, className, ...props }: CheckboxProps) {
         />
         <span
           className={cn(
-            "absolute inset-0 rounded-sm border-[1.5px] border-gray-400 bg-white",
+            "absolute inset-0 rounded-[var(--r-xs)] border border-[var(--c-border-strong)] bg-[var(--c-surface)]",
             "transition-colors duration-150",
-            "peer-checked:border-juk-navy-900 peer-checked:bg-juk-navy-900",
-            "peer-focus-visible:shadow-focus"
+            "peer-checked:border-[var(--c-brand)] peer-checked:bg-[var(--c-brand)]",
+            "peer-focus-visible:shadow-[shadow:var(--ring-focus)]"
           )}
         />
         <svg
           viewBox="0 0 12 12"
-          className="pointer-events-none relative h-3 w-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-150"
+          className="pointer-events-none relative h-3 w-3 text-[var(--c-ink-onbrand)] opacity-0 peer-checked:opacity-100 transition-opacity duration-150"
           fill="none"
           stroke="currentColor"
-          strokeWidth={2}
+          strokeWidth={2.2}
           strokeLinecap="round"
           strokeLinejoin="round"
         >
           <path d="M2.5 6.5L5 9l4.5-5.5" />
         </svg>
       </span>
-      <span className="text-gray-900">{label}</span>
+      <span className="text-[var(--c-ink)]">{label}</span>
     </label>
   );
 }

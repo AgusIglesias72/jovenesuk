@@ -19,14 +19,17 @@ type Tone =
   | "brand"
   | "critical";
 
+const badgeBase =
+  "inline-flex items-center gap-1.5 rounded-[var(--r-pill)] px-3 py-1 text-[length:var(--t-label)] font-semibold uppercase leading-none tracking-[var(--ls-label)] whitespace-nowrap";
+
 const toneClasses: Record<Tone, string> = {
-  neutral:  "bg-gray-100 text-gray-700 border-gray-200",
-  info:     "bg-blue-50 text-blue-700 border-blue-100",
-  success:  "bg-green-50 text-green-700 border-green-100",
-  warning:  "bg-amber-50 text-amber-700 border-amber-100",
-  danger:   "bg-red-50 text-red-700 border-red-100",
-  brand:    "bg-juk-navy-100 text-juk-navy-900 border-juk-navy-200",
-  critical: "bg-juk-coral-600 text-white border-juk-coral-600",
+  neutral:  "bg-[var(--c-neutral-bg)] text-[var(--c-neutral)]",
+  info:     "bg-[var(--c-info-bg)] text-[var(--c-info)]",
+  success:  "bg-[var(--c-success-bg)] text-[var(--c-success)]",
+  warning:  "bg-[var(--c-warning-bg)] text-[var(--c-warning)]",
+  danger:   "bg-[var(--c-danger-bg)] text-[var(--c-danger)]",
+  brand:    "bg-[var(--c-brand-100)] text-[var(--c-brand)]",
+  critical: "bg-[var(--c-accent-600)] text-[var(--c-surface)]",
 };
 
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
@@ -36,15 +39,8 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 export function Badge({ tone = "neutral", showDot = true, className, children, ...rest }: BadgeProps) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-semibold tracking-tight whitespace-nowrap",
-        toneClasses[tone],
-        className
-      )}
-      {...rest}
-    >
-      {showDot && <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />}
+    <span className={cn(badgeBase, toneClasses[tone], className)} {...rest}>
+      {showDot && <span className="h-1.5 w-1.5 rounded-full bg-current" />}
       {children}
     </span>
   );
@@ -58,24 +54,19 @@ export function Badge({ tone = "neutral", showDot = true, className, children, .
 export type StepState = "pendiente" | "en_progreso" | "completado" | "bloqueado" | "na";
 
 const STEP_STATES: Record<StepState, { className: string; label: string; dot: boolean }> = {
-  pendiente:    { className: "bg-gray-100 text-gray-700 border-gray-200",         label: "Pendiente",   dot: true },
-  en_progreso:  { className: "bg-blue-50 text-blue-700 border-blue-100",          label: "En progreso", dot: true },
-  completado:   { className: "bg-green-50 text-green-700 border-green-100",       label: "Completado",  dot: true },
-  bloqueado:    { className: "bg-red-50 text-red-700 border-red-100",             label: "Bloqueado",   dot: true },
-  na:           { className: "bg-white text-gray-500 border-gray-300 border-dashed", label: "N/A",       dot: false },
+  pendiente:    { className: "bg-[var(--b-paso-pendiente-bg)] text-[var(--b-paso-pendiente)]",     label: "Pendiente",   dot: true },
+  // Ojo Tailwind v3: "_" en arbitrary values se vuelve espacio → va escapado (\_).
+  en_progreso:  { className: "bg-[var(--b-paso-en\\_progreso-bg)] text-[var(--b-paso-en\\_progreso)]", label: "En progreso", dot: true },
+  completado:   { className: "bg-[var(--b-paso-completado-bg)] text-[var(--b-paso-completado)]",   label: "Completado",  dot: true },
+  bloqueado:    { className: "bg-[var(--b-paso-bloqueado-bg)] text-[var(--b-paso-bloqueado)]",     label: "Bloqueado",   dot: true },
+  na:           { className: "bg-[var(--b-paso-na-bg)] text-[var(--b-paso-na)]",                   label: "N/A",         dot: false },
 };
 
 export function StepBadge({ state, className }: { state: StepState; className?: string }) {
   const cfg = STEP_STATES[state];
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-semibold tracking-tight whitespace-nowrap",
-        cfg.className,
-        className
-      )}
-    >
-      {cfg.dot && <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />}
+    <span className={cn(badgeBase, cfg.className, className)}>
+      {cfg.dot && <span className="h-1.5 w-1.5 rounded-full bg-current" />}
       {cfg.label}
     </span>
   );
@@ -88,24 +79,18 @@ export function StepBadge({ state, className }: { state: StepState; className?: 
 export type TripState = "inscripcion_abierta" | "confirmado" | "en_curso" | "finalizado" | "cancelado";
 
 const TRIP_STATES: Record<TripState, { className: string; label: string }> = {
-  inscripcion_abierta: { className: "bg-blue-50 text-blue-700 border-blue-100",       label: "Inscripción abierta" },
-  confirmado:          { className: "bg-green-50 text-green-700 border-green-100",    label: "Confirmado" },
-  en_curso:            { className: "bg-amber-50 text-amber-700 border-amber-100",    label: "En curso" },
-  finalizado:          { className: "bg-gray-100 text-gray-700 border-gray-200",      label: "Finalizado" },
-  cancelado:           { className: "bg-red-50 text-red-700 border-red-100",          label: "Cancelado" },
+  inscripcion_abierta: { className: "bg-[var(--b-viaje-abierta-bg)] text-[var(--b-viaje-abierta)]",       label: "Inscripción abierta" },
+  confirmado:          { className: "bg-[var(--b-viaje-confirmado-bg)] text-[var(--b-viaje-confirmado)]", label: "Confirmado" },
+  en_curso:            { className: "bg-[var(--b-viaje-en\\_curso-bg)] text-[var(--b-viaje-en\\_curso)]",     label: "En curso" },
+  finalizado:          { className: "bg-[var(--b-viaje-finalizado-bg)] text-[var(--b-viaje-finalizado)]", label: "Finalizado" },
+  cancelado:           { className: "bg-[var(--b-viaje-cancelado-bg)] text-[var(--b-viaje-cancelado)]",   label: "Cancelado" },
 };
 
 export function TripBadge({ state, className }: { state: TripState; className?: string }) {
   const cfg = TRIP_STATES[state];
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-semibold tracking-tight whitespace-nowrap",
-        cfg.className,
-        className
-      )}
-    >
-      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
+    <span className={cn(badgeBase, cfg.className, className)}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
       {cfg.label}
     </span>
   );
@@ -120,7 +105,8 @@ export function MoraBadge({ days, className }: { days: number; className?: strin
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full bg-juk-coral-600 px-2 py-0.5 text-xs font-semibold text-white whitespace-nowrap",
+        badgeBase,
+        "bg-[image:var(--grad-warm)] font-bold text-[var(--c-ink-onaccent)] shadow-[shadow:var(--shadow-accent)]",
         className
       )}
     >

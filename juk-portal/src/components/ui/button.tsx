@@ -22,7 +22,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
  *  - danger     → Outlined red. Destructive (dar de baja, eliminar).
  *  - ghost      → Low-emphasis (table row actions, sidebar).
  *
- * Sizes: sm (28px), default (32px), lg (40px), icon (32×32 square).
+ * Sizes: sm (32px), default (36px), lg (--tap, 44px), icon (36×36 square).
  *
  * @example
  *   <Button>Guardar cambios</Button>
@@ -31,22 +31,22 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
  */
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-juk-navy-900 text-white border-juk-navy-900 hover:bg-juk-navy-800 hover:border-juk-navy-800 active:bg-juk-navy-950",
+    "border-transparent bg-[var(--c-brand)] text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-brand)] hover:bg-[var(--c-brand-700)] focus-visible:shadow-[shadow:var(--ring-focus)]",
   secondary:
-    "bg-white text-juk-navy-900 border-gray-300 hover:bg-gray-50 hover:border-gray-400",
+    "border-[var(--c-border-strong)] bg-[var(--c-surface)] text-[var(--c-ink)] shadow-[shadow:var(--shadow-soft)] hover:border-[var(--c-brand-300)] hover:text-[var(--c-brand)] focus-visible:shadow-[shadow:var(--ring-focus)]",
   ghost:
-    "bg-transparent text-gray-700 border-transparent hover:bg-gray-100 hover:text-gray-900",
+    "border-transparent bg-transparent text-[var(--c-ink-muted)] hover:bg-[var(--c-overlay)] hover:text-[var(--c-ink)] focus-visible:shadow-[shadow:var(--ring-focus)]",
   critical:
-    "bg-juk-coral-600 text-white border-juk-coral-600 hover:bg-juk-coral-700 hover:border-juk-coral-700",
+    "border-transparent bg-[image:var(--grad-warm)] text-[var(--c-ink-onaccent)] shadow-[shadow:var(--shadow-accent)] hover:brightness-[1.03] focus-visible:shadow-[shadow:var(--ring-accent)]",
   danger:
-    "bg-white text-red-700 border-red-600 hover:bg-red-50",
+    "border-[var(--c-danger)] bg-[var(--c-surface)] text-[var(--c-danger)] hover:bg-[var(--c-danger-bg)] focus-visible:shadow-[shadow:var(--ring-error)]",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm:      "h-7 px-3 text-xs",
-  default: "h-8 px-4 text-sm",
-  lg:      "h-10 px-5 text-base",
-  icon:    "h-8 w-8 p-0 justify-center",
+  sm:      "min-h-[32px] px-3.5 text-[length:var(--t-label)]",
+  default: "min-h-[36px] px-4 text-[length:var(--t-small)]",
+  lg:      "min-h-[var(--tap)] px-6 text-[length:var(--t-body)]",
+  icon:    "min-h-[36px] w-9 p-0 justify-center",
 };
 
 /** Clases del Button, reutilizables por LinkButton para mantener un único look. */
@@ -56,10 +56,10 @@ export function buttonClasses(
   className?: string
 ) {
   return cn(
-    "inline-flex items-center gap-2 whitespace-nowrap rounded-md border font-semibold tracking-tight",
-    "transition-colors duration-150",
-    "focus-visible:outline-none focus-visible:shadow-focus",
-    "disabled:opacity-50 disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--r-pill)] border font-semibold",
+    "transition-[transform,box-shadow,background-color,border-color,color] duration-150 active:scale-[0.97]",
+    "focus-visible:outline-none",
+    "disabled:opacity-55 disabled:cursor-not-allowed disabled:active:scale-100",
     variantClasses[variant],
     sizeClasses[size],
     className

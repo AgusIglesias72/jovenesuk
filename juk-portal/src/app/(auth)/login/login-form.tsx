@@ -84,7 +84,7 @@ export function LoginForm({ defaultEmail = "", returnTo }: LoginFormProps) {
           />
         </Field>
 
-        <Button type="submit" size="lg" disabled={isPending} className="mt-2">
+        <Button type="submit" size="lg" disabled={isPending} className="mt-2 w-full">
           {isPending ? "Ingresando…" : "Ingresar"}
         </Button>
       </div>
