@@ -83,5 +83,11 @@ auth). **Tablero M6 con UI** en `/alumnos/[id]` (transiciones validadas + audita
 **cuotas B1/B2 completas** (multi-moneda, sync de pasos, C2 se desbloquea con B1) y
 **dashboard v2 con alertas reales** (pasaporte, mora, bloqueados, police checks). Cuentas de
 test (`test.superadmin@` / `test.admin@`, password fija dev) + `npm run db:seed:demo` con
-dataset que cubre todas las ramas. Próximo: webhook + credenciales de familias, recordatorios
-(Trigger.dev), uploads R2, panel de excursiones/transfers por alumno del M7.
+dataset que cubre todas las ramas. **Webhook del Google Form** (alta + auto-asignación,
+idempotente), **credenciales del Portal de Familias** (generar/enviar/desactivar),
+**documentos** (R2 con fallback local + proxy autenticado, adjuntos en los pasos),
+**transfers/tarjetas por alumno** (M7) y **recordatorios** (notificaciones_enviadas con dedup,
+scan diario en Trigger.dev — el servicio Trigger.dev aún no está conectado; la lógica está
+validada). Próximo: conectar Trigger.dev y credenciales reales de R2 (las actuales parecen
+placeholders), resumen semanal, viajes del próximo año + calendario del dashboard, portales
+externos (Familias/Representante).
