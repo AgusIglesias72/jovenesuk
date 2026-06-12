@@ -7,12 +7,21 @@ import {
   listAsignacionesByViaje,
 } from "@/lib/db/queries/asignaciones";
 import { getColegioById } from "@/lib/db/queries/colegios";
+import { groupLeadersElegibles } from "@/lib/db/queries/group-leaders-viaje";
+import { listGroupLeadersDeViaje, listOrInitPasosViaje } from "@/lib/db/queries/pasos-viaje";
 import { getViajeById } from "@/lib/db/queries/viajes";
 import { PAIS_LABELS } from "@/lib/domain/colegios";
+import {
+  PASO_VIAJE_TIPOS,
+  derivarEstadoPoliceChecks,
+  type PasoViajeEstado,
+} from "@/lib/domain/pasos-viaje";
 import { VIAJE_ORIGEN_LABELS } from "@/lib/domain/viajes";
 import { formatFecha } from "@/lib/utils/date";
 
 import { AsignacionesPanel } from "./asignaciones-panel";
+import { GroupLeadersPanel } from "./group-leaders-panel";
+import { PasosViajePanel, type PasoView, type PoliceGLView } from "./pasos-viaje-panel";
 
 export const metadata = { title: "Viaje" };
 
@@ -25,12 +34,35 @@ export default async function ViajeDetailPage({
   const viaje = await getViajeById(id);
   if (!viaje) notFound();
 
-  const [colegio, asignados, elegibles, cupoUsado] = await Promise.all([
-    getColegioById(viaje.colegioDestinoId),
-    listAsignacionesByViaje(id),
-    alumnosElegibles(id),
-    countAsignacionesActivas(id),
-  ]);
+  const [colegio, asignados, elegibles, cupoUsado, pasosRows, glsViaje, glsElegibles] =
+    await Promise.all([
+      getColegioById(viaje.colegioDestinoId),
+      listAsignacionesByViaje(id),
+      alumnosElegibles(id),
+      countAsignacionesActivas(id),
+      listOrInitPasosViaje(id),
+      listGroupLeadersDeViaje(id),
+      groupLeadersElegibles(id),
+    ]);
+
+  const policeGLs: PoliceGLView[] = glsViaje.map((g) => ({
+    groupLeaderId: g.groupLeaderId,
+    nombre: g.nombre,
+    apellido: g.apellido,
+    esPrincipal: g.esPrincipal,
+    estado: g.policeCheckEstado,
+    fechaVencimiento: g.policeCheckFechaVencimiento,
+  }));
+  const policeEstado = derivarEstadoPoliceChecks(policeGLs);
+
+  const pasosView: PasoView[] = PASO_VIAJE_TIPOS.map((tipo) => {
+    const row = pasosRows.find((p) => p.tipo === tipo);
+    return {
+      tipo,
+      estado: (row?.estado ?? "pendiente") as PasoViajeEstado,
+      metadata: row?.metadata ?? {},
+    };
+  });
 
   return (
     <>
@@ -72,6 +104,20 @@ export default async function ViajeDetailPage({
         cupoMax={viaje.capacidadMaxima}
         cupoUsado={cupoUsado}
         viajeCancelado={viaje.estado === "cancelado"}
+      />
+
+      <GroupLeadersPanel
+        viajeId={id}
+        asignados={glsViaje}
+        elegibles={glsElegibles.map((g) => ({ id: g.id, nombre: g.nombre, apellido: g.apellido }))}
+        viajeCancelado={viaje.estado === "cancelado"}
+      />
+
+      <PasosViajePanel
+        viajeId={id}
+        pasos={pasosView}
+        policeEstado={policeEstado}
+        policeGLs={policeGLs}
       />
     </>
   );
