@@ -15,7 +15,7 @@
  * Uso:  npm run db:seed:demo   (cargar .env.local antes — ver docs 04)
  */
 
-import { eq, like } from "drizzle-orm";
+import { eq, inArray, like } from "drizzle-orm";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -28,6 +28,11 @@ import { asignaciones } from "@/lib/db/schema/asignaciones";
 import { pasosAlumno } from "@/lib/db/schema/pasos-alumno";
 import { crearPasosParaAsignacion } from "@/lib/db/queries/pasos-alumno";
 import { getConfigDocumental, upsertConfigDocumental } from "@/lib/db/queries/colegios";
+import {
+  crearPlanCuotas,
+  registrarPagoCuota,
+  sincronizarPasosPago,
+} from "@/lib/db/queries/cuotas";
 import { edadAlInicioDelViaje, pasosIniciales } from "@/lib/domain/pasos";
 
 const TEST_PASSWORD = process.env.SEED_TEST_PASSWORD ?? "JukTest2026!";
@@ -63,7 +68,17 @@ async function seedCuentasTest(): Promise<string | null> {
 }
 
 async function wipeDemo() {
-  // Orden: viajes primero (cascade: asignaciones → pasos_alumno, gl_viaje, pasos_viaje)
+  // asignaciones.viaje_id NO tiene cascade: van primero (cuotas y pasos_alumno
+  // sí cascadean desde asignaciones; gl_viaje y pasos_viaje desde viajes).
+  const viajesDemo = await db
+    .select({ id: viajes.id })
+    .from(viajes)
+    .where(like(viajes.nombre, "%[DEMO]%"));
+  if (viajesDemo.length > 0) {
+    await db.delete(asignaciones).where(
+      inArray(asignaciones.viajeId, viajesDemo.map((v) => v.id))
+    );
+  }
   await db.delete(viajes).where(like(viajes.nombre, "%[DEMO]%"));
   await db.delete(alumnos).where(like(alumnos.dni, "DEMO-%"));
   await db.delete(colegios).where(like(colegios.nombre, "%[DEMO]%"));
@@ -234,20 +249,32 @@ async function main() {
   await asignar(mora!, vDublin!);
   await asignar(tomi!, vToronto!);
 
-  // Variedad de estados en el tablero de Lola: A1 completado, B1 en progreso,
-  // C1 en trámite, A3 enviado. (Benja queda virgen para ver el estado inicial.)
+  // Plan de cuotas de Lola por el flujo REAL: 5 cuotas USD 750, 2 pagadas y la
+  // 3 vencida (mora visible en el dashboard). El sync deja B1 en progreso 2/5.
+  const planLola = await crearPlanCuotas({
+    asignacionId: asigLola.id,
+    cantidadCuotas: 5,
+    montoPorCuota: 750,
+    moneda: "USD",
+    primerVencimiento: d("2026-04-10"),
+    origenViaje: vWimbledon!.origen,
+    registradoPor: userId,
+  });
+  for (const c of planLola.slice(0, 2)) {
+    await registrarPagoCuota({ cuotaId: c.id, registradoPor: userId });
+  }
+  await sincronizarPasosPago(asigLola.id, userId);
+
+  // Variedad de estados en el tablero de Lola: A1 completado, C1 en trámite,
+  // A3 enviado. (Benja queda virgen para ver el estado inicial.)
   const pasosLola = await db.select().from(pasosAlumno).where(eq(pasosAlumno.asignacionId, asigLola.id));
   for (const p of pasosLola) {
     if (p.codigo === "paso_0") {
       await db.update(pasosAlumno).set({ estado: "completado", fechaCompletado: lola!.fechaAlta }).where(eq(pasosAlumno.id, p.id));
     } else if (p.codigo === "a1") {
       await db.update(pasosAlumno).set({ estado: "completado", fechaCompletado: d("2026-06-01"), metadata: { fechaEntrega: "2026-06-01" }, updatedBy: userId }).where(eq(pasosAlumno.id, p.id));
-    } else if (p.codigo === "b1") {
-      await db.update(pasosAlumno).set({ estado: "en_progreso", metadata: { cuotasPagadas: 2, cuotasTotales: 5 }, updatedBy: userId }).where(eq(pasosAlumno.id, p.id));
     } else if (p.codigo === "c1") {
       await db.update(pasosAlumno).set({ estado: "en_progreso", metadata: { subEstado: "en_tramite" }, updatedBy: userId }).where(eq(pasosAlumno.id, p.id));
-    } else if (p.codigo === "c2") {
-      await db.update(pasosAlumno).set({ estado: "bloqueado", metadata: { bloqueadoPor: "b1" } }).where(eq(pasosAlumno.id, p.id));
     } else if (p.codigo === "a3") {
       await db.update(pasosAlumno).set({ estado: "en_progreso", metadata: { version: "menor_16", subEstado: "enviado" }, updatedBy: userId }).where(eq(pasosAlumno.id, p.id));
     }
