@@ -81,8 +81,12 @@ export const auth = betterAuth({
     // US-01: 5 intentos de login en 15 min → bloqueado hasta que pase la ventana.
     // Aproximación al "5 fallidos consecutivos" del PRD: cuenta intentos, no
     // solo fallas (Better-Auth no expone hook de login fallido).
+    // En dev el límite es más laxo: el equipo + los E2E comparten la IP local.
     customRules: {
-      "/sign-in/email": { window: 60 * 15, max: 5 },
+      "/sign-in/email": {
+        window: 60 * 15,
+        max: process.env.NODE_ENV === "production" ? 5 : 30,
+      },
     },
   },
 
