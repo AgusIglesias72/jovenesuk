@@ -18,9 +18,15 @@ export const dailyReminderScan = schedules.task({
   },
   maxDuration: 600,
   run: async () => {
+    // Transiciones por fecha primero (un viaje que pasa a en_curso hoy no
+    // necesita recordatorios de inscripción).
+    const { transicionarViajesPorFecha } = await import("@/lib/jobs/transiciones-viajes");
+    const transiciones = await transicionarViajesPorFecha(new Date());
+
     const { scanRecordatorios } = await import("@/lib/jobs/scan-recordatorios");
     // Dedup contra notificaciones_enviadas: re-correr el job no duplica envíos.
-    return scanRecordatorios(new Date());
+    const recordatorios = await scanRecordatorios(new Date());
+    return { transiciones, recordatorios };
   },
 });
 

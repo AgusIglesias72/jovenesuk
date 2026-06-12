@@ -6,6 +6,7 @@ import {
   opcionesEstado,
   puedeTransicionar,
   transicionesPermitidas,
+  transicionAutomaticaPorFecha,
   type EstadoViaje,
 } from "./transiciones";
 
@@ -70,5 +71,27 @@ describe("transicionesPermitidas / opcionesEstado", () => {
     for (const estado of VIAJE_ESTADOS) {
       expect(TRANSICIONES_VIAJE[estado as EstadoViaje]).not.toContain(estado);
     }
+  });
+});
+
+describe("transicionAutomaticaPorFecha (US-13)", () => {
+  const inicio = new Date("2026-07-01");
+  const fin = new Date("2026-07-15");
+
+  it("confirmado pasa a en_curso el día de inicio (no antes)", () => {
+    expect(transicionAutomaticaPorFecha("confirmado", inicio, fin, new Date("2026-06-30"))).toBeNull();
+    expect(transicionAutomaticaPorFecha("confirmado", inicio, fin, new Date("2026-07-01"))).toBe("en_curso");
+    expect(transicionAutomaticaPorFecha("confirmado", inicio, fin, new Date("2026-07-05"))).toBe("en_curso");
+  });
+
+  it("en_curso pasa a finalizado DESPUÉS del día de fin", () => {
+    expect(transicionAutomaticaPorFecha("en_curso", inicio, fin, new Date("2026-07-15"))).toBeNull();
+    expect(transicionAutomaticaPorFecha("en_curso", inicio, fin, new Date("2026-07-16"))).toBe("finalizado");
+  });
+
+  it("no toca estados que no transicionan por fecha", () => {
+    expect(transicionAutomaticaPorFecha("inscripcion_abierta", inicio, fin, new Date("2026-07-05"))).toBeNull();
+    expect(transicionAutomaticaPorFecha("finalizado", inicio, fin, new Date("2026-08-01"))).toBeNull();
+    expect(transicionAutomaticaPorFecha("cancelado", inicio, fin, new Date("2026-08-01"))).toBeNull();
   });
 });

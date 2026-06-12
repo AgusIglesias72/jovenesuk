@@ -21,6 +21,7 @@ export default async function AlumnosPage({
   const parsed = alumnoFiltersSchema.safeParse({
     q: str(sp.q),
     estado: str(sp.estado),
+    alerta: str(sp.alerta),
   });
   const filters = parsed.success ? parsed.data : {};
   const alumnos = await listAlumnos(filters);

@@ -1,7 +1,9 @@
-import { and, asc, eq, ilike, or, type SQL } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { alumnos, type Alumno, type NewAlumno } from "@/lib/db/schema/alumnos";
+import { asignaciones } from "@/lib/db/schema/asignaciones";
+import { pasosAlumno } from "@/lib/db/schema/pasos-alumno";
 import { AlumnoNotFoundError, type AlumnoFilters } from "@/lib/domain/alumnos";
 
 export async function listAlumnos(filters: AlumnoFilters = {}): Promise<Alumno[]> {
@@ -18,6 +20,21 @@ export async function listAlumnos(filters: AlumnoFilters = {}): Promise<Alumno[]
     if (match) conditions.push(match);
   }
   if (filters.estado) conditions.push(eq(alumnos.estado, filters.estado));
+
+  // US-17: alumnos con al menos un paso bloqueado o vencido en una asignación activa.
+  if (filters.alerta === "pasos_bloqueados") {
+    const conAlerta = db
+      .select({ alumnoId: asignaciones.alumnoId })
+      .from(pasosAlumno)
+      .innerJoin(asignaciones, eq(pasosAlumno.asignacionId, asignaciones.id))
+      .where(
+        and(
+          inArray(pasosAlumno.estado, ["bloqueado", "vencido"]),
+          eq(asignaciones.estado, "activa")
+        )
+      );
+    conditions.push(inArray(alumnos.id, conAlerta));
+  }
 
   return db
     .select()

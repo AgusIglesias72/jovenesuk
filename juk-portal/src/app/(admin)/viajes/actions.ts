@@ -30,7 +30,12 @@ import { fieldErrorsFromZod } from "@/lib/utils/zod";
 
 export type ActionResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string; fieldErrors?: Record<string, string[] | undefined> };
+  | {
+      ok: false;
+      error: string;
+      fieldErrors?: Record<string, string[] | undefined>;
+      requiereConfirmacion?: boolean;
+    };
 
 async function safeAudit(entry: NewAuditoriaEntry) {
   try {
@@ -102,7 +107,8 @@ export async function createViajeAction(
 }
 
 export async function updateViajeAction(
-  input: unknown
+  input: unknown,
+  opts?: { confirmarPasaportes?: boolean }
 ): Promise<ActionResult<Viaje>> {
   const session = await requireAdminJuk();
 
@@ -120,6 +126,35 @@ export async function updateViajeAction(
   const actual = await getViajeById(id);
   if (!actual) {
     return { ok: false, error: "El viaje no existe." };
+  }
+
+  // US-13: editar fechas con inscriptos re-valida los pasaportes de todos.
+  const fechasCambiaron =
+    data.fechaInicio.getTime() !== actual.fechaInicio.getTime() ||
+    data.fechaFin.getTime() !== actual.fechaFin.getTime();
+  if (fechasCambiaron && !opts?.confirmarPasaportes) {
+    const { listAsignacionesByViaje } = await import("@/lib/db/queries/asignaciones");
+    const { pasaporteVigenteParaViaje } = await import("@/lib/domain/asignaciones");
+    const roster = (await listAsignacionesByViaje(id)).filter((a) => a.estado === "activa");
+    const comprometidos = roster.filter(
+      (a) =>
+        !pasaporteVigenteParaViaje(
+          a.alumno.fechaVencimientoPasaporte,
+          data.fechaFin,
+          data.paisDestino
+        )
+    );
+    if (comprometidos.length > 0) {
+      const nombres = comprometidos
+        .slice(0, 3)
+        .map((a) => `${a.alumno.apellido}, ${a.alumno.nombre}`)
+        .join(" · ");
+      return {
+        ok: false,
+        requiereConfirmacion: true,
+        error: `Con las fechas nuevas, ${comprometidos.length} pasaporte${comprometidos.length === 1 ? " queda comprometido" : "s quedan comprometidos"} (${nombres}${comprometidos.length > 3 ? "…" : ""}). ¿Guardar igual?`,
+      };
+    }
   }
 
   const cambioEstado = estado !== actual.estado;
@@ -175,8 +210,9 @@ export async function updateViajeAction(
 }
 
 export async function cancelarViajeAction(
-  id: string
-): Promise<ActionResult<Viaje>> {
+  id: string,
+  opts?: { notificarInscriptos?: boolean }
+): Promise<ActionResult<Viaje & { notificados?: number }>> {
   const session = await requireAdminJuk();
 
   const parsedId = z.string().uuid().safeParse(id);
@@ -191,11 +227,43 @@ export async function cancelarViajeAction(
       entidadTipo: "viaje",
       entidadId: parsedId.data,
       usuarioId: session.user.id,
-      metadata: { estado: "cancelado" },
+      metadata: { estado: "cancelado", notificarInscriptos: opts?.notificarInscriptos ?? false },
     });
+
+    // US-13: ofrecer notificar a los inscriptos al cancelar (best-effort).
+    let notificados = 0;
+    if (opts?.notificarInscriptos) {
+      const { listAsignacionesByViaje } = await import("@/lib/db/queries/asignaciones");
+      const { getAlumnoById } = await import("@/lib/db/queries/alumnos");
+      const { sendEmail } = await import("@/lib/email");
+      const { ViajeCanceladoEmail } = await import("@/lib/email/templates/viaje-cancelado-email");
+      const roster = (await listAsignacionesByViaje(parsedId.data)).filter(
+        (a) => a.estado === "activa"
+      );
+      for (const a of roster) {
+        try {
+          const alumno = await getAlumnoById(a.alumno.id);
+          if (!alumno) continue;
+          await sendEmail({
+            to: alumno.tutor1Email,
+            subject: `Cancelación del viaje ${viaje.codigo}`,
+            react: ViajeCanceladoEmail({
+              tutorNombre: alumno.tutor1Nombre,
+              alumnoNombre: `${alumno.nombre} ${alumno.apellido}`,
+              viajeNombre: viaje.nombre,
+              viajeCodigo: viaje.codigo,
+            }),
+          });
+          notificados += 1;
+        } catch (err) {
+          Sentry.captureException(err);
+        }
+      }
+    }
+
     revalidatePath("/viajes");
     revalidatePath(`/viajes/${parsedId.data}/editar`);
-    return { ok: true, data: viaje };
+    return { ok: true, data: { ...viaje, notificados } };
   } catch (err) {
     if (err instanceof ViajeNotFoundError) {
       return { ok: false, error: "El viaje no existe." };

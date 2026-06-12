@@ -157,14 +157,23 @@ export function ViajeForm({
     };
 
     startTransition(async () => {
-      const result =
+      let result =
         mode === "create"
           ? await createViajeAction(payload)
           : await updateViajeAction(payload);
+      // US-13: cambiar fechas con pasaportes comprometidos pide confirmación.
+      if (
+        !result.ok &&
+        "requiereConfirmacion" in result &&
+        result.requiereConfirmacion &&
+        window.confirm(result.error)
+      ) {
+        result = await updateViajeAction(payload, { confirmarPasaportes: true });
+      }
       if (result.ok) {
         router.push("/viajes");
         router.refresh();
-      } else {
+      } else if (!("requiereConfirmacion" in result && result.requiereConfirmacion)) {
         setError(result.error);
         if (result.fieldErrors) setFieldErrors(result.fieldErrors);
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -174,8 +183,15 @@ export function ViajeForm({
 
   function cancelarViaje() {
     if (!initial) return;
+    // US-13: confirmación + ofrecer notificar a los inscriptos por email.
+    if (!window.confirm(`¿Cancelar el viaje ${initial.codigo}? Los alumnos inscriptos quedan liberados.`)) {
+      return;
+    }
+    const notificar = window.confirm(
+      "¿Notificar la cancelación por email a las familias de los inscriptos?"
+    );
     startTransition(async () => {
-      const result = await cancelarViajeAction(initial.id);
+      const result = await cancelarViajeAction(initial.id, { notificarInscriptos: notificar });
       if (result.ok) {
         router.push("/viajes");
         router.refresh();

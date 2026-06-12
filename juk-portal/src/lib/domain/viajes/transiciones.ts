@@ -43,3 +43,20 @@ export function opcionesEstado(
 ): readonly EstadoViaje[] {
   return [estadoActual, ...TRANSICIONES_VIAJE[estadoActual]];
 }
+
+/**
+ * Transición automática por fecha (US-13): Confirmado → En curso cuando llega
+ * la fecha de inicio; En curso → Finalizado cuando pasó la fecha de fin.
+ * Comparación por día calendario UTC (las fechas del viaje son `date`).
+ */
+export function transicionAutomaticaPorFecha(
+  estado: EstadoViaje,
+  fechaInicio: Date,
+  fechaFin: Date,
+  hoy: Date
+): EstadoViaje | null {
+  const dia = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  if (estado === "confirmado" && dia(hoy) >= dia(fechaInicio)) return "en_curso";
+  if (estado === "en_curso" && dia(hoy) > dia(fechaFin)) return "finalizado";
+  return null;
+}

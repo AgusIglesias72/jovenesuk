@@ -3,7 +3,11 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth/helpers";
 import { Alert, PageHeader, StatCard, TripCard } from "@/components/ui";
 import { countAlumnosEnMora, getAlertas } from "@/lib/db/queries/alertas";
-import { getDashboardStats, getProximosViajesConOcupacion } from "@/lib/db/queries/dashboard";
+import {
+  getDashboardStats,
+  getProximosViajesConOcupacion,
+  getViajesProximoAnio,
+} from "@/lib/db/queries/dashboard";
 import { formatFecha } from "@/lib/utils/date";
 
 export const metadata = { title: "Dashboard" };
@@ -12,9 +16,10 @@ export default async function DashboardPage() {
   const session = await getSession();
   const firstName = session?.user.name.split(" ")[0] ?? "ahí";
 
-  const [stats, proximos, alertas, enMora] = await Promise.all([
+  const [stats, proximos, proximoAnio, alertas, enMora] = await Promise.all([
     getDashboardStats(),
     getProximosViajesConOcupacion(),
+    getViajesProximoAnio(),
     getAlertas(),
     countAlumnosEnMora(),
   ]);
@@ -114,6 +119,42 @@ export default async function DashboardPage() {
           </div>
         )}
       </section>
+
+      {proximoAnio.length > 0 && (
+        <section className="mt-8">
+          <h2 className="font-semibold text-sm uppercase tracking-wide text-gray-600 mb-3">
+            Viajes del próximo año
+          </h2>
+          <div className="space-y-2">
+            {proximoAnio.map((v) => (
+              <Link
+                key={v.id}
+                href={`/viajes/${v.id}`}
+                className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-[var(--r-md)] border border-[var(--c-border)] bg-[var(--c-surface)] px-4 py-3 transition-shadow hover:shadow-[shadow:var(--shadow-1)]"
+              >
+                <span className="font-mono text-xs text-[var(--c-ink-muted)]">{v.codigo}</span>
+                <span className="text-sm font-semibold text-[var(--c-ink)]">{v.nombre}</span>
+                <span className="text-sm text-[var(--c-ink-muted)]">
+                  {formatFecha(v.fechaInicio)} – {formatFecha(v.fechaFin)}
+                </span>
+                <span className="text-sm text-[var(--c-ink-muted)]">
+                  {v.inscriptos}/{v.capacidadMaxima} inscriptos
+                </span>
+                {v.inscriptos < 5 && (
+                  <span className="rounded-[var(--r-pill)] border border-[var(--c-warning)] bg-[var(--c-warning-bg)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-warning)]">
+                    Mínimo no alcanzado
+                  </span>
+                )}
+                {v.inscriptos >= 0.8 * v.capacidadMaxima && (
+                  <span className="rounded-[var(--r-pill)] border border-[var(--c-info)] bg-[var(--c-info-bg)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-info)]">
+                    Alta demanda
+                  </span>
+                )}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </>
   );
 }

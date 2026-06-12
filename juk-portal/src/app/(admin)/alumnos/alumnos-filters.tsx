@@ -47,6 +47,15 @@ export function AlumnosFilters() {
           ))}
         </Select>
       </div>
+      <div className="w-64">
+        <Select
+          value={sp.get("alerta") ?? ""}
+          onChange={(e) => pushParam("alerta", e.target.value || null)}
+        >
+          <option value="">Todas las alertas</option>
+          <option value="pasos_bloqueados">Con pasos bloqueados o vencidos</option>
+        </Select>
+      </div>
     </div>
   );
 }

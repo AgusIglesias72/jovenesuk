@@ -9,6 +9,7 @@ import { registrarAuditoria } from "@/lib/db/queries/auditoria";
 import {
   createAlumno,
   darDeBajaAlumno,
+  getAlumnoById,
   reactivarAlumno,
   updateAlumno,
 } from "@/lib/db/queries/alumnos";
@@ -142,12 +143,26 @@ export async function updateAlumnoAction(
 
   const { id, ...data } = parsed.data;
   try {
-    const alumno = await updateAlumno(id, data);
+    // US-18: los cambios de datos de pasaporte quedan marcados con fecha.
+    const actual = await getAlumnoById(id);
+    const pasaporteCambio =
+      !!actual &&
+      (actual.nombre !== data.nombre ||
+        actual.apellido !== data.apellido ||
+        actual.numeroPasaporte !== data.numeroPasaporte ||
+        actual.fechaNacimiento.getTime() !== data.fechaNacimiento.getTime() ||
+        actual.fechaVencimientoPasaporte.getTime() !== data.fechaVencimientoPasaporte.getTime());
+
+    const alumno = await updateAlumno(id, {
+      ...data,
+      ...(pasaporteCambio ? { pasaporteActualizadoAt: new Date() } : {}),
+    });
     await safeAudit({
       accion: "update",
       entidadTipo: "alumno",
       entidadId: id,
       usuarioId: session.user.id,
+      ...(pasaporteCambio ? { metadata: { pasaporteActualizado: true } } : {}),
     });
     revalidatePath("/alumnos");
     revalidatePath(`/alumnos/${id}/editar`);

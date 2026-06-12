@@ -35,6 +35,9 @@ export const alumnos = pgTable("alumnos", {
   dni: text("dni").notNull(),
   numeroPasaporte: text("numero_pasaporte").notNull(),
   fechaVencimientoPasaporte: date("fecha_vencimiento_pasaporte", { mode: "date" }).notNull(),
+  // US-18: los cambios de datos de pasaporte quedan marcados con fecha
+  // (impactan la verificación de la Immigration Letter).
+  pasaporteActualizadoAt: timestamp("pasaporte_actualizado_at"),
 
   // Contacto del alumno
   telefonoAlumno: text("telefono_alumno"),

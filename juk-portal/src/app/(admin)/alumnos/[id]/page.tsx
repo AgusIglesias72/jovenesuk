@@ -91,6 +91,16 @@ export default async function AlumnoDetailPage({
             value={<span className="font-mono text-[length:var(--t-mono)]">{alumno.numeroPasaporte}</span>}
           />
           <Dato label="Vence" value={formatFecha(alumno.fechaVencimientoPasaporte)} />
+          {alumno.pasaporteActualizadoAt && (
+            <Dato
+              label="Pasaporte actualizado"
+              value={
+                <span className="text-[var(--c-warning)]">
+                  {formatFecha(alumno.pasaporteActualizadoAt)} — re-verificar Immigration Letter
+                </span>
+              }
+            />
+          )}
           <Dato label="Tutor 1" value={alumno.tutor1Nombre} />
           <Dato label="Email tutor" value={alumno.tutor1Email} />
           <Dato label="Celular tutor" value={alumno.tutor1Celular} />

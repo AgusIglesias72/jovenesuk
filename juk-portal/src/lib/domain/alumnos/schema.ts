@@ -93,6 +93,7 @@ export const alumnoUpdateSchema = alumnoCreateSchema.extend({
 export const alumnoFiltersSchema = z.object({
   q: z.string().trim().optional(),
   estado: alumnoEstadoEnum.optional(),
+  alerta: z.enum(["pasos_bloqueados"]).optional(),
 });
 
 export type AlumnoCreateData = z.output<typeof alumnoCreateSchema>;

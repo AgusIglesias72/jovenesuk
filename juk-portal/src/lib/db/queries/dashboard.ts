@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, notInArray } from "drizzle-orm";
+import { and, asc, count, eq, gt, inArray, ne, notInArray } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { alumnos } from "@/lib/db/schema/alumnos";
@@ -97,4 +97,58 @@ export async function getProximosViajesConOcupacion(limit = 6): Promise<ViajeCon
         : 0,
     };
   });
+}
+
+export type ViajeProximoAnio = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  fechaInicio: Date;
+  fechaFin: Date;
+  colegioDestinoNombre: string | null;
+  inscriptos: number;
+  capacidadMaxima: number;
+};
+
+/**
+ * Viajes grupales del próximo año (US-DX-05): inscripción abierta o confirmados
+ * con salida a más de 6 meses. Los Individuales no aparecen — no tienen
+ * dinámica de inscripción que monitorear.
+ */
+export async function getViajesProximoAnio(hoy = new Date()): Promise<ViajeProximoAnio[]> {
+  const corte = new Date(hoy);
+  corte.setMonth(corte.getMonth() + 6);
+
+  const rows = await db
+    .select({ viaje: viajes, colegioDestinoNombre: colegios.nombre })
+    .from(viajes)
+    .leftJoin(colegios, eq(viajes.colegioDestinoId, colegios.id))
+    .where(
+      and(
+        eq(viajes.tipo, "grupal"),
+        inArray(viajes.estado, ["inscripcion_abierta", "confirmado"]),
+        gt(viajes.fechaInicio, corte)
+      )
+    )
+    .orderBy(asc(viajes.fechaInicio));
+  if (rows.length === 0) return [];
+
+  const ids = rows.map((r) => r.viaje.id);
+  const inscriptosRows = await db
+    .select({ viajeId: asignaciones.viajeId, c: count() })
+    .from(asignaciones)
+    .where(and(inArray(asignaciones.viajeId, ids), ne(asignaciones.estado, "cancelada")))
+    .groupBy(asignaciones.viajeId);
+  const inscriptosPorViaje = new Map(inscriptosRows.map((r) => [r.viajeId, r.c]));
+
+  return rows.map((r) => ({
+    id: r.viaje.id,
+    codigo: r.viaje.codigo,
+    nombre: r.viaje.nombre,
+    fechaInicio: r.viaje.fechaInicio,
+    fechaFin: r.viaje.fechaFin,
+    colegioDestinoNombre: r.colegioDestinoNombre,
+    inscriptos: inscriptosPorViaje.get(r.viaje.id) ?? 0,
+    capacidadMaxima: r.viaje.capacidadMaxima,
+  }));
 }

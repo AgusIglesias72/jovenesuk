@@ -1,0 +1,1 @@
+ALTER TABLE "alumnos" ADD COLUMN "pasaporte_actualizado_at" timestamp;
