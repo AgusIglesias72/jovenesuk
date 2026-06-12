@@ -17,7 +17,19 @@ import {
 } from "@/lib/domain/pasos";
 import { formatFecha } from "@/lib/utils/date";
 
+import { subirDocumentoPasoAction } from "./documentos-actions";
 import { transicionarPasoAlumnoAction } from "./pasos-actions";
+
+/** Pasos que llevan documento adjunto (AF, PC, captura ETA, letters, escribano, psicofísico). */
+const PASOS_CON_DOCUMENTO: ReadonlySet<PasoCodigo> = new Set([
+  "a1",
+  "a3",
+  "c1",
+  "c2",
+  "c3",
+  "d1",
+  "d2",
+]);
 
 export type PasoView = {
   id: string;
@@ -113,6 +125,24 @@ function PasoCard({
     });
   }
 
+  function subirArchivo(file: File | undefined) {
+    if (!file) return;
+    startTransition(async () => {
+      onError(null);
+      const fd = new FormData();
+      fd.set("pasoId", paso.id);
+      fd.set("alumnoId", alumnoId);
+      fd.set("archivo", file);
+      const r = await subirDocumentoPasoAction(fd);
+      if (r.ok) router.refresh();
+      else onError(r.error);
+    });
+  }
+
+  const archivoUrl =
+    typeof paso.metadata.archivoUrl === "string" ? paso.metadata.archivoUrl : null;
+  const aceptaDocumento = editable && PASOS_CON_DOCUMENTO.has(paso.codigo) && paso.estado !== "na";
+
   return (
     <div
       data-paso={paso.codigo}
@@ -166,6 +196,33 @@ function PasoCard({
               </option>
             ))}
           </Select>
+        </div>
+      )}
+
+      {aceptaDocumento && (
+        <div className="mt-2 flex items-center gap-2 text-[11px]">
+          {archivoUrl ? (
+            <a
+              href={archivoUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-[var(--c-brand)] hover:underline"
+            >
+              📄 Ver documento
+            </a>
+          ) : (
+            <span className="text-[var(--c-ink-subtle)]">Sin documento</span>
+          )}
+          <label className="cursor-pointer font-semibold text-[var(--c-ink-muted)] hover:text-[var(--c-brand)]">
+            {archivoUrl ? "Reemplazar" : "Adjuntar"}
+            <input
+              type="file"
+              className="hidden"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
+              disabled={isPending}
+              onChange={(e) => subirArchivo(e.target.files?.[0])}
+            />
+          </label>
         </div>
       )}
     </div>

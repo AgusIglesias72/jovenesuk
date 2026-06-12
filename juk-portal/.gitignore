@@ -16,3 +16,6 @@ coverage/
 test-results/
 playwright-report/
 .playwright-mcp/
+
+# Storage local de documentos (fallback dev sin R2)
+.uploads/
