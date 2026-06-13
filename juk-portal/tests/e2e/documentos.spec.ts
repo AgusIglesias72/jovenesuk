@@ -17,7 +17,7 @@ test("sube un documento al paso A1 y queda linkeado", async ({ page }) => {
     .filter({ hasText: "Alumnos asignados" })
     .getByRole("button", { name: "Asignar" })
     .click();
-  await page.getByRole("link", { name: `${alumno.apellido}, ${alumno.nombre}` }).click();
+  await page.getByRole("link", { name: `${alumno.apellido}, ${alumno.nombre}` }).first().click();
   await page.waitForURL("**/alumnos/**");
 
   const a1 = page.locator('[data-paso="a1"]');

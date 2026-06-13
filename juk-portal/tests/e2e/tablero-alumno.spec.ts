@@ -23,7 +23,7 @@ test("al asignar un alumno se crea su tablero M6 y se pueden transicionar pasos"
   await expect(page.getByText(`${alumno.apellido}, ${alumno.nombre}`).first()).toBeVisible();
 
   // Ir al detalle del alumno desde el roster
-  await page.getByRole("link", { name: `${alumno.apellido}, ${alumno.nombre}` }).click();
+  await page.getByRole("link", { name: `${alumno.apellido}, ${alumno.nombre}` }).first().click();
   await page.waitForURL("**/alumnos/**");
 
   // El tablero muestra los grupos y el Paso 0 completado (solo lectura, sin selector)

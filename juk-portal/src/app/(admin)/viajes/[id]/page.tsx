@@ -8,6 +8,7 @@ import {
 } from "@/lib/db/queries/asignaciones";
 import { getColegioById } from "@/lib/db/queries/colegios";
 import { groupLeadersElegibles } from "@/lib/db/queries/group-leaders-viaje";
+import { resumenPagosPorViaje } from "@/lib/db/queries/pagos";
 import { listGroupLeadersDeViaje, listOrInitPasosViaje } from "@/lib/db/queries/pasos-viaje";
 import { getViajeById } from "@/lib/db/queries/viajes";
 import { PAIS_LABELS } from "@/lib/domain/colegios";
@@ -21,6 +22,7 @@ import { formatFecha } from "@/lib/utils/date";
 
 import { AsignacionesPanel } from "./asignaciones-panel";
 import { GroupLeadersPanel } from "./group-leaders-panel";
+import { PagosViajePanel } from "./pagos-viaje-panel";
 import { PasosViajePanel, type PasoView, type PoliceGLView } from "./pasos-viaje-panel";
 
 export const metadata = { title: "Viaje" };
@@ -34,7 +36,7 @@ export default async function ViajeDetailPage({
   const viaje = await getViajeById(id);
   if (!viaje) notFound();
 
-  const [colegio, asignados, elegibles, cupoUsado, pasosRows, glsViaje, glsElegibles] =
+  const [colegio, asignados, elegibles, cupoUsado, pasosRows, glsViaje, glsElegibles, pagos] =
     await Promise.all([
       getColegioById(viaje.colegioDestinoId),
       listAsignacionesByViaje(id),
@@ -43,6 +45,7 @@ export default async function ViajeDetailPage({
       listOrInitPasosViaje(id),
       listGroupLeadersDeViaje(id),
       groupLeadersElegibles(id),
+      resumenPagosPorViaje(id),
     ]);
 
   const policeGLs: PoliceGLView[] = glsViaje.map((g) => ({
@@ -112,6 +115,8 @@ export default async function ViajeDetailPage({
         elegibles={glsElegibles.map((g) => ({ id: g.id, nombre: g.nombre, apellido: g.apellido }))}
         viajeCancelado={viaje.estado === "cancelado"}
       />
+
+      <PagosViajePanel rows={pagos} />
 
       <PasosViajePanel
         viajeId={id}

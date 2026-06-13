@@ -22,7 +22,7 @@ test("plan de cuotas end-to-end: pagos completan B1, desbloquean C2 y B2 cierra 
     .filter({ hasText: "Alumnos asignados" })
     .getByRole("button", { name: "Asignar" })
     .click();
-  await page.getByRole("link", { name: `${alumno.apellido}, ${alumno.nombre}` }).click();
+  await page.getByRole("link", { name: `${alumno.apellido}, ${alumno.nombre}` }).first().click();
   await page.waitForURL("**/alumnos/**");
 
   // Crear el plan: 2 cuotas de USD 500
