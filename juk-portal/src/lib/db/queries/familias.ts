@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 
-import { and, eq, ne } from "drizzle-orm";
+import { and, asc, eq, ne } from "drizzle-orm";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -124,4 +124,15 @@ export async function desactivarCuentaFamiliaSiCorresponde(alumnoId: string): Pr
     .update(users)
     .set({ isActive: false, updatedAt: new Date() })
     .where(eq(users.id, familiaUserId));
+}
+
+/** Alumnos activos de un grupo familiar, ordenados por apellido, nombre. */
+export async function getAlumnosDeFamilia(
+  familiaUserId: string
+): Promise<{ id: string; nombre: string; apellido: string }[]> {
+  return db
+    .select({ id: alumnos.id, nombre: alumnos.nombre, apellido: alumnos.apellido })
+    .from(alumnos)
+    .where(and(eq(alumnos.familiaUserId, familiaUserId), ne(alumnos.estado, "baja")))
+    .orderBy(asc(alumnos.apellido), asc(alumnos.nombre));
 }

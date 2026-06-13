@@ -1,0 +1,82 @@
+import { and, eq, inArray, like, or } from "drizzle-orm";
+
+import { db } from "../../src/lib/db";
+import {
+  alumnos,
+  asignaciones,
+  colegios,
+  groupLeaders,
+  users,
+  viajes,
+} from "../../src/lib/db/schema";
+
+/**
+ * Limpieza de los artefactos que generan los E2E (la suite no muta datos
+ * reales). Patrones inconfundibles, alineados con los generadores de
+ * tests/e2e/helpers.ts:
+ *   - viajes:    codigo  LIKE 'UK-2099-%'        (año 2099 → siempre de test)
+ *   - alumnos:   tutor1_email 'tutor-…@example.com' / 'tutora.…@e2e.jovenesenuk.com' o dni 'E2E-%'
+ *   - colegios:  nombre  LIKE 'Colegio E2E %'
+ *   - GLs:       email   LIKE 'gl-%@example.com'
+ *   - usuarios:  rol familia con esos emails de tutor
+ *
+ * NO toca datos reales ni el seed [DEMO] (viajes UK-2026-*, dni DEMO-*, etc.).
+ * Borra en orden de FK: cuotas/pasos_alumno/pasos_viaje/group_leaders_viaje/
+ * colegio_documento_config cascadean solos; asignaciones (RESTRICT) y
+ * viajes→colegios se borran explícitamente antes que sus padres.
+ */
+export async function cleanupE2EData() {
+  const e2eViaje = like(viajes.codigo, "UK-2099-%");
+  const e2eAlumno = or(
+    like(alumnos.tutor1Email, "tutor-%@example.com"),
+    like(alumnos.tutor1Email, "tutora.%@e2e.jovenesenuk.com"),
+    like(alumnos.dni, "E2E-%")
+  );
+  const e2eColegio = like(colegios.nombre, "Colegio E2E %");
+  const e2eGl = like(groupLeaders.email, "gl-%@example.com");
+
+  const vids = (await db.select({ id: viajes.id }).from(viajes).where(e2eViaje)).map((r) => r.id);
+  const aids = (await db.select({ id: alumnos.id }).from(alumnos).where(e2eAlumno)).map((r) => r.id);
+  const cids = (await db.select({ id: colegios.id }).from(colegios).where(e2eColegio)).map((r) => r.id);
+  const gids = (await db.select({ id: groupLeaders.id }).from(groupLeaders).where(e2eGl)).map((r) => r.id);
+
+  // asignaciones primero (RESTRICT hacia alumnos/viajes); cuotas y pasos_alumno cascadean.
+  if (vids.length) await db.delete(asignaciones).where(inArray(asignaciones.viajeId, vids));
+  if (aids.length) await db.delete(asignaciones).where(inArray(asignaciones.alumnoId, aids));
+
+  // viajes (cascadea pasos_viaje + group_leaders_viaje) y group_leaders.
+  if (vids.length) await db.delete(viajes).where(inArray(viajes.id, vids));
+  if (gids.length) await db.delete(groupLeaders).where(inArray(groupLeaders.id, gids));
+
+  // alumnos (ya sin asignaciones) y colegios (ya sin viajes; cascadea su config documental).
+  if (aids.length) await db.delete(alumnos).where(inArray(alumnos.id, aids));
+  if (cids.length) await db.delete(colegios).where(inArray(colegios.id, cids));
+
+  // Cuentas de familia de test (sessions/accounts cascadean).
+  await db
+    .delete(users)
+    .where(
+      and(
+        eq(users.role, "familia"),
+        or(
+          like(users.email, "tutor-%@example.com"),
+          like(users.email, "tutora.%@e2e.jovenesenuk.com")
+        )
+      )
+    );
+
+  return { viajes: vids.length, alumnos: aids.length, colegios: cids.length, groupLeaders: gids.length };
+}
+
+// Ejecución directa: `tsx tests/e2e/cleanup.ts` (con .env.local sourceado).
+if (process.argv[1]?.replace(/\\/g, "/").endsWith("tests/e2e/cleanup.ts")) {
+  cleanupE2EData()
+    .then((c) => {
+      console.error("Limpieza E2E:", c);
+      process.exit(0);
+    })
+    .catch((e) => {
+      console.error(e);
+      process.exit(1);
+    });
+}

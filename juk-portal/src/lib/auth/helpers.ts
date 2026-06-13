@@ -38,10 +38,21 @@ export async function requireRole(roles: User["role"] | User["role"][]) {
   const allowed = Array.isArray(roles) ? roles : [roles];
 
   if (!allowed.includes(session.user.role as User["role"])) {
-    // "/" es la landing pública: un admin sin el rol pedido vuelve al portal.
+    // Redirigir al home del rol real para evitar loops admin/familia.
+    if (session.user.role === "familia") {
+      redirect("/familias");
+    }
     redirect("/dashboard");
   }
   return session;
+}
+
+/**
+ * Convenience: require the "familia" role.
+ * Used by all familias/ routes (Portal de Familias).
+ */
+export async function requireFamilia() {
+  return requireRole("familia");
 }
 
 /**
