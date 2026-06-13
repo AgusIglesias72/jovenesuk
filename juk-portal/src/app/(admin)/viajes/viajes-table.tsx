@@ -73,7 +73,7 @@ export function ViajesTable({ viajes }: { viajes: ViajeListItem[] }) {
               <TD numeric>{v.capacidadMaxima}</TD>
               <TD>
                 <Link
-                  href={`/viajes/${v.id}`}
+                  href={`/viajes/${v.codigo}`}
                   className="text-sm font-semibold text-juk-navy-700 hover:text-juk-navy-900"
                 >
                   Ver

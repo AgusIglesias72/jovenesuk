@@ -54,13 +54,13 @@ export function AlumnosTable({ alumnos }: { alumnos: Alumno[] }) {
               <TD>
                 <div className="flex items-center gap-3">
                   <Link
-                    href={`/alumnos/${a.id}`}
+                    href={`/alumnos/${a.dni}`}
                     className="text-sm font-semibold text-juk-navy-700 hover:text-juk-navy-900"
                   >
                     Ver
                   </Link>
                   <Link
-                    href={`/alumnos/${a.id}/editar`}
+                    href={`/alumnos/${a.dni}/editar`}
                     className="text-sm font-medium text-[var(--c-ink-subtle)] hover:text-juk-navy-900"
                   >
                     Editar

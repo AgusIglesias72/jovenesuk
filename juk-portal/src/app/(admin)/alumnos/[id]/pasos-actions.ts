@@ -94,7 +94,7 @@ export async function transicionarPasoAlumnoAction(
       metadata: { codigo, estadoAnterior: actual, estado: nuevoEstado },
     });
 
-    revalidatePath(`/alumnos/${alumnoId}`);
+    revalidatePath("/alumnos/[id]", "page");
     return { ok: true, data: { id: pasoId, estado: nuevoEstado } };
   } catch (err) {
     Sentry.captureException(err);
@@ -166,7 +166,7 @@ export async function actualizarSubEstadoPasoAction(
       metadata: { codigo, subEstado },
     });
 
-    revalidatePath(`/alumnos/${alumnoId}`);
+    revalidatePath("/alumnos/[id]", "page");
     return { ok: true, data: { id: pasoId, estado: nuevoEstado, subEstado } };
   } catch (err) {
     Sentry.captureException(err);

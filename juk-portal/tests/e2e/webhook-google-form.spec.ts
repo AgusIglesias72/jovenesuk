@@ -56,8 +56,8 @@ test("crea el alumno pre-inscripto y lo asigna al viaje del link", async ({ page
   });
   expect((await res2.json()).duplicado).toBe(true);
 
-  // El alumno quedó inscripto con su tablero generado
-  await page.goto(`/alumnos/${body.alumnoId}`);
+  // El alumno quedó inscripto con su tablero generado (URL por DNI/slug).
+  await page.goto(`/alumnos/${dni}`);
   await expect(page.getByText(`Test ${dni}, Webhook`)).toBeVisible();
   await expect(page.getByText("Inscripción y programa")).toBeVisible();
   await expect(

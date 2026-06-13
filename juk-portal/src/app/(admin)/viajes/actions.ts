@@ -191,7 +191,7 @@ export async function updateViajeAction(
       });
     }
     revalidatePath("/viajes");
-    revalidatePath(`/viajes/${id}/editar`);
+    revalidatePath("/viajes/[id]/editar", "page");
     return { ok: true, data: viaje };
   } catch (err) {
     if (err instanceof ViajeNotFoundError) {
@@ -263,7 +263,7 @@ export async function cancelarViajeAction(
     }
 
     revalidatePath("/viajes");
-    revalidatePath(`/viajes/${parsedId.data}/editar`);
+    revalidatePath("/viajes/[id]/editar", "page");
     return { ok: true, data: { ...viaje, notificados } };
   } catch (err) {
     if (err instanceof ViajeNotFoundError) {

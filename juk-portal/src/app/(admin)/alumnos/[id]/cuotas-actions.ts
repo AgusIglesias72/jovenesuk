@@ -85,7 +85,7 @@ export async function crearPlanCuotasAction(
       usuarioId: session.user.id,
       metadata: { cuotas: rows.length, moneda: parsed.data.moneda },
     });
-    revalidatePath(`/alumnos/${ctx.alumnoId}`);
+    revalidatePath("/alumnos/[id]", "page");
     return { ok: true, data: { cuotas: rows.length } };
   } catch (err) {
     if (err instanceof PlanConPagosError) {
@@ -126,7 +126,7 @@ export async function registrarPagoCuotaAction(
     });
     // El dueño se deriva de la cuota (nunca del cliente).
     const alumnoId = await alumnoIdDeAsignacion(cuota.asignacionId);
-    if (alumnoId) revalidatePath(`/alumnos/${alumnoId}`);
+    if (alumnoId) revalidatePath("/alumnos/[id]", "page");
     return { ok: true, data: { id: cuota.id } };
   } catch (err) {
     Sentry.captureException(err);
@@ -170,7 +170,7 @@ export async function confirmarUltimoPagoPresencialAction(
       usuarioId: session.user.id,
       metadata: { numero: cuota.numero, canal: "presencial", b2: true },
     });
-    revalidatePath(`/alumnos/${alumnoId}`);
+    revalidatePath("/alumnos/[id]", "page");
     return { ok: true, data: { id: cuota.id } };
   } catch (err) {
     Sentry.captureException(err);

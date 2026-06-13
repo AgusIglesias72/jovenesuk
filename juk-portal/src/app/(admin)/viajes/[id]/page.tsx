@@ -10,7 +10,7 @@ import { getColegioById } from "@/lib/db/queries/colegios";
 import { groupLeadersElegibles } from "@/lib/db/queries/group-leaders-viaje";
 import { resumenPagosPorViaje } from "@/lib/db/queries/pagos";
 import { listGroupLeadersDeViaje, listOrInitPasosViaje } from "@/lib/db/queries/pasos-viaje";
-import { getViajeById } from "@/lib/db/queries/viajes";
+import { getViajeByCodigo } from "@/lib/db/queries/viajes";
 import { PAIS_LABELS } from "@/lib/domain/colegios";
 import {
   PASO_VIAJE_TIPOS,
@@ -33,19 +33,19 @@ export default async function ViajeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const viaje = await getViajeById(id);
+  const viaje = await getViajeByCodigo(id);
   if (!viaje) notFound();
 
   const [colegio, asignados, elegibles, cupoUsado, pasosRows, glsViaje, glsElegibles, pagos] =
     await Promise.all([
       getColegioById(viaje.colegioDestinoId),
-      listAsignacionesByViaje(id),
-      alumnosElegibles(id),
-      countAsignacionesActivas(id),
-      listOrInitPasosViaje(id),
-      listGroupLeadersDeViaje(id),
-      groupLeadersElegibles(id),
-      resumenPagosPorViaje(id),
+      listAsignacionesByViaje(viaje.id),
+      alumnosElegibles(viaje.id),
+      countAsignacionesActivas(viaje.id),
+      listOrInitPasosViaje(viaje.id),
+      listGroupLeadersDeViaje(viaje.id),
+      groupLeadersElegibles(viaje.id),
+      resumenPagosPorViaje(viaje.id),
     ]);
 
   const policeGLs: PoliceGLView[] = glsViaje.map((g) => ({
@@ -73,7 +73,7 @@ export default async function ViajeDetailPage({
         title={viaje.nombre}
         subtitle={viaje.codigo}
         actions={
-          <LinkButton href={`/viajes/${id}/editar`} variant="secondary">
+          <LinkButton href={`/viajes/${viaje.codigo}/editar`} variant="secondary">
             Editar viaje
           </LinkButton>
         }
@@ -101,7 +101,7 @@ export default async function ViajeDetailPage({
       </section>
 
       <AsignacionesPanel
-        viajeId={id}
+        viajeId={viaje.id}
         asignados={asignados}
         elegibles={elegibles.map((a) => ({ id: a.id, nombre: a.nombre, apellido: a.apellido }))}
         cupoMax={viaje.capacidadMaxima}
@@ -110,7 +110,7 @@ export default async function ViajeDetailPage({
       />
 
       <GroupLeadersPanel
-        viajeId={id}
+        viajeId={viaje.id}
         asignados={glsViaje}
         elegibles={glsElegibles.map((g) => ({ id: g.id, nombre: g.nombre, apellido: g.apellido }))}
         viajeCancelado={viaje.estado === "cancelado"}
@@ -119,7 +119,7 @@ export default async function ViajeDetailPage({
       <PagosViajePanel rows={pagos} />
 
       <PasosViajePanel
-        viajeId={id}
+        viajeId={viaje.id}
         pasos={pasosView}
         policeEstado={policeEstado}
         policeGLs={policeGLs}

@@ -48,6 +48,11 @@ export async function getAlumnoById(id: string): Promise<Alumno | null> {
   return rows[0] ?? null;
 }
 
+export async function getAlumnoByDni(dni: string): Promise<Alumno | null> {
+  const rows = await db.select().from(alumnos).where(eq(alumnos.dni, dni)).limit(1);
+  return rows[0] ?? null;
+}
+
 export async function createAlumno(data: NewAlumno): Promise<Alumno> {
   const rows = await db.insert(alumnos).values(data).returning();
   return rows[0]!;

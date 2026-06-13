@@ -99,7 +99,7 @@ export async function cambiarEstadoPasoViajeAction(
       cambios: { before: { estado: actual.estado }, after: { estado } },
       metadata: { viajeId, tipo },
     });
-    revalidatePath(`/viajes/${viajeId}`);
+    revalidatePath("/viajes/[id]", "page");
     return { ok: true, data: { estado } };
   } catch (err) {
     Sentry.captureException(err);
@@ -141,7 +141,7 @@ export async function guardarMetadataPasoViajeAction(
       cambios: { after: parsed.data as Record<string, unknown> },
       metadata: { viajeId, tipo },
     });
-    revalidatePath(`/viajes/${viajeId}`);
+    revalidatePath("/viajes/[id]", "page");
     return { ok: true, data: { tipo } };
   } catch (err) {
     Sentry.captureException(err);
@@ -214,7 +214,7 @@ export async function marcarAlumnoPasoViajeAction(
       metadata: { tipo: tipoPaso, asignacionId, cubierto, ...cobertura },
     });
 
-    revalidatePath(`/viajes/${viajeId}`);
+    revalidatePath("/viajes/[id]", "page");
     return { ok: true, data: { ...cobertura, estado: estadoFinal } };
   } catch (err) {
     Sentry.captureException(err);

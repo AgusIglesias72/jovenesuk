@@ -34,6 +34,11 @@ export async function getViajeById(id: string): Promise<Viaje | null> {
   return rows[0] ?? null;
 }
 
+export async function getViajeByCodigo(codigo: string): Promise<Viaje | null> {
+  const rows = await db.select().from(viajes).where(eq(viajes.codigo, codigo)).limit(1);
+  return rows[0] ?? null;
+}
+
 export async function createViaje(data: NewViaje): Promise<Viaje> {
   const rows = await db.insert(viajes).values(data).returning();
   return rows[0]!;

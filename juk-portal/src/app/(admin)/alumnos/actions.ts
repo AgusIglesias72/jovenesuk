@@ -116,7 +116,7 @@ export async function enviarAccesoFamiliaAction(
       usuarioId: session.user.id,
       metadata: { accion: "enviar_acceso_familia", enviadoA: datos.email },
     });
-    revalidatePath(`/alumnos/${parsedId.data}`);
+    revalidatePath("/alumnos/[id]", "page");
     return { ok: true, data: { enviadoA: datos.email } };
   } catch (err) {
     Sentry.captureException(err);
@@ -165,7 +165,7 @@ export async function updateAlumnoAction(
       ...(pasaporteCambio ? { metadata: { pasaporteActualizado: true } } : {}),
     });
     revalidatePath("/alumnos");
-    revalidatePath(`/alumnos/${id}/editar`);
+    revalidatePath("/alumnos/[id]/editar", "page");
     return { ok: true, data: alumno };
   } catch (err) {
     if (err instanceof AlumnoNotFoundError) {
@@ -200,7 +200,7 @@ export async function darDeBajaAlumnoAction(
       usuarioId: session.user.id,
     });
     revalidatePath("/alumnos");
-    revalidatePath(`/alumnos/${parsedId.data}/editar`);
+    revalidatePath("/alumnos/[id]/editar", "page");
     return { ok: true, data: alumno };
   } catch (err) {
     if (err instanceof AlumnoNotFoundError) {
@@ -228,7 +228,7 @@ export async function reactivarAlumnoAction(
       usuarioId: session.user.id,
     });
     revalidatePath("/alumnos");
-    revalidatePath(`/alumnos/${parsedId.data}/editar`);
+    revalidatePath("/alumnos/[id]/editar", "page");
     return { ok: true, data: alumno };
   } catch (err) {
     if (err instanceof AlumnoNotFoundError) {

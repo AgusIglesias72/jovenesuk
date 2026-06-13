@@ -108,7 +108,7 @@ export async function subirDocumentoPasoAction(
       metadata: { categoria, nombre: file.name, bytes: file.size },
     });
 
-    revalidatePath(`/alumnos/${alumnoId}`);
+    revalidatePath("/alumnos/[id]", "page");
     return { ok: true, data: { url } };
   } catch (err) {
     if (err instanceof DocumentoInvalidoError) {

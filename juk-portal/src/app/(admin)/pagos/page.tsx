@@ -40,6 +40,7 @@ export default async function PagosPage({
     fechaVencimiento: c.fechaVencimiento,
     fechaPagoEfectivo: c.fechaPagoEfectivo,
     alumnoId: c.alumnoId,
+    alumnoDni: c.alumnoDni,
     alumnoNombre: c.alumnoNombre,
     alumnoApellido: c.alumnoApellido,
     viajeId: c.viajeId,

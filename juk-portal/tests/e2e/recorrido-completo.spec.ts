@@ -53,12 +53,13 @@ test("recorrido completo: del colegio al dashboard", async ({ page, request }) =
     },
   });
   expect(res.status()).toBe(200);
-  const { alumnoId, asignacion } = await res.json();
+  const { asignacion } = await res.json();
   expect(asignacion).not.toBeNull();
 
   // ── 4 · Tablero M6: la config del colegio activó A2; C1 activo (UK→ETA);
   //        B2 activo (independiente); C2 bloqueado por B1 ──
-  await page.goto(`/alumnos/${alumnoId}`);
+  // La URL de detalle usa el DNI (slug), no el uuid.
+  await page.goto(`/alumnos/${dni}`);
   await expect(page.locator('[data-paso="a2"]').getByText("Pendiente").first()).toBeVisible();
   await expect(page.locator('[data-paso="c1"]').getByText("Pendiente").first()).toBeVisible();
   await expect(page.locator('[data-paso="b2"]').getByText("Pendiente").first()).toBeVisible();

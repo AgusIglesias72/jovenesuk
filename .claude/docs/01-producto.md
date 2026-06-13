@@ -131,6 +131,22 @@ window.confirm/prompt por un modal del design system, guard de cambios sin guard
 - Convenciones nuevas en CLAUDE.md (nada de window.confirm, date nativo, selects sueltos ni
   tablas sin paginar). Suite: **32/32 E2E** tras migrar los specs de `page.on("dialog")` al modal.
 
+**13/06/2026 (3ª tanda — ultracode con workflows) — toasts, Familias, slugs, guard:**
+- **Capa de feedback**: sistema de **toasts** del design system (montado en el shell, card
+  pointer-events-none salvo el cerrar para no bloquear clicks) reemplazó todo el feedback inline;
+  **guard de cambios sin guardar** (beforeunload + confirmación al cancelar) en los forms.
+- **Portal de Familias (foundations)**: route group `familias/` (mobile-first, rol `familia`),
+  `requireFamilia()` + `getAlumnosDeFamilia`, home con los alumnos del grupo y ficha read-only del
+  alumno (Documentación M6 con copy familiar + Pagos M3), con logout real. Falta el grueso de los
+  11 módulos (subidas de doc, ETA autoreporte, diario, NPS, etc.).
+- **URLs legibles (slugs)**: viaje por **código**, alumno por **DNI**; la página resuelve por slug
+  y pasa el uuid real a todo lo demás; `revalidatePath` en forma literal. Documentado en CLAUDE.md.
+- **Teardown de E2E**: la suite no limpiaba y la DB de dev se infló (516 viajes / 279 alumnos
+  acumulados, ralentizando los listados). Se limpió y se agregó un proyecto `cleanup` de Playwright
+  (`tests/e2e/cleanup.ts`) que borra sólo los artefactos E2E al terminar cada corrida.
+- Hecho con **3 workflows** (agentes en paralelo) + verificación e integración manual entre cada
+  uno. Suite **33/33 E2E** (exit 0), typecheck y lint verdes.
+
 Próximo: conectar Trigger.dev y credenciales reales de R2 (las actuales parecen placeholders),
 resumen semanal, calendario del dashboard, portales externos (Familias/Representante),
 migrar URLs de ids a slugs (preferencia del equipo, anotada en CLAUDE.md).

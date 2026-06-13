@@ -29,6 +29,7 @@ export type CuotaGlobalRow = {
   fechaPagoEfectivo: Date | null;
   observaciones: string | null;
   alumnoId: string;
+  alumnoDni: string;
   alumnoNombre: string;
   alumnoApellido: string;
   viajeId: string;
@@ -58,6 +59,7 @@ export async function listCuotasGlobal(filtros?: {
       fechaPagoEfectivo: cuotas.fechaPagoEfectivo,
       observaciones: cuotas.observaciones,
       alumnoId: alumnos.id,
+      alumnoDni: alumnos.dni,
       alumnoNombre: alumnos.nombre,
       alumnoApellido: alumnos.apellido,
       viajeId: viajes.id,
@@ -91,6 +93,7 @@ export async function viajesConCuotas(): Promise<
 export type ResumenPagosAlumnoViaje = ResumenPlan & {
   asignacionId: string;
   alumnoId: string;
+  alumnoDni: string;
   nombre: string;
   apellido: string;
   moneda: string | null;
@@ -109,6 +112,7 @@ export async function resumenPagosPorViaje(
     .select({
       asignacionId: asignaciones.id,
       alumnoId: alumnos.id,
+      alumnoDni: alumnos.dni,
       nombre: alumnos.nombre,
       apellido: alumnos.apellido,
       cuotaId: cuotas.id,
@@ -128,11 +132,12 @@ export async function resumenPagosPorViaje(
 
   const porAsignacion = new Map<
     string,
-    { alumnoId: string; nombre: string; apellido: string; cuotas: typeof rows }
+    { alumnoId: string; alumnoDni: string; nombre: string; apellido: string; cuotas: typeof rows }
   >();
   for (const r of rows) {
     const grupo = porAsignacion.get(r.asignacionId) ?? {
       alumnoId: r.alumnoId,
+      alumnoDni: r.alumnoDni,
       nombre: r.nombre,
       apellido: r.apellido,
       cuotas: [],
@@ -154,6 +159,7 @@ export async function resumenPagosPorViaje(
     return {
       asignacionId,
       alumnoId: g.alumnoId,
+      alumnoDni: g.alumnoDni,
       nombre: g.nombre,
       apellido: g.apellido,
       moneda: g.cuotas[0]?.moneda ?? null,

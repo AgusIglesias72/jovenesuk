@@ -22,6 +22,7 @@ export type PagoRow = {
   fechaVencimiento: Date;
   fechaPagoEfectivo: Date | null;
   alumnoId: string;
+  alumnoDni: string;
   alumnoNombre: string;
   alumnoApellido: string;
   viajeId: string;
@@ -105,7 +106,7 @@ export function PagosTable({ rows }: { rows: PagoRow[] }) {
             <tr key={r.id} className="hover:bg-[var(--c-surface-2)]">
               <td className="px-5 py-3">
                 <Link
-                  href={`/alumnos/${r.alumnoId}`}
+                  href={`/alumnos/${r.alumnoDni}`}
                   className="font-semibold text-[var(--c-ink)] hover:text-[var(--c-brand)] hover:underline"
                 >
                   {r.alumnoApellido}, {r.alumnoNombre}
@@ -113,7 +114,7 @@ export function PagosTable({ rows }: { rows: PagoRow[] }) {
               </td>
               <td className="px-5 py-3">
                 <Link
-                  href={`/viajes/${r.viajeId}`}
+                  href={`/viajes/${r.viajeCodigo}`}
                   className="font-mono text-[length:var(--t-mono)] font-bold text-[var(--c-brand)] hover:underline"
                 >
                   {r.viajeCodigo}

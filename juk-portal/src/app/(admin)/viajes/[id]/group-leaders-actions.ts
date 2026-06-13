@@ -90,7 +90,7 @@ export async function asignarGroupLeaderAction(
       usuarioId: session.user.id,
       metadata: { viajeId, groupLeaderId },
     });
-    revalidatePath(`/viajes/${viajeId}`);
+    revalidatePath("/viajes/[id]", "page");
     return { ok: true, data: { id: rel.id } };
   } catch (err) {
     if (isYaAsignado(err)) {
@@ -122,7 +122,7 @@ export async function quitarGroupLeaderAction(
       usuarioId: session.user.id,
       metadata: { viajeId, groupLeaderId },
     });
-    revalidatePath(`/viajes/${viajeId}`);
+    revalidatePath("/viajes/[id]", "page");
     return { ok: true, data: { groupLeaderId } };
   } catch (err) {
     Sentry.captureException(err);
@@ -151,7 +151,7 @@ export async function marcarPrincipalAction(
       usuarioId: session.user.id,
       metadata: { viajeId, groupLeaderId, esPrincipal: true },
     });
-    revalidatePath(`/viajes/${viajeId}`);
+    revalidatePath("/viajes/[id]", "page");
     return { ok: true, data: { groupLeaderId } };
   } catch (err) {
     Sentry.captureException(err);

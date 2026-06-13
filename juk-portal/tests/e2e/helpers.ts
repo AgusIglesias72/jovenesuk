@@ -40,7 +40,7 @@ export async function crearViaje(
     .getByRole("link", { name: "Ver" });
   await expect(verLink).toBeVisible();
   await verLink.click();
-  await page.waitForURL(/\/viajes\/[0-9a-f-]+$/);
+  await page.waitForURL(/\/viajes\/UK-/);
   return codigo;
 }
 
@@ -52,7 +52,7 @@ export async function abrirViaje(page: Page, codigo: string) {
     .getByRole("row", { name: new RegExp(codigo) })
     .getByRole("link", { name: "Ver" })
     .click();
-  await page.waitForURL(/\/viajes\/[0-9a-f-]+$/);
+  await page.waitForURL(/\/viajes\/UK-/);
 }
 
 export type AlumnoCreado = { nombre: string; apellido: string; label: string };

@@ -15,7 +15,7 @@ export type AlumnoAsignado = {
   estado: Asignacion["estado"];
   alumno: Pick<
     Alumno,
-    "id" | "nombre" | "apellido" | "numeroPasaporte" | "fechaVencimientoPasaporte" | "estado"
+    "id" | "dni" | "nombre" | "apellido" | "numeroPasaporte" | "fechaVencimientoPasaporte" | "estado"
   >;
 };
 
@@ -27,6 +27,7 @@ export async function listAsignacionesByViaje(viajeId: string): Promise<AlumnoAs
       estado: asignaciones.estado,
       alumno: {
         id: alumnos.id,
+        dni: alumnos.dni,
         nombre: alumnos.nombre,
         apellido: alumnos.apellido,
         numeroPasaporte: alumnos.numeroPasaporte,

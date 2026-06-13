@@ -166,7 +166,7 @@ export function AsignacionesPanel({
                 <TR key={a.asignacionId}>
                   <TD>
                     <a
-                      href={`/alumnos/${a.alumno.id}`}
+                      href={`/alumnos/${a.alumno.dni}`}
                       className="font-semibold text-juk-navy-950 hover:text-[var(--c-brand)] hover:underline"
                     >
                       {a.alumno.apellido}, {a.alumno.nombre}

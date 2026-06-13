@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/ui";
 import { getColegioById, listColegios } from "@/lib/db/queries/colegios";
-import { getViajeById } from "@/lib/db/queries/viajes";
+import { getViajeByCodigo } from "@/lib/db/queries/viajes";
 
 import { ViajeForm } from "../../viaje-form";
 
@@ -25,7 +25,7 @@ export default async function EditarViajePage({
 }) {
   const { id } = await params;
   const [viaje, destino, cliente] = await Promise.all([
-    getViajeById(id),
+    getViajeByCodigo(id),
     listColegios({ tipo: "destino" }),
     listColegios({ tipo: "cliente" }),
   ]);

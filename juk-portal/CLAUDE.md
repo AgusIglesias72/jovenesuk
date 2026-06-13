@@ -82,8 +82,11 @@ When working on this codebase, follow these conventions.
   `DashboardSkeleton`) en el `loading.tsx` del segmento, respetando la silueta de la pantalla.
   `<GlobeLoader />` existe pero NO se usa en la app por ahora (decisión 12/06/2026 — se le
   buscará un lugar después). No crear spinners ad-hoc.
-- **URLs:** preferencia del equipo: NO exponer ids (uuid) en las URLs — migrar a slugs o códigos
-  legibles (p. ej. el código del viaje) cuando se aborde. Hoy las rutas usan `[id]`; toda ruta
-  nueva debería pensarse con slug desde el día uno.
+- **URLs con slug (no uuid):** el detalle del viaje va por **código** (`/viajes/UK-2026-JUL-LONDON`)
+  y el del alumno por **DNI** (`/alumnos/45102338`). El folder de ruta sigue siendo `[id]` pero el
+  param CONTIENE el slug: la página resuelve con `getViajeByCodigo`/`getAlumnoByDni` y de ahí saca
+  el `id` real (uuid), que es lo ÚNICO que se pasa a componentes hijos, server actions y queries.
+  Los `<Link>` emiten el slug; `revalidatePath` usa la forma literal `("/viajes/[id]", "page")`
+  (agnóstica al valor). Toda ruta de detalle nueva debe nacer con slug.
 
 See `docs/architecture.md` and `docs/phases.md` for more context.

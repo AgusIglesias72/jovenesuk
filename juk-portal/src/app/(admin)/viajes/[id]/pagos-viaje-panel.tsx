@@ -16,6 +16,7 @@ import {
 export type PagoAlumnoRow = {
   asignacionId: string;
   alumnoId: string;
+  alumnoDni: string;
   nombre: string;
   apellido: string;
   moneda: string | null;
@@ -81,7 +82,7 @@ export function PagosViajePanel({ rows }: { rows: PagoAlumnoRow[] }) {
                 <tr key={r.asignacionId} className="hover:bg-[var(--c-surface-2)]">
                   <td className="px-3 py-2.5">
                     <Link
-                      href={`/alumnos/${r.alumnoId}`}
+                      href={`/alumnos/${r.alumnoDni}`}
                       className="font-semibold text-[var(--c-ink)] hover:text-[var(--c-brand)] hover:underline"
                     >
                       {r.apellido}, {r.nombre}

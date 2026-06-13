@@ -98,7 +98,7 @@ export default async function DashboardPage() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {proximos.map((v) => (
-              <Link key={v.id} href={`/viajes/${v.id}`} className="block">
+              <Link key={v.id} href={`/viajes/${v.codigo}`} className="block">
                 <TripCard
                   code={v.codigo}
                   name={v.nombre}
@@ -129,7 +129,7 @@ export default async function DashboardPage() {
             {proximoAnio.map((v) => (
               <Link
                 key={v.id}
-                href={`/viajes/${v.id}`}
+                href={`/viajes/${v.codigo}`}
                 className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-[var(--r-md)] border border-[var(--c-border)] bg-[var(--c-surface)] px-4 py-3 transition-shadow hover:shadow-[shadow:var(--shadow-1)]"
               >
                 <span className="font-mono text-xs text-[var(--c-ink-muted)]">{v.codigo}</span>

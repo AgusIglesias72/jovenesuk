@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { LinkButton, PageHeader, TripBadge } from "@/components/ui";
-import { getAlumnoById } from "@/lib/db/queries/alumnos";
+import { getAlumnoByDni } from "@/lib/db/queries/alumnos";
 import { listAsignacionesByAlumno } from "@/lib/db/queries/asignaciones";
 import { listCuotasByAsignacion } from "@/lib/db/queries/cuotas";
 import { listPasosByAsignacion } from "@/lib/db/queries/pasos-alumno";
@@ -35,10 +35,10 @@ export default async function AlumnoDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const alumno = await getAlumnoById(id);
+  const alumno = await getAlumnoByDni(id);
   if (!alumno) notFound();
 
-  const asignacionesAlumno = await listAsignacionesByAlumno(id);
+  const asignacionesAlumno = await listAsignacionesByAlumno(alumno.id);
   const activas = asignacionesAlumno.filter((a) => a.estado === "activa");
 
   const tableros = await Promise.all(
@@ -77,7 +77,7 @@ export default async function AlumnoDetailPage({
         title={`${alumno.apellido}, ${alumno.nombre}`}
         subtitle={`${ALUMNO_ESTADO_LABELS[alumno.estado]} · DNI ${alumno.dni}`}
         actions={
-          <LinkButton href={`/alumnos/${id}/editar`} variant="secondary">
+          <LinkButton href={`/alumnos/${alumno.dni}/editar`} variant="secondary">
             Editar datos
           </LinkButton>
         }
@@ -114,7 +114,7 @@ export default async function AlumnoDetailPage({
         </dl>
 
         <AccesoFamilia
-          alumnoId={id}
+          alumnoId={alumno.id}
           tutorEmail={alumno.tutor1Email}
           enviadoAt={alumno.accesoFamiliaEnviadoAt}
         />
@@ -135,7 +135,7 @@ export default async function AlumnoDetailPage({
           <div key={asignacion.asignacionId}>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
-                href={`/viajes/${asignacion.viajeId}`}
+                href={`/viajes/${asignacion.viajeCodigo}`}
                 className="font-mono text-[length:var(--t-small)] font-bold text-[var(--c-brand)] hover:underline"
               >
                 {asignacion.viajeCodigo}
@@ -149,12 +149,12 @@ export default async function AlumnoDetailPage({
               </span>
             </div>
             <TableroM6
-              alumnoId={id}
+              alumnoId={alumno.id}
               pasos={pasos}
               titulo={asignacion.viajeCodigo}
             />
             <CuotasPanel
-              alumnoId={id}
+              alumnoId={alumno.id}
               asignacionId={asignacion.asignacionId}
               origenViaje={asignacion.viajeOrigen as ViajeOrigen}
               cuotas={cuotas}

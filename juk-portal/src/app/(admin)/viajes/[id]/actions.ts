@@ -99,7 +99,7 @@ export async function asignarAlumnoAction(
       });
     }
 
-    revalidatePath(`/viajes/${viajeId}`);
+    revalidatePath("/viajes/[id]", "page");
     return { ok: true, data: { id: resultado.asignacionId } };
   } catch (err) {
     if (isYaAsignado(err)) {
@@ -145,7 +145,7 @@ export async function desasignarAlumnoAction(
       entidadId: asignacionId,
       usuarioId: session.user.id,
     });
-    revalidatePath(`/viajes/${viajeId}`);
+    revalidatePath("/viajes/[id]", "page");
     return { ok: true, data: { id: asignacionId } };
   } catch (err) {
     if (err instanceof AsignacionNotFoundError) {

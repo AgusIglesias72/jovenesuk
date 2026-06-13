@@ -59,7 +59,7 @@ export async function registrarPagoDesdePagosAction(
     });
     revalidatePath("/pagos");
     const alumnoId = await alumnoIdDeAsignacion(cuota.asignacionId);
-    if (alumnoId) revalidatePath(`/alumnos/${alumnoId}`);
+    if (alumnoId) revalidatePath("/alumnos/[id]", "page");
     return { ok: true, data: { id: cuota.id } };
   } catch (err) {
     Sentry.captureException(err);
