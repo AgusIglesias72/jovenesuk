@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 
-import { Button } from "@/components/ui";
+import { Button, useToast } from "@/components/ui";
 import { formatFecha } from "@/lib/utils/date";
 
 import { enviarAccesoFamiliaAction } from "../actions";
@@ -18,18 +18,17 @@ export function AccesoFamilia({
   enviadoAt: Date | null;
 }) {
   const router = useRouter();
-  const [mensaje, setMensaje] = useState<{ ok: boolean; texto: string } | null>(null);
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
 
   function enviar() {
     startTransition(async () => {
-      setMensaje(null);
       const r = await enviarAccesoFamiliaAction(alumnoId);
       if (r.ok) {
-        setMensaje({ ok: true, texto: `Acceso enviado a ${r.data.enviadoA}.` });
+        toast.success(`Acceso enviado a ${r.data.enviadoA}.`);
         router.refresh();
       } else {
-        setMensaje({ ok: false, texto: r.error });
+        toast.error(r.error);
       }
     });
   }
@@ -53,13 +52,6 @@ export function AccesoFamilia({
             </>
           )}
         </p>
-        {mensaje && (
-          <p
-            className={`mt-1 font-medium ${mensaje.ok ? "text-[var(--c-success)]" : "text-[var(--c-danger)]"}`}
-          >
-            {mensaje.texto}
-          </p>
-        )}
       </div>
       <Button type="button" variant="secondary" disabled={isPending} onClick={enviar}>
         {isPending ? "Enviando…" : enviadoAt ? "Reenviar acceso" : "Enviar acceso al Portal de Familias"}

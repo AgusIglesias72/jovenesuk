@@ -8,11 +8,12 @@ import {
   DateInput,
   Field,
   Input,
-  LinkButton,
   Select,
   Textarea,
   useConfirm,
+  useToast,
 } from "@/components/ui";
+import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes";
 import { toDateInput } from "@/lib/utils/date";
 import {
   PAIS_LABELS,
@@ -107,12 +108,16 @@ export function ViajeForm({
 }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const toast = useToast();
   const [values, setValues] = useState<FormValues>(() => initialValues(initial));
-  const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
+  const [dirty, setDirty] = useState(false);
   const [isPending, startTransition] = useTransition();
 
+  useUnsavedChanges(dirty);
+
   function set<K extends keyof FormValues>(key: K, value: FormValues[K]) {
+    setDirty(true);
     setValues((v) => ({ ...v, [key]: value }));
   }
 
@@ -124,6 +129,7 @@ export function ViajeForm({
     : VIAJE_ESTADOS;
 
   function setTipo(tipo: FormValues["tipo"]) {
+    setDirty(true);
     setValues((v) => ({
       ...v,
       tipo,
@@ -135,7 +141,6 @@ export function ViajeForm({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
     setFieldErrors({});
 
     const payload = {
@@ -177,10 +182,12 @@ export function ViajeForm({
         }
       }
       if (result.ok) {
+        setDirty(false);
+        toast.success(mode === "create" ? "Viaje creado." : "Viaje guardado.");
         router.push("/viajes");
         router.refresh();
       } else if (!("requiereConfirmacion" in result && result.requiereConfirmacion)) {
-        setError(result.error);
+        toast.error(result.error);
         if (result.fieldErrors) setFieldErrors(result.fieldErrors);
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
@@ -208,22 +215,31 @@ export function ViajeForm({
     startTransition(async () => {
       const result = await cancelarViajeAction(initial.id, { notificarInscriptos: notificar });
       if (result.ok) {
+        setDirty(false);
+        toast.success("Viaje cancelado.");
         router.push("/viajes");
         router.refresh();
       } else {
-        setError(result.error);
+        toast.error(result.error);
       }
     });
   }
 
+  async function volver() {
+    if (dirty) {
+      const { confirmado } = await confirm({
+        titulo: "¿Descartar los cambios?",
+        detalle: "Tenés cambios sin guardar.",
+        tone: "warning",
+        confirmLabel: "Descartar",
+      });
+      if (!confirmado) return;
+    }
+    router.push("/viajes");
+  }
+
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl">
-      {error && (
-        <div className="mb-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-          {error}
-        </div>
-      )}
-
       <Section title="Identificación">
         <Field
           label="Código"
@@ -524,9 +540,14 @@ export function ViajeForm({
           )}
         </div>
         <div className="flex items-center gap-3">
-          <LinkButton href="/viajes" variant="secondary">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={isPending}
+            onClick={volver}
+          >
             Volver
-          </LinkButton>
+          </Button>
           <Button type="submit" disabled={isPending}>
             {isPending ? "Guardando…" : "Guardar"}
           </Button>

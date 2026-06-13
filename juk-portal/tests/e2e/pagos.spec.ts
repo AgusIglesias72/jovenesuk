@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
-import { confirmarModal, crearAlumno, crearViaje } from "./helpers";
+import { abrirViaje, confirmarModal, crearAlumno, crearViaje } from "./helpers";
 
 function selectorElegibles(page: Page) {
   return page.locator("select", {
@@ -29,8 +29,7 @@ test("módulo Pagos: lista las cuotas, filtra por viaje y registra un pago", asy
   await expect(panel.getByText("US$ 1.400,00")).toBeVisible({ timeout: 15000 });
 
   // El detalle del viaje muestra la sección Pagos (US-24) con el plan al día
-  await page.goto("/viajes");
-  await page.getByRole("row", { name: new RegExp(codigo) }).getByRole("link", { name: "Ver" }).click();
+  await abrirViaje(page, codigo);
   const pagosViaje = page.locator("[data-pagos-viaje]");
   await expect(pagosViaje.getByText(`${alumno.apellido}, ${alumno.nombre}`)).toBeVisible();
   await expect(pagosViaje.getByText("0 / 2")).toBeVisible();

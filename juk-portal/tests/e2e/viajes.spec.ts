@@ -20,5 +20,7 @@ test("crea un viaje y aparece en el listado", async ({ page }) => {
   await page.getByRole("button", { name: "Guardar" }).click();
 
   await expect(page).toHaveURL(/\/viajes$/);
+  // La lista está paginada: filtrar por código para encontrarlo sin importar el volumen.
+  await page.getByPlaceholder("Buscar por código o nombre…").fill(codigo);
   await expect(page.getByText(codigo)).toBeVisible();
 });

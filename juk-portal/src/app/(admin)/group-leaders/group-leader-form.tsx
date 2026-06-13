@@ -3,11 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Button, DateInput, Field, Input, LinkButton, Select } from "@/components/ui";
+import { Button, DateInput, Field, Input, Select, useConfirm, useToast } from "@/components/ui";
 import {
   POLICE_CHECK_ESTADO_LABELS,
   POLICE_CHECK_ESTADOS,
 } from "@/lib/domain/group-leaders";
+import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes";
 import { toDateInput } from "@/lib/utils/date";
 import type { GroupLeader } from "@/lib/db/schema/grupos-leaders";
 
@@ -52,19 +53,23 @@ export function GroupLeaderForm({
   initial?: GroupLeader;
 }) {
   const router = useRouter();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [values, setValues] = useState<FormValues>(() => initialValues(initial));
-  const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
+  const [dirty, setDirty] = useState(false);
   const [isPending, startTransition] = useTransition();
 
+  useUnsavedChanges(dirty);
+
   function set<K extends keyof FormValues>(key: K, value: FormValues[K]) {
+    setDirty(true);
     setValues((v) => ({ ...v, [key]: value }));
   }
   const fe = (k: string) => fieldErrors[k]?.[0];
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
     setFieldErrors({});
 
     const payload = {
@@ -78,24 +83,33 @@ export function GroupLeaderForm({
           ? await createGroupLeaderAction(payload)
           : await updateGroupLeaderAction(payload);
       if (result.ok) {
+        setDirty(false);
+        toast.success(mode === "create" ? "Group leader creado." : "Cambios guardados.");
         router.push("/group-leaders");
         router.refresh();
       } else {
-        setError(result.error);
+        toast.error(result.error);
         if (result.fieldErrors) setFieldErrors(result.fieldErrors);
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
     });
   }
 
+  async function handleCancelar() {
+    if (dirty) {
+      const { confirmado } = await confirm({
+        titulo: "¿Descartar los cambios?",
+        detalle: "Tenés cambios sin guardar.",
+        tone: "warning",
+        confirmLabel: "Descartar",
+      });
+      if (!confirmado) return;
+    }
+    router.push("/group-leaders");
+  }
+
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl">
-      {error && (
-        <div className="mb-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-          {error}
-        </div>
-      )}
-
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
           Datos
@@ -147,9 +161,9 @@ export function GroupLeaderForm({
       </section>
 
       <div className="mt-6 flex items-center justify-end gap-3">
-        <LinkButton href="/group-leaders" variant="secondary">
+        <Button type="button" variant="secondary" onClick={handleCancelar}>
           Cancelar
-        </LinkButton>
+        </Button>
         <Button type="submit" disabled={isPending}>
           {isPending ? "Guardando…" : "Guardar"}
         </Button>

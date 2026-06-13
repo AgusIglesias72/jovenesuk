@@ -15,6 +15,7 @@ import {
   TableWrap,
   TR,
   useConfirm,
+  useToast,
 } from "@/components/ui";
 import type { GroupLeaderDeViaje } from "@/lib/db/queries/pasos-viaje";
 import { POLICE_CHECK_ESTADO_LABELS, type PoliceCheckEstado } from "@/lib/domain/pasos-viaje";
@@ -47,14 +48,13 @@ export function GroupLeadersPanel({
 }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState("");
 
   function asignar() {
     if (!sel) return;
     startTransition(async () => {
-      setError(null);
       let r = await asignarGroupLeaderAction(viajeId, sel);
       // Police check no aprobado o por vencer: advertencia confirmable.
       if (!r.ok && r.requiereConfirmacion) {
@@ -68,9 +68,10 @@ export function GroupLeadersPanel({
       }
       if (r.ok) {
         setSel("");
+        toast.success("Group Leader asignado");
         router.refresh();
       } else if (!r.requiereConfirmacion) {
-        setError(r.error);
+        toast.error(r.error);
       }
     });
   }
@@ -84,19 +85,25 @@ export function GroupLeadersPanel({
     });
     if (!confirmado) return;
     startTransition(async () => {
-      setError(null);
       const r = await quitarGroupLeaderAction(viajeId, groupLeaderId);
-      if (r.ok) router.refresh();
-      else setError(r.error);
+      if (r.ok) {
+        toast.success("Group Leader quitado del viaje");
+        router.refresh();
+      } else {
+        toast.error(r.error);
+      }
     });
   }
 
   function marcarPrincipal(groupLeaderId: string) {
     startTransition(async () => {
-      setError(null);
       const r = await marcarPrincipalAction(viajeId, groupLeaderId);
-      if (r.ok) router.refresh();
-      else setError(r.error);
+      if (r.ok) {
+        toast.success("Group Leader principal actualizado");
+        router.refresh();
+      } else {
+        toast.error(r.error);
+      }
     });
   }
 
@@ -105,12 +112,6 @@ export function GroupLeadersPanel({
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
         Group Leaders del viaje
       </h2>
-
-      {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-          {error}
-        </div>
-      )}
 
       {viajeCancelado ? (
         <p className="mb-4 text-sm text-gray-500">

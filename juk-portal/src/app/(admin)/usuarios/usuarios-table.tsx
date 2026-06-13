@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 
 import {
   Badge,
@@ -14,6 +14,7 @@ import {
   THead,
   TableWrap,
   TR,
+  useToast,
 } from "@/components/ui";
 import { USUARIO_ROLE_LABELS, USUARIO_ROLES } from "@/lib/domain/usuarios";
 import type { UsuarioListItem } from "@/lib/db/queries/usuarios";
@@ -28,25 +29,26 @@ export function UsuariosTable({
   currentUserId: string;
 }) {
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
 
-  function run(fn: () => Promise<{ ok: boolean; error?: string }>) {
+  function run(
+    fn: () => Promise<{ ok: boolean; error?: string }>,
+    exito: string
+  ) {
     startTransition(async () => {
-      setError(null);
       const r = await fn();
-      if (r.ok) router.refresh();
-      else setError(r.error ?? "Ocurrió un error.");
+      if (r.ok) {
+        toast.success(exito);
+        router.refresh();
+      } else {
+        toast.error(r.error ?? "Ocurrió un error.");
+      }
     });
   }
 
   return (
     <>
-      {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-          {error}
-        </div>
-      )}
       <TableWrap>
         <Table>
           <THead>
@@ -78,7 +80,12 @@ export function UsuariosTable({
                         <Select
                           value={role}
                           disabled={isPending}
-                          onChange={(e) => run(() => cambiarRolUsuarioAction(u.id, e.target.value))}
+                          onChange={(e) =>
+                            run(
+                              () => cambiarRolUsuarioAction(u.id, e.target.value),
+                              "Rol actualizado"
+                            )
+                          }
                         >
                           {USUARIO_ROLES.map((r) => (
                             <option key={r} value={r}>
@@ -100,7 +107,12 @@ export function UsuariosTable({
                         variant={u.isActive ? "danger" : "secondary"}
                         size="sm"
                         disabled={isPending}
-                        onClick={() => run(() => setActivoUsuarioAction(u.id, !u.isActive))}
+                        onClick={() =>
+                          run(
+                            () => setActivoUsuarioAction(u.id, !u.isActive),
+                            u.isActive ? "Usuario desactivado" : "Usuario activado"
+                          )
+                        }
                       >
                         {u.isActive ? "Desactivar" : "Activar"}
                       </Button>

@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 
-import { Input, Select } from "@/components/ui";
+import { Input, Select, useToast } from "@/components/ui";
 import {
   ETA_SUBESTADO_LABELS,
   ETA_SUBESTADOS,
@@ -101,13 +101,12 @@ function notaDelPaso(p: PasoView): string | null {
 function PasoCard({
   paso,
   alumnoId,
-  onError,
 }: {
   paso: PasoView;
   alumnoId: string;
-  onError: (msg: string | null) => void;
 }) {
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const c = ESTADO_CLASSES[paso.estado];
   const apagado = paso.estado === "na";
@@ -128,39 +127,42 @@ function PasoCard({
   function transicionar(nuevo: PasoEstado) {
     if (nuevo === paso.estado) return;
     startTransition(async () => {
-      onError(null);
       const r = await transicionarPasoAlumnoAction({
         pasoId: paso.id,
         nuevoEstado: nuevo,
       });
-      if (r.ok) router.refresh();
-      else onError(r.error);
+      if (r.ok) {
+        toast.success("Paso actualizado");
+        router.refresh();
+      } else toast.error(r.error);
     });
   }
 
   function actualizarSubEstado(subEstado: string, numero?: string) {
     startTransition(async () => {
-      onError(null);
       const r = await actualizarSubEstadoPasoAction({
         pasoId: paso.id,
         subEstado,
         ...(numero?.trim() ? { numeroAutorizacion: numero.trim() } : {}),
       });
-      if (r.ok) router.refresh();
-      else onError(r.error);
+      if (r.ok) {
+        toast.success("Trámite actualizado");
+        router.refresh();
+      } else toast.error(r.error);
     });
   }
 
   function subirArchivo(file: File | undefined) {
     if (!file) return;
     startTransition(async () => {
-      onError(null);
       const fd = new FormData();
       fd.set("pasoId", paso.id);
       fd.set("archivo", file);
       const r = await subirDocumentoPasoAction(fd);
-      if (r.ok) router.refresh();
-      else onError(r.error);
+      if (r.ok) {
+        toast.success("Documento subido");
+        router.refresh();
+      } else toast.error(r.error);
     });
   }
 
@@ -295,8 +297,6 @@ export function TableroM6({
   pasos: PasoView[];
   titulo: string;
 }) {
-  const [error, setError] = useState<string | null>(null);
-
   const porGrupo = ORDEN_GRUPOS.map((grupo) => ({
     grupo,
     pasos: pasos.filter((p) => grupoDePaso(p.codigo) === grupo),
@@ -325,12 +325,6 @@ export function TableroM6({
         />
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-[var(--r-md)] border border-[var(--c-danger)] bg-[var(--c-danger-bg)] px-4 py-3 text-sm font-medium text-[var(--c-danger)]">
-          {error}
-        </div>
-      )}
-
       <div className="space-y-5">
         {porGrupo.map(({ grupo, pasos: ps }) => (
           <div key={grupo}>
@@ -344,7 +338,7 @@ export function TableroM6({
             </h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {ps.map((p) => (
-                <PasoCard key={p.id} paso={p} alumnoId={alumnoId} onError={setError} />
+                <PasoCard key={p.id} paso={p} alumnoId={alumnoId} />
               ))}
             </div>
           </div>

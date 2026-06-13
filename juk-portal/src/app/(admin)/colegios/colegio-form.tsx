@@ -8,10 +8,12 @@ import {
   Checkbox,
   Field,
   Input,
-  LinkButton,
   Select,
   Textarea,
+  useConfirm,
+  useToast,
 } from "@/components/ui";
+import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes";
 import {
   CONFIG_DOCUMENTAL_DEFAULT,
   DOCUMENTO_LABELS,
@@ -102,14 +104,19 @@ export function ColegioForm({
   initialConfig?: ConfigDocumental;
 }) {
   const router = useRouter();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [values, setValues] = useState<FormValues>(() =>
     initialValues(initial, initialConfig)
   );
-  const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
+  const [dirty, setDirty] = useState(false);
   const [isPending, startTransition] = useTransition();
 
+  useUnsavedChanges(dirty);
+
   function set<K extends keyof FormValues>(key: K, value: FormValues[K]) {
+    setDirty(true);
     setValues((v) => ({ ...v, [key]: value }));
   }
 
@@ -122,10 +129,12 @@ export function ColegioForm({
     field: keyof ContactoValues,
     value: string
   ) {
+    setDirty(true);
     setValues((v) => ({ ...v, [key]: { ...v[key], [field]: value } }));
   }
 
   function toggleAlojamiento(t: TipoAlojamiento, checked: boolean) {
+    setDirty(true);
     setValues((v) => ({
       ...v,
       tiposAlojamiento: checked
@@ -135,6 +144,7 @@ export function ColegioForm({
   }
 
   function setPais(pais: FormValues["pais"]) {
+    setDirty(true);
     setValues((v) => ({
       ...v,
       pais,
@@ -145,6 +155,7 @@ export function ColegioForm({
   }
 
   function setRequisito(documento: (typeof DOCUMENTOS_PROGRAMA)[number], requisito: RequisitoDocumento) {
+    setDirty(true);
     setValues((v) => ({
       ...v,
       configDocumental: { ...v.configDocumental, [documento]: requisito },
@@ -153,7 +164,6 @@ export function ColegioForm({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
     setFieldErrors({});
 
     const payload = {
@@ -184,10 +194,14 @@ export function ColegioForm({
           ? await createColegioAction(payload)
           : await updateColegioAction(payload);
       if (result.ok) {
+        setDirty(false);
+        toast.success(
+          mode === "create" ? "Colegio creado." : "Colegio actualizado."
+        );
         router.push("/colegios");
         router.refresh();
       } else {
-        setError(result.error);
+        toast.error(result.error);
         if (result.fieldErrors) setFieldErrors(result.fieldErrors);
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
@@ -202,12 +216,29 @@ export function ColegioForm({
           ? await desactivarColegioAction(initial.id)
           : await reactivarColegioAction(initial.id);
       if (result.ok) {
+        setDirty(false);
+        toast.success(
+          nuevo === "inactivo" ? "Colegio desactivado." : "Colegio reactivado."
+        );
         router.push("/colegios");
         router.refresh();
       } else {
-        setError(result.error);
+        toast.error(result.error);
       }
     });
+  }
+
+  async function handleCancelar() {
+    if (dirty) {
+      const { confirmado } = await confirm({
+        titulo: "¿Descartar los cambios?",
+        detalle: "Tenés cambios sin guardar.",
+        tone: "warning",
+        confirmLabel: "Descartar",
+      });
+      if (!confirmado) return;
+    }
+    router.push("/colegios");
   }
 
   const fe = (k: string) => fieldErrors[k]?.[0];
@@ -219,12 +250,6 @@ export function ColegioForm({
 
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl">
-      {error && (
-        <div className="mb-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-          {error}
-        </div>
-      )}
-
       <Section title="Datos generales">
         <Field label="Nombre" required error={fe("nombre")} className="col-span-2">
           <Input
@@ -420,9 +445,14 @@ export function ColegioForm({
           )}
         </div>
         <div className="flex items-center gap-3">
-          <LinkButton href="/colegios" variant="secondary">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={isPending}
+            onClick={handleCancelar}
+          >
             Cancelar
-          </LinkButton>
+          </Button>
           <Button type="submit" disabled={isPending}>
             {isPending ? "Guardando…" : "Guardar"}
           </Button>

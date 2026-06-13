@@ -15,6 +15,7 @@ import {
   TableWrap,
   TR,
   useConfirm,
+  useToast,
 } from "@/components/ui";
 import { ASIGNACION_ESTADO_LABELS, ASIGNACION_ESTADO_TONE } from "@/lib/domain/asignaciones";
 import { formatFecha } from "@/lib/utils/date";
@@ -41,8 +42,8 @@ export function AsignacionesPanel({
 }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState("");
 
   const sinCupo = cupoUsado >= cupoMax;
@@ -50,7 +51,6 @@ export function AsignacionesPanel({
   function asignar() {
     if (!sel) return;
     startTransition(async () => {
-      setError(null);
       let r = await asignarAlumnoAction(viajeId, sel);
       // Advertencias no bloqueantes (sobre-cupo, pasaporte): confirmación explícita.
       if (!r.ok && r.requiereConfirmacion) {
@@ -64,9 +64,10 @@ export function AsignacionesPanel({
       }
       if (r.ok) {
         setSel("");
+        toast.success("Alumno asignado");
         router.refresh();
       } else if (!r.requiereConfirmacion) {
-        setError(r.error);
+        toast.error(r.error);
       }
     });
   }
@@ -81,7 +82,6 @@ export function AsignacionesPanel({
     });
     if (!confirmado) return;
     startTransition(async () => {
-      setError(null);
       let r = await desasignarAlumnoAction(asignacionId, viajeId);
       // Baja extraordinaria (viaje en curso/finalizado): segunda confirmación con motivo.
       if (!r.ok && r.requiereConfirmacion) {
@@ -99,8 +99,12 @@ export function AsignacionesPanel({
           });
         }
       }
-      if (r.ok) router.refresh();
-      else if (!r.requiereConfirmacion) setError(r.error);
+      if (r.ok) {
+        toast.success("Alumno quitado del viaje");
+        router.refresh();
+      } else if (!r.requiereConfirmacion) {
+        toast.error(r.error);
+      }
     });
   }
 
@@ -114,12 +118,6 @@ export function AsignacionesPanel({
           {cupoUsado} / {cupoMax} cupos
         </span>
       </div>
-
-      {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-          {error}
-        </div>
-      )}
 
       {viajeCancelado ? (
         <p className="mb-4 text-sm text-gray-500">El viaje está cancelado: no se pueden asignar alumnos.</p>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ConfirmProvider } from "@/components/ui";
+import { ConfirmProvider, ToastProvider } from "@/components/ui";
 import { cn } from "@/lib/utils/cn";
 
 /**
@@ -149,7 +149,9 @@ export function AdminShell({ user, children }: AdminShellProps) {
           <Breadcrumb items={buildBreadcrumb(pathname)} />
         </div>
         <div className="flex-1 overflow-auto bg-[image:var(--grad-page)] p-6">
-          <ConfirmProvider>{children}</ConfirmProvider>
+          <ConfirmProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </ConfirmProvider>
         </div>
       </main>
     </div>

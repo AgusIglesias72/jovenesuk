@@ -69,6 +69,7 @@ export {
   type ConfirmOptions,
   type ConfirmResultado,
 } from "./confirm-dialog";
+export { ToastProvider, useToast } from "./toast";
 
 // Loading
 export { GlobeLoader } from "./globe-loader";

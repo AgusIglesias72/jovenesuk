@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 
-import { Badge, Button, MoraBadge, useConfirm } from "@/components/ui";
+import { Badge, Button, MoraBadge, useConfirm, useToast } from "@/components/ui";
 import { formatMonto, type Moneda } from "@/lib/domain/cuotas";
 import { formatFecha } from "@/lib/utils/date";
 
@@ -33,8 +33,8 @@ const CANAL_LABELS = { agencia: "Vía agencia", presencial: "Presencial JUK" } a
 export function PagosTable({ rows }: { rows: PagoRow[] }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
 
   async function registrarPago(row: PagoRow) {
     const { confirmado } = await confirm({
@@ -44,7 +44,6 @@ export function PagosTable({ rows }: { rows: PagoRow[] }) {
       confirmLabel: "Registrar pago",
     });
     if (!confirmado) return;
-    setError(null);
     startTransition(async () => {
       try {
         let res = await registrarPagoDesdePagosAction({ cuotaId: row.id });
@@ -59,10 +58,14 @@ export function PagosTable({ rows }: { rows: PagoRow[] }) {
           if (!igual) return;
           res = await registrarPagoDesdePagosAction({ cuotaId: row.id }, { confirmar: true });
         }
-        if (!res.ok) setError(res.error);
-        else router.refresh();
+        if (!res.ok) {
+          toast.error(res.error);
+        } else {
+          toast.success("Pago registrado");
+          router.refresh();
+        }
       } catch {
-        setError("No pudimos registrar el pago. Probá de nuevo.");
+        toast.error("No pudimos registrar el pago. Probá de nuevo.");
       }
     });
   }
@@ -82,14 +85,6 @@ export function PagosTable({ rows }: { rows: PagoRow[] }) {
 
   return (
     <div className="overflow-x-auto rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] shadow-[shadow:var(--shadow-1)]">
-      {error && (
-        <p
-          role="alert"
-          className="border-b border-[var(--c-border)] bg-[var(--c-danger-bg)] px-5 py-2.5 text-[length:var(--t-small)] font-medium text-[var(--c-danger)]"
-        >
-          {error}
-        </p>
-      )}
       <table className="w-full text-[length:var(--t-small)]">
         <thead>
           <tr className="border-b border-[var(--c-border)] text-left">

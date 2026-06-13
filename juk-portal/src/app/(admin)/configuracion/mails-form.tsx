@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 
-import { Button, Field, Input, Select } from "@/components/ui";
+import { Button, Field, Input, Select, useToast } from "@/components/ui";
+import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes";
 import type { MailSettings } from "@/lib/domain/configuracion";
 
 import { enviarMailPruebaAction, guardarMailsAction } from "./actions";
@@ -17,49 +18,51 @@ export function MailsForm({
   initial: MailSettings;
   emailUsuario: string;
 }) {
+  const toast = useToast();
   const [values, setValues] = useState<MailSettings>(initial);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [mensaje, setMensaje] = useState<{ tono: "ok" | "error"; texto: string } | null>(null);
+  const [dirty, setDirty] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const [template, setTemplate] = useState<MailTemplateKey>("welcome");
   const [destinatario, setDestinatario] = useState(emailUsuario);
-  const [pruebaMensaje, setPruebaMensaje] = useState<{ tono: "ok" | "error"; texto: string } | null>(null);
   const [enviandoPrueba, startPrueba] = useTransition();
+
+  useUnsavedChanges(dirty);
 
   const fe = (k: keyof MailSettings) => fieldErrors[k]?.[0];
 
   function set(k: keyof MailSettings, v: string) {
     setValues((p) => ({ ...p, [k]: v }));
+    setDirty(true);
   }
 
   function guardar() {
-    setMensaje(null);
     setFieldErrors({});
     startTransition(async () => {
       try {
         const res = await guardarMailsAction(values);
-        if (res.ok) setMensaje({ tono: "ok", texto: "Configuración guardada." });
-        else {
+        if (res.ok) {
+          setDirty(false);
+          toast.success("Configuración guardada.");
+        } else {
           setFieldErrors(res.fieldErrors ?? {});
-          setMensaje({ tono: "error", texto: res.error });
+          toast.error(res.error);
         }
       } catch {
-        setMensaje({ tono: "error", texto: "No pudimos guardar. Probá de nuevo." });
+        toast.error("No pudimos guardar. Probá de nuevo.");
       }
     });
   }
 
   function enviarPrueba() {
-    setPruebaMensaje(null);
     startPrueba(async () => {
       try {
         const res = await enviarMailPruebaAction({ template, to: destinatario });
-        if (res.ok)
-          setPruebaMensaje({ tono: "ok", texto: `Prueba enviada a ${destinatario}.` });
-        else setPruebaMensaje({ tono: "error", texto: res.error });
+        if (res.ok) toast.success(`Prueba enviada a ${destinatario}.`);
+        else toast.error(res.error);
       } catch {
-        setPruebaMensaje({ tono: "error", texto: "No pudimos enviar la prueba." });
+        toast.error("No pudimos enviar la prueba.");
       }
     });
   }
@@ -122,19 +125,6 @@ export function MailsForm({
           </Field>
         </div>
 
-        {mensaje && (
-          <p
-            role={mensaje.tono === "error" ? "alert" : "status"}
-            className={
-              mensaje.tono === "ok"
-                ? "mt-4 text-[length:var(--t-small)] font-medium text-[var(--c-success)]"
-                : "mt-4 text-[length:var(--t-small)] font-medium text-[var(--c-danger)]"
-            }
-          >
-            {mensaje.texto}
-          </p>
-        )}
-
         <div className="mt-5 flex justify-end">
           <Button onClick={guardar} disabled={isPending}>
             {isPending ? "Guardando…" : "Guardar"}
@@ -172,19 +162,6 @@ export function MailsForm({
             />
           </Field>
         </div>
-
-        {pruebaMensaje && (
-          <p
-            role={pruebaMensaje.tono === "error" ? "alert" : "status"}
-            className={
-              pruebaMensaje.tono === "ok"
-                ? "mt-4 text-[length:var(--t-small)] font-medium text-[var(--c-success)]"
-                : "mt-4 text-[length:var(--t-small)] font-medium text-[var(--c-danger)]"
-            }
-          >
-            {pruebaMensaje.texto}
-          </p>
-        )}
 
         <div className="mt-5 flex justify-end">
           <Button variant="secondary" onClick={enviarPrueba} disabled={enviandoPrueba}>

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Button, DateInput, Field, Input, Select, useConfirm } from "@/components/ui";
+import { Button, DateInput, Field, Input, Select, useConfirm, useToast } from "@/components/ui";
 import {
   MONEDAS,
   diasDeMora,
@@ -80,7 +80,7 @@ export function CuotasPanel({
 }) {
   const router = useRouter();
   const confirm = useConfirm();
-  const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
   const [isPending, startTransition] = useTransition();
   const [plan, setPlan] = useState({ cantidadCuotas: "5", montoPorCuota: "", moneda: "USD", primerVencimiento: "" });
@@ -92,24 +92,24 @@ export function CuotasPanel({
   function crearPlan(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      setError(null);
       setFieldErrors({});
       try {
         const r = await crearPlanCuotasAction({ asignacionId, ...plan });
-        if (r.ok) router.refresh();
-        else {
-          setError(r.error);
+        if (r.ok) {
+          toast.success("Plan de cuotas creado");
+          router.refresh();
+        } else {
+          toast.error(r.error);
           if (r.fieldErrors) setFieldErrors(r.fieldErrors);
         }
       } catch {
-        setError("No pudimos crear el plan. Reintentá en unos segundos.");
+        toast.error("No pudimos crear el plan. Reintentá en unos segundos.");
       }
     });
   }
 
   function pagar(cuotaId: string) {
     startTransition(async () => {
-      setError(null);
       try {
         let r = await registrarPagoCuotaAction({ cuotaId });
         // Pago fuera de orden (cuotas anteriores impagas): confirmable.
@@ -123,10 +123,12 @@ export function CuotasPanel({
           if (!confirmado) return;
           r = await registrarPagoCuotaAction({ cuotaId }, { confirmar: true });
         }
-        if (r.ok) router.refresh();
-        else setError(r.error);
+        if (r.ok) {
+          toast.success("Pago registrado");
+          router.refresh();
+        } else toast.error(r.error);
       } catch {
-        setError("No pudimos registrar el pago. Reintentá en unos segundos.");
+        toast.error("No pudimos registrar el pago. Reintentá en unos segundos.");
       }
     });
   }
@@ -140,13 +142,14 @@ export function CuotasPanel({
     });
     if (!confirmado) return;
     startTransition(async () => {
-      setError(null);
       try {
         const r = await confirmarUltimoPagoPresencialAction(asignacionId);
-        if (r.ok) router.refresh();
-        else setError(r.error);
+        if (r.ok) {
+          toast.success("Pago presencial confirmado");
+          router.refresh();
+        } else toast.error(r.error);
       } catch {
-        setError("No pudimos confirmar el pago presencial. Reintentá en unos segundos.");
+        toast.error("No pudimos confirmar el pago presencial. Reintentá en unos segundos.");
       }
     });
   }
@@ -165,12 +168,6 @@ export function CuotasPanel({
         </span>
         Plan de cuotas (B1{b2Aplica ? " / B2" : ""})
       </h3>
-
-      {error && (
-        <div className="mb-4 rounded-[var(--r-md)] border border-[var(--c-danger)] bg-[var(--c-danger-bg)] px-4 py-3 text-sm font-medium text-[var(--c-danger)]">
-          {error}
-        </div>
-      )}
 
       {cuotas.length === 0 ? (
         <form

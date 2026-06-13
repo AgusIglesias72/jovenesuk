@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
-import { Badge, Button, Checkbox, DateInput, Field, Input, Select, StepBadge, Textarea } from "@/components/ui";
+import { Badge, Button, Checkbox, DateInput, Field, Input, Select, StepBadge, Textarea, useToast } from "@/components/ui";
 import {
   EXCURSION_ESTADOS,
   PASAJE_SUBESTADOS,
@@ -142,25 +142,31 @@ function PasoEditor({
   roster: RosterItem[];
 }) {
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
   const tipo = paso.tipo as EditablePasoTipo;
 
   function cambiarEstado(estado: PasoViajeEstado) {
     startTransition(async () => {
-      setError(null);
       const r = await cambiarEstadoPasoViajeAction(viajeId, paso.tipo, estado);
-      if (r.ok) router.refresh();
-      else setError(r.error);
+      if (r.ok) {
+        toast.success("Estado del paso actualizado");
+        router.refresh();
+      } else {
+        toast.error(r.error);
+      }
     });
   }
 
   function guardar(metadata: unknown) {
     startTransition(async () => {
-      setError(null);
       const r = await guardarMetadataPasoViajeAction(viajeId, tipo, metadata);
-      if (r.ok) router.refresh();
-      else setError(r.error);
+      if (r.ok) {
+        toast.success("Paso guardado");
+        router.refresh();
+      } else {
+        toast.error(r.error);
+      }
     });
   }
 
@@ -201,12 +207,6 @@ function PasoEditor({
         </p>
       )}
 
-      {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-          {error}
-        </div>
-      )}
-
       {tipo === "pasajes" && (
         <PasajesForm metadata={paso.metadata} disabled={isPending} onSave={guardar} />
       )}
@@ -222,7 +222,6 @@ function PasoEditor({
             etiqueta="Transfer asignado"
             metadata={paso.metadata}
             roster={roster}
-            onError={setError}
           />
         </>
       )}
@@ -235,7 +234,6 @@ function PasoEditor({
             etiqueta="Tarjeta entregada"
             metadata={paso.metadata}
             roster={roster}
-            onError={setError}
           />
         </>
       )}
@@ -253,26 +251,28 @@ function RosterCobertura({
   etiqueta,
   metadata,
   roster,
-  onError,
 }: {
   viajeId: string;
   tipo: "transfers" | "tarjeta_transporte";
   etiqueta: string;
   metadata: Record<string, unknown>;
   roster: RosterItem[];
-  onError: (msg: string | null) => void;
 }) {
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const porAlumno = (metadata.porAlumno as Record<string, boolean> | undefined) ?? {};
   const marcados = roster.filter((r) => porAlumno[r.asignacionId] === true).length;
 
   function marcar(asignacionId: string, cubierto: boolean) {
     startTransition(async () => {
-      onError(null);
       const r = await marcarAlumnoPasoViajeAction(viajeId, tipo, asignacionId, cubierto);
-      if (r.ok) router.refresh();
-      else onError(r.error);
+      if (r.ok) {
+        toast.success("Cobertura actualizada");
+        router.refresh();
+      } else {
+        toast.error(r.error);
+      }
     });
   }
 

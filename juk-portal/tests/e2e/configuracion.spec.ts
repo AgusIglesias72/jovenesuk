@@ -12,7 +12,8 @@ test("configuración de mails: guarda remitentes y la UI de prueba está disponi
   const nombre = `JUK E2E ${Date.now().toString().slice(-6)}`;
   await mails.getByLabel("Nombre del remitente").fill(nombre);
   await mails.getByRole("button", { name: "Guardar" }).click();
-  await expect(mails.getByText("Configuración guardada.")).toBeVisible({ timeout: 15000 });
+  // El feedback es un toast del design system (fuera del panel).
+  await expect(page.getByText("Configuración guardada.")).toBeVisible({ timeout: 15000 });
 
   await page.reload();
   await expect(page.locator("[data-config-mails]").getByLabel("Nombre del remitente")).toHaveValue(
@@ -34,7 +35,7 @@ test("configuración de mails: guarda remitentes y la UI de prueba está disponi
     .fill("noreply@jovenesenuk.com");
   await page.locator("[data-config-mails]").getByLabel("Nombre del remitente").fill("Jóvenes en UK");
   await page.locator("[data-config-mails]").getByRole("button", { name: "Guardar" }).click();
-  await expect(page.locator("[data-config-mails]").getByText("Configuración guardada.")).toBeVisible({
+  await expect(page.getByText("Configuración guardada.").first()).toBeVisible({
     timeout: 15000,
   });
 

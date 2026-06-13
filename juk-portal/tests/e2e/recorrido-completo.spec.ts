@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { test, expect } from "@playwright/test";
 
-import { codigoViajeUnico, confirmarModal, crearColegio, crearViaje } from "./helpers";
+import { abrirViaje, codigoViajeUnico, confirmarModal, crearColegio, crearViaje } from "./helpers";
 
 /**
  * RECORRIDO COMPLETO del negocio, de punta a punta:
@@ -24,6 +24,8 @@ test("recorrido completo: del colegio al dashboard", async ({ page, request }) =
   // ── 1 · Colegio destino con Test de Nivel REQUERIDO (config documental) ──
   const colegio = await crearColegio(page);
   await page.goto("/colegios");
+  // Lista paginada: filtrar por nombre antes de buscar la fila.
+  await page.getByPlaceholder("Buscar por nombre o ciudad…").fill(colegio.nombre);
   await page.getByRole("row", { name: new RegExp(colegio.nombre) }).getByRole("link", { name: "Editar" }).click();
   await page.getByLabel("Test de Nivel").selectOption("requerido");
   await page.getByRole("button", { name: "Guardar" }).click();
@@ -95,8 +97,7 @@ test("recorrido completo: del colegio al dashboard", async ({ page, request }) =
   await expect(c2.getByText("Completado").first()).toBeVisible();
 
   // ── 7 · M7: tarjeta de transporte cubierta para el único alumno ──
-  await page.goto("/viajes");
-  await page.getByRole("row", { name: new RegExp(codigo) }).getByRole("link", { name: "Ver" }).click();
+  await abrirViaje(page, codigo);
   await page.getByRole("button", { name: /Tarjeta/ }).click();
   const roster = page.locator('[data-roster-cobertura="tarjeta_transporte"]');
   await roster.locator('input[type="checkbox"]').click({ force: true });
