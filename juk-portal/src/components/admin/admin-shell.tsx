@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 
@@ -93,7 +94,12 @@ export function AdminShell({ user, children }: AdminShellProps) {
             href="/group-leaders"
             active={pathname.startsWith("/group-leaders")}
           />
-          <SidebarItem icon={<IconCard />} label="Pagos" soon />
+          <SidebarItem
+            icon={<IconCard />}
+            label="Pagos"
+            href="/pagos"
+            active={pathname.startsWith("/pagos")}
+          />
         </SidebarSection>
 
         {user.role === "super_admin" && (
@@ -104,7 +110,12 @@ export function AdminShell({ user, children }: AdminShellProps) {
               href="/usuarios"
               active={pathname.startsWith("/usuarios")}
             />
-            <SidebarItem icon={<IconGear />} label="Configuración" soon />
+            <SidebarItem
+              icon={<IconGear />}
+              label="Configuración"
+              href="/configuracion"
+              active={pathname.startsWith("/configuracion")}
+            />
           </SidebarSection>
         )}
 
@@ -186,8 +197,8 @@ function SidebarItem({ icon, label, href, active, soon }: SidebarItemProps) {
   }
 
   return (
-    <a
-      href={href}
+    <Link
+      href={href ?? "/dashboard"}
       aria-current={active ? "page" : undefined}
       className={cn(
         "flex min-h-[42px] w-full items-center gap-3 rounded-[var(--r-pill)] px-4 text-[length:var(--t-small)] transition-colors duration-150",
@@ -211,7 +222,7 @@ function SidebarItem({ icon, label, href, active, soon }: SidebarItemProps) {
           aria-hidden
         />
       )}
-    </a>
+    </Link>
   );
 }
 
@@ -230,12 +241,12 @@ function Breadcrumb({ items }: { items: { label: string; href?: string }[] }) {
         return (
           <span key={i}>
             {it.href && !isLast ? (
-              <a
+              <Link
                 href={it.href}
                 className="transition-colors hover:text-[var(--c-brand)]"
               >
                 {it.label}
-              </a>
+              </Link>
             ) : (
               <span className={isLast ? "font-semibold text-[var(--c-ink)]" : ""}>
                 {it.label}

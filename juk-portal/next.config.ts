@@ -39,6 +39,13 @@ const config: NextConfig = {
   // Experimental flags worth considering once stable for our case:
   experimental: {
     // reactCompiler: true,  // enable when team confirms perf gains
+
+    // Navegación instantánea: cachea el RSC de páginas visitadas en el router
+    // del cliente. Las mutaciones siguen frescas (revalidatePath purga esto).
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
   },
 
   // For Vercel deployment in São Paulo, set region in vercel.json (not here)

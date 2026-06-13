@@ -73,11 +73,11 @@ When working on this codebase, follow these conventions.
 - Money: GBP for trip-related amounts, ARS for local concepts
 - All step state badges follow the color mapping from the design system
 - Pasaporte expiration: UK requires valid through trip end (not 6 months extra)
-- **Loading states:** para páginas con datos usar los **skeletons** del design system
-  (`components/ui/skeleton.tsx` — `ListPageSkeleton`, `FormPageSkeleton`, `FichaAlumnoSkeleton`,
-  `ViajeDetalleSkeleton`, `DashboardSkeleton`) en el `loading.tsx` del segmento, respetando la
-  silueta de la pantalla. `<GlobeLoader />` (fondo transparente) queda como fallback global y
-  para esperas largas. No crear spinners ad-hoc.
+- **Loading states:** SIEMPRE skeletons del design system (`components/ui/skeleton.tsx` —
+  `ListPageSkeleton`, `FormPageSkeleton`, `FichaAlumnoSkeleton`, `ViajeDetalleSkeleton`,
+  `DashboardSkeleton`) en el `loading.tsx` del segmento, respetando la silueta de la pantalla.
+  `<GlobeLoader />` existe pero NO se usa en la app por ahora (decisión 12/06/2026 — se le
+  buscará un lugar después). No crear spinners ad-hoc.
 - **URLs:** preferencia del equipo: NO exponer ids (uuid) en las URLs — migrar a slugs o códigos
   legibles (p. ej. el código del viaje) cuando se aborde. Hoy las rutas usan `[id]`; toda ruta
   nueva debería pensarse con slug desde el día uno.

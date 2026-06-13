@@ -1,5 +1,5 @@
-import { GlobeLoader } from "@/components/ui";
+import { ListPageSkeleton } from "@/components/ui";
 
 export default function Loading() {
-  return <GlobeLoader />;
+  return <ListPageSkeleton rows={6} />;
 }
