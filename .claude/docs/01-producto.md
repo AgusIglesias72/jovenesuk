@@ -115,6 +115,22 @@ window.confirm/prompt por un modal del design system, guard de cambios sin guard
   ejemplo. `sendEmail` resuelve el remitente desde la config con fallback a env/defaults.
 - Suite: **32/32 E2E, 128 unit**.
 
+**13/06/2026 (2ª tanda) — componentes de interacción del design system:**
+- **ConfirmDialog** (`useConfirm()`, promise-based, con campo de texto opcional): reemplazó TODOS
+  los `window.confirm/prompt` (10 sitios). Provider en el AdminShell.
+- **Selects con búsqueda** (`searchable`): filtro por texto dentro del desplegable (alumnos/GL
+  elegibles, colegios del viaje, filtro de viaje en Pagos).
+- **DateInput**: calendario del lab STUDIO en vez del datepicker nativo (input nativo invisible
+  como fuente de verdad — `fill()` de Playwright intacto). En todos los forms con fechas.
+- **Paginación** (50/página, `paginar()` + `<Pagination>`): alumnos, viajes, colegios, GLs,
+  usuarios y pagos, preservando filtros.
+- **Sidebar fijo**: alto = pantalla, nav scrolleable, chip de usuario siempre visible.
+- **Validaciones confirmables nuevas**: GL con police check no aprobado o por vencer al asignarlo;
+  pago fuera de orden (cuotas anteriores impagas) en ficha y módulo Pagos. La de sobre-capacidad
+  ya existía y quedó verificada de punta a punta.
+- Convenciones nuevas en CLAUDE.md (nada de window.confirm, date nativo, selects sueltos ni
+  tablas sin paginar). Suite: **32/32 E2E** tras migrar los specs de `page.on("dialog")` al modal.
+
 Próximo: conectar Trigger.dev y credenciales reales de R2 (las actuales parecen placeholders),
 resumen semanal, calendario del dashboard, portales externos (Familias/Representante),
 migrar URLs de ids a slugs (preferencia del equipo, anotada en CLAUDE.md).
