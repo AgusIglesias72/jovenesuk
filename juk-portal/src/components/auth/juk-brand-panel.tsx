@@ -4,17 +4,59 @@
  *
  * STUDIO direction: deep-teal brand gradient with warm blurred blobs,
  * peach logo chip, display headline with an accented <em>.
+ *
+ * Fondo opcional: si `FONDO_LOGIN` apunta a una imagen, se muestra detrás del
+ * gradiente (con un velo de marca encima para que el logo y el texto sigan
+ * legibles). Con `null`, queda sólo el gradiente. Cambiá la constante para
+ * validar distintas fotos / volver al gradiente.
+ *
+ * NOTA: la imagen vive en `public/design/trips/` (assets del design lab). Si esa
+ * carpeta no se versiona, mové la foto a un path propio (p. ej. `public/auth/`).
  */
+
+const FONDO_LOGIN: string | null = "/design/trips/london-bigben.jpg";
+
 export function JukBrandPanel() {
+  const conImagen = FONDO_LOGIN !== null;
+
   return (
     <aside className="relative hidden flex-col justify-between overflow-hidden bg-[image:var(--grad-brand)] p-12 text-[var(--c-ink-onbrand)] lg:flex">
-      {/* Decorative blobs */}
+      {conImagen && (
+        <>
+          {/* Foto de fondo */}
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${FONDO_LOGIN})` }}
+            aria-hidden
+          />
+          {/* Velo de marca: mantiene la identidad teal y la legibilidad del texto
+              sobre la foto (más oscuro abajo, donde va el titular). */}
+          <div
+            className="absolute inset-0 opacity-90 mix-blend-multiply bg-[image:var(--grad-brand)]"
+            aria-hidden
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage:
+                "linear-gradient(to top, rgba(8,32,29,0.65), rgba(8,32,29,0.05) 55%)",
+            }}
+            aria-hidden
+          />
+        </>
+      )}
+
+      {/* Decorative blobs (más sutiles cuando hay foto) */}
       <div
-        className="absolute -right-16 -top-16 h-64 w-64 rounded-[var(--r-pill)] bg-[image:var(--grad-warm)] opacity-30 blur-2xl"
+        className={`absolute -right-16 -top-16 h-64 w-64 rounded-[var(--r-pill)] bg-[image:var(--grad-warm)] blur-2xl ${
+          conImagen ? "opacity-20" : "opacity-30"
+        }`}
         aria-hidden
       />
       <div
-        className="absolute -bottom-20 -left-10 h-56 w-56 rounded-[var(--r-pill)] bg-[var(--c-brand-500)] opacity-30 blur-2xl"
+        className={`absolute -bottom-20 -left-10 h-56 w-56 rounded-[var(--r-pill)] bg-[var(--c-brand-500)] blur-2xl ${
+          conImagen ? "opacity-20" : "opacity-30"
+        }`}
         aria-hidden
       />
 
