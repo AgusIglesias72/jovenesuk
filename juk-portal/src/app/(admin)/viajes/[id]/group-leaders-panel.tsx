@@ -14,6 +14,7 @@ import {
   THead,
   TableWrap,
   TR,
+  useConfirm,
 } from "@/components/ui";
 import type { GroupLeaderDeViaje } from "@/lib/db/queries/pasos-viaje";
 import { POLICE_CHECK_ESTADO_LABELS, type PoliceCheckEstado } from "@/lib/domain/pasos-viaje";
@@ -45,6 +46,7 @@ export function GroupLeadersPanel({
   viajeCancelado: boolean;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState("");
@@ -53,20 +55,34 @@ export function GroupLeadersPanel({
     if (!sel) return;
     startTransition(async () => {
       setError(null);
-      const r = await asignarGroupLeaderAction(viajeId, sel);
+      let r = await asignarGroupLeaderAction(viajeId, sel);
+      // Police check no aprobado o por vencer: advertencia confirmable.
+      if (!r.ok && r.requiereConfirmacion) {
+        const { confirmado } = await confirm({
+          titulo: "Atención",
+          detalle: r.error,
+          tone: "warning",
+          confirmLabel: "Asignar igual",
+        });
+        if (confirmado) r = await asignarGroupLeaderAction(viajeId, sel, { confirmar: true });
+      }
       if (r.ok) {
         setSel("");
         router.refresh();
-      } else {
+      } else if (!r.requiereConfirmacion) {
         setError(r.error);
       }
     });
   }
 
-  function quitar(groupLeaderId: string) {
-    if (!window.confirm("¿Quitar este Group Leader del viaje? El paso Police Checks se recalcula.")) {
-      return;
-    }
+  async function quitar(groupLeaderId: string) {
+    const { confirmado } = await confirm({
+      titulo: "¿Quitar al Group Leader del viaje?",
+      detalle: "El paso Police Checks del viaje se recalcula con los GLs restantes.",
+      tone: "danger",
+      confirmLabel: "Sí, quitar",
+    });
+    if (!confirmado) return;
     startTransition(async () => {
       setError(null);
       const r = await quitarGroupLeaderAction(viajeId, groupLeaderId);
@@ -103,7 +119,7 @@ export function GroupLeadersPanel({
       ) : (
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="w-72">
-            <Select value={sel} onChange={(e) => setSel(e.target.value)} disabled={isPending}>
+            <Select searchable value={sel} onChange={(e) => setSel(e.target.value)} disabled={isPending}>
               <option value="">
                 {elegibles.length === 0
                   ? "No hay Group Leaders disponibles"

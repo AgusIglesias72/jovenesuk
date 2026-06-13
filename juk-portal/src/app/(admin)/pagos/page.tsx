@@ -1,5 +1,6 @@
-import { PageHeader, StatCard } from "@/components/ui";
+import { PageHeader, Pagination, StatCard } from "@/components/ui";
 import { listCuotasGlobal, viajesConCuotas } from "@/lib/db/queries/pagos";
+import { paginar } from "@/lib/utils/paginate";
 import {
   diasDeMora,
   estadoEfectivoCuota,
@@ -16,7 +17,7 @@ export const metadata = { title: "Pagos" };
 export default async function PagosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string; viaje?: string; moneda?: string }>;
+  searchParams: Promise<{ estado?: string; viaje?: string; moneda?: string; page?: string }>;
 }) {
   const sp = await searchParams;
   const moneda = MONEDAS.includes(sp.moneda as Moneda) ? (sp.moneda as Moneda) : undefined;
@@ -45,10 +46,11 @@ export default async function PagosPage({
     viajeCodigo: c.viajeCodigo,
   }));
 
-  const rows =
+  const filtradas =
     sp.estado === "pagada" || sp.estado === "vencida" || sp.estado === "pendiente"
       ? todas.filter((r) => r.estadoEfectivo === sp.estado)
       : todas;
+  const { items: rows, total, page, pages } = paginar(filtradas, sp.page);
 
   // Resumen por moneda sobre el universo filtrado por viaje/moneda (no por estado).
   const resumen = MONEDAS.map((m) => {
@@ -99,6 +101,7 @@ export default async function PagosPage({
       </div>
 
       <PagosTable rows={rows} />
+      <Pagination total={total} page={page} pages={pages} />
     </>
   );
 }

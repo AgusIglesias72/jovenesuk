@@ -14,6 +14,7 @@ import {
   THead,
   TableWrap,
   TR,
+  useConfirm,
 } from "@/components/ui";
 import { ASIGNACION_ESTADO_LABELS, ASIGNACION_ESTADO_TONE } from "@/lib/domain/asignaciones";
 import { formatFecha } from "@/lib/utils/date";
@@ -39,6 +40,7 @@ export function AsignacionesPanel({
   viajeCancelado: boolean;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState("");
@@ -51,8 +53,14 @@ export function AsignacionesPanel({
       setError(null);
       let r = await asignarAlumnoAction(viajeId, sel);
       // Advertencias no bloqueantes (sobre-cupo, pasaporte): confirmación explícita.
-      if (!r.ok && r.requiereConfirmacion && window.confirm(r.error)) {
-        r = await asignarAlumnoAction(viajeId, sel, { confirmar: true });
+      if (!r.ok && r.requiereConfirmacion) {
+        const { confirmado } = await confirm({
+          titulo: "Atención",
+          detalle: r.error,
+          tone: "warning",
+          confirmLabel: "Asignar igual",
+        });
+        if (confirmado) r = await asignarAlumnoAction(viajeId, sel, { confirmar: true });
       }
       if (r.ok) {
         setSel("");
@@ -63,16 +71,33 @@ export function AsignacionesPanel({
     });
   }
 
-  function quitar(asignacionId: string, nombre: string) {
-    if (!window.confirm(`¿Quitar a ${nombre} del viaje? Su tablero de seguimiento queda asociado a la asignación cancelada.`)) {
-      return;
-    }
+  async function quitar(asignacionId: string, nombre: string) {
+    const { confirmado } = await confirm({
+      titulo: `¿Quitar a ${nombre} del viaje?`,
+      detalle:
+        "Su tablero de seguimiento queda asociado a la asignación cancelada y el cupo se libera.",
+      tone: "danger",
+      confirmLabel: "Sí, quitar",
+    });
+    if (!confirmado) return;
     startTransition(async () => {
       setError(null);
       let r = await desasignarAlumnoAction(asignacionId, viajeId);
-      // Baja extraordinaria (viaje en curso/finalizado): segunda confirmación.
-      if (!r.ok && r.requiereConfirmacion && window.confirm(r.error)) {
-        r = await desasignarAlumnoAction(asignacionId, viajeId, { confirmar: true });
+      // Baja extraordinaria (viaje en curso/finalizado): segunda confirmación con motivo.
+      if (!r.ok && r.requiereConfirmacion) {
+        const { confirmado: extraordinaria, valor } = await confirm({
+          titulo: "Baja extraordinaria",
+          detalle: r.error,
+          tone: "warning",
+          confirmLabel: "Confirmar la baja",
+          campo: { label: "Motivo (opcional)", placeholder: "Ej: regreso anticipado" },
+        });
+        if (extraordinaria) {
+          r = await desasignarAlumnoAction(asignacionId, viajeId, {
+            confirmar: true,
+            motivo: valor || undefined,
+          });
+        }
       }
       if (r.ok) router.refresh();
       else if (!r.requiereConfirmacion) setError(r.error);
@@ -101,7 +126,7 @@ export function AsignacionesPanel({
       ) : (
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="w-72">
-            <Select value={sel} onChange={(e) => setSel(e.target.value)} disabled={isPending}>
+            <Select searchable value={sel} onChange={(e) => setSel(e.target.value)} disabled={isPending}>
               <option value="">
                 {elegibles.length === 0 ? "No hay alumnos disponibles" : "Elegí un alumno…"}
               </option>

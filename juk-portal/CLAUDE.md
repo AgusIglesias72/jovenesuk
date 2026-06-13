@@ -65,6 +65,10 @@ When working on this codebase, follow these conventions.
 - ❌ Untyped server actions (use Zod for validation)
 - ❌ Console.log in committed code (use `console.error` only for unexpected paths)
 - ❌ Comments explaining WHAT the code does (the code is the doc); comments only for WHY when it's non-obvious
+- ❌ `window.confirm` / `window.prompt` (usar `useConfirm()` de `components/ui/confirm-dialog.tsx`)
+- ❌ `<input type="date">` nativo en la UI (usar `<DateInput>` de `components/ui/date-input.tsx`)
+- ❌ `<select>` nativo suelto (usar `<Select>` de `components/ui/field.tsx`; con `searchable` si la lista es larga)
+- ❌ Tablas sin paginar cuando pueden superar 50 filas (usar `paginar()` + `<Pagination>`)
 
 ## Project-specific quirks
 

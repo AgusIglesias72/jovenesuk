@@ -4,6 +4,8 @@ import { crearAlumno } from "./helpers";
 
 test("crea un alumno y aparece en el listado", async ({ page }) => {
   const { apellido } = await crearAlumno(page);
+  // El listado está paginado: lo buscamos por apellido (cubre además el filtro q).
+  await page.getByPlaceholder(/Buscar por nombre/).fill(apellido);
   await expect(page.getByText(apellido).first()).toBeVisible();
 });
 

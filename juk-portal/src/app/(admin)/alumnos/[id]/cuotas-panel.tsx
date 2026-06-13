@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Button, Field, Input, Select } from "@/components/ui";
+import { Button, DateInput, Field, Input, Select, useConfirm } from "@/components/ui";
 import {
   MONEDAS,
   diasDeMora,
@@ -79,6 +79,7 @@ export function CuotasPanel({
   cuotas: CuotaView[];
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
   const [isPending, startTransition] = useTransition();
@@ -110,7 +111,18 @@ export function CuotasPanel({
     startTransition(async () => {
       setError(null);
       try {
-        const r = await registrarPagoCuotaAction({ cuotaId });
+        let r = await registrarPagoCuotaAction({ cuotaId });
+        // Pago fuera de orden (cuotas anteriores impagas): confirmable.
+        if (!r.ok && r.requiereConfirmacion) {
+          const { confirmado } = await confirm({
+            titulo: "Pago fuera de orden",
+            detalle: r.error,
+            tone: "warning",
+            confirmLabel: "Registrar igual",
+          });
+          if (!confirmado) return;
+          r = await registrarPagoCuotaAction({ cuotaId }, { confirmar: true });
+        }
         if (r.ok) router.refresh();
         else setError(r.error);
       } catch {
@@ -119,14 +131,14 @@ export function CuotasPanel({
     });
   }
 
-  function confirmarB2() {
-    if (
-      !window.confirm(
-        `¿Confirmar que la última cuota (n° ${ultima?.numero}) se cobró presencialmente en JUK? Esto la marca como pagada.`
-      )
-    ) {
-      return;
-    }
+  async function confirmarB2() {
+    const { confirmado } = await confirm({
+      titulo: "¿Confirmar el pago presencial?",
+      detalle: `La última cuota (n° ${ultima?.numero}) queda marcada como pagada, cobrada presencialmente en JUK.`,
+      tone: "brand",
+      confirmLabel: "Sí, confirmar pago",
+    });
+    if (!confirmado) return;
     startTransition(async () => {
       setError(null);
       try {
@@ -204,8 +216,7 @@ export function CuotasPanel({
               </Select>
             </Field>
             <Field label="Primer vencimiento" required error={fe("primerVencimiento")}>
-              <Input
-                type="date"
+              <DateInput
                 value={plan.primerVencimiento}
                 invalid={!!fe("primerVencimiento")}
                 onChange={(e) => setPlan((p) => ({ ...p, primerVencimiento: e.target.value }))}

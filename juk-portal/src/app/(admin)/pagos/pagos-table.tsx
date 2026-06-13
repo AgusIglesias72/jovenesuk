@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Badge, Button, MoraBadge } from "@/components/ui";
+import { Badge, Button, MoraBadge, useConfirm } from "@/components/ui";
 import { formatMonto, type Moneda } from "@/lib/domain/cuotas";
 import { formatFecha } from "@/lib/utils/date";
 
@@ -32,16 +32,33 @@ const CANAL_LABELS = { agencia: "Vía agencia", presencial: "Presencial JUK" } a
 
 export function PagosTable({ rows }: { rows: PagoRow[] }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function registrarPago(row: PagoRow) {
-    const detalle = `${row.alumnoApellido}, ${row.alumnoNombre} — cuota ${row.numero} (${formatMonto(row.monto, row.moneda as Moneda)})`;
-    if (!window.confirm(`¿Registrar el pago de ${detalle}?`)) return;
+  async function registrarPago(row: PagoRow) {
+    const { confirmado } = await confirm({
+      titulo: "¿Registrar el pago?",
+      detalle: `${row.alumnoApellido}, ${row.alumnoNombre} — cuota ${row.numero} de ${formatMonto(row.monto, row.moneda as Moneda)}. Queda asentada como pagada hoy.`,
+      tone: "brand",
+      confirmLabel: "Registrar pago",
+    });
+    if (!confirmado) return;
     setError(null);
     startTransition(async () => {
       try {
-        const res = await registrarPagoDesdePagosAction({ cuotaId: row.id });
+        let res = await registrarPagoDesdePagosAction({ cuotaId: row.id });
+        // Pago fuera de orden (cuotas anteriores impagas): confirmable.
+        if (!res.ok && res.requiereConfirmacion) {
+          const { confirmado: igual } = await confirm({
+            titulo: "Pago fuera de orden",
+            detalle: res.error,
+            tone: "warning",
+            confirmLabel: "Registrar igual",
+          });
+          if (!igual) return;
+          res = await registrarPagoDesdePagosAction({ cuotaId: row.id }, { confirmar: true });
+        }
         if (!res.ok) setError(res.error);
         else router.refresh();
       } catch {

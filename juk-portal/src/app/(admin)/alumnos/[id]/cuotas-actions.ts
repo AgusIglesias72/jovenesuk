@@ -9,6 +9,7 @@ import { registrarAuditoria } from "@/lib/db/queries/auditoria";
 import { alumnoIdDeAsignacion } from "@/lib/db/queries/asignaciones";
 import {
   PlanConPagosError,
+  advertenciaPagoFueraDeOrden,
   crearPlanCuotas,
   listCuotasByAsignacion,
   registrarPagoCuota,
@@ -24,7 +25,12 @@ import { fieldErrorsFromZod } from "@/lib/utils/zod";
 
 export type ActionResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string; fieldErrors?: Record<string, string[] | undefined> };
+  | {
+      ok: false;
+      error: string;
+      fieldErrors?: Record<string, string[] | undefined>;
+      requiereConfirmacion?: boolean;
+    };
 
 async function safeAudit(entry: NewAuditoriaEntry) {
   try {
@@ -91,12 +97,18 @@ export async function crearPlanCuotasAction(
 }
 
 export async function registrarPagoCuotaAction(
-  input: unknown
+  input: unknown,
+  opts?: { confirmar?: boolean }
 ): Promise<ActionResult<{ id: string }>> {
   const session = await requireAdminJuk();
 
   const parsed = registrarPagoSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Datos inválidos." };
+
+  if (!opts?.confirmar) {
+    const advertencia = await advertenciaPagoFueraDeOrden(parsed.data.cuotaId);
+    if (advertencia) return { ok: false, requiereConfirmacion: true, error: advertencia };
+  }
 
   try {
     const cuota = await registrarPagoCuota({

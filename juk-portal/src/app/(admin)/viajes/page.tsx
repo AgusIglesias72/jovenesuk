@@ -1,6 +1,7 @@
-import { LinkButton, PageHeader } from "@/components/ui";
+import { LinkButton, PageHeader, Pagination } from "@/components/ui";
 import { listViajes } from "@/lib/db/queries/viajes";
 import { viajeFiltersSchema } from "@/lib/domain/viajes";
+import { paginar } from "@/lib/utils/paginate";
 
 import { ViajesFilters } from "./viajes-filters";
 import { ViajesTable } from "./viajes-table";
@@ -25,13 +26,14 @@ export default async function ViajesPage({
     tipo: str(sp.tipo),
   });
   const filters = parsed.success ? parsed.data : {};
-  const viajes = await listViajes(filters);
+  const todos = await listViajes(filters);
+  const { items: viajes, total, page, pages } = paginar(todos, str(sp.page));
 
   return (
     <>
       <PageHeader
         title="Viajes"
-        subtitle={viajes.length === 1 ? "1 viaje" : `${viajes.length} viajes`}
+        subtitle={total === 1 ? "1 viaje" : `${total} viajes`}
         actions={<LinkButton href="/viajes/nuevo">+ Nuevo viaje</LinkButton>}
       />
 
@@ -40,6 +42,7 @@ export default async function ViajesPage({
       </div>
 
       <ViajesTable viajes={viajes} />
+      <Pagination total={total} page={page} pages={pages} />
     </>
   );
 }

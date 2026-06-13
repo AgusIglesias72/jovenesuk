@@ -116,3 +116,8 @@ export function selectorEstadoPaso(page: Page) {
     has: page.locator('option:text-is("Pendiente")'),
   });
 }
+
+/** Aprieta un botón del modal de confirmación del design system. */
+export async function confirmarModal(page: Page, boton: string | RegExp) {
+  await page.getByRole("dialog").getByRole("button", { name: boton }).click();
+}

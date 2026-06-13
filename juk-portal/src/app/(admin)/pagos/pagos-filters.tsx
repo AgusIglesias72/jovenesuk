@@ -37,6 +37,7 @@ export function PagosFilters({
       </div>
       <div className="w-72">
         <Select
+          searchable
           value={sp.get("viaje") ?? ""}
           onChange={(e) => pushParam("viaje", e.target.value || null)}
         >

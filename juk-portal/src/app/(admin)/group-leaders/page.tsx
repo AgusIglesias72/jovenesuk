@@ -1,6 +1,7 @@
-import { LinkButton, PageHeader } from "@/components/ui";
+import { LinkButton, PageHeader, Pagination } from "@/components/ui";
 import { listGroupLeaders } from "@/lib/db/queries/group-leaders";
 import { groupLeaderFiltersSchema } from "@/lib/domain/group-leaders";
+import { paginar } from "@/lib/utils/paginate";
 
 import { GroupLeadersFilters } from "./group-leaders-filters";
 import { GroupLeadersTable } from "./group-leaders-table";
@@ -23,13 +24,14 @@ export default async function GroupLeadersPage({
     policeCheckEstado: str(sp.policeCheckEstado),
   });
   const filters = parsed.success ? parsed.data : {};
-  const gls = await listGroupLeaders(filters);
+  const todos = await listGroupLeaders(filters);
+  const { items: gls, total, page, pages } = paginar(todos, str(sp.page));
 
   return (
     <>
       <PageHeader
         title="Group Leaders"
-        subtitle={gls.length === 1 ? "1 group leader" : `${gls.length} group leaders`}
+        subtitle={total === 1 ? "1 group leader" : `${total} group leaders`}
         actions={<LinkButton href="/group-leaders/nuevo">+ Nuevo group leader</LinkButton>}
       />
 
@@ -38,6 +40,7 @@ export default async function GroupLeadersPage({
       </div>
 
       <GroupLeadersTable groupLeaders={gls} />
+      <Pagination total={total} page={page} pages={pages} />
     </>
   );
 }

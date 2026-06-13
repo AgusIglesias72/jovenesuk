@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Button, Field, Input, LinkButton, Select } from "@/components/ui";
+import { Button, DateInput, Field, Input, LinkButton, Select } from "@/components/ui";
 import {
   POLICE_CHECK_ESTADO_LABELS,
   POLICE_CHECK_ESTADOS,
@@ -138,10 +138,10 @@ export function GroupLeaderForm({
           </Field>
           <div />
           <Field label="Fecha de emisión" error={fe("policeCheckFechaEmision")}>
-            <Input type="date" value={values.policeCheckFechaEmision} onChange={(e) => set("policeCheckFechaEmision", e.target.value)} />
+            <DateInput value={values.policeCheckFechaEmision} onChange={(e) => set("policeCheckFechaEmision", e.target.value)} />
           </Field>
           <Field label="Fecha de vencimiento" error={fe("policeCheckFechaVencimiento")}>
-            <Input type="date" value={values.policeCheckFechaVencimiento} onChange={(e) => set("policeCheckFechaVencimiento", e.target.value)} />
+            <DateInput value={values.policeCheckFechaVencimiento} onChange={(e) => set("policeCheckFechaVencimiento", e.target.value)} />
           </Field>
         </div>
       </section>

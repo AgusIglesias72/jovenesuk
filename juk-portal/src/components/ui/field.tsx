@@ -123,9 +123,18 @@ Textarea.displayName = "Textarea";
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   invalid?: boolean;
+  /** Muestra un buscador dentro del desplegable (para listas largas). */
+  searchable?: boolean;
 }
 
 type Opcion = { value: string; label: string; disabled: boolean };
+
+function normalizar(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+}
 
 function textoPlano(node: React.ReactNode): string {
   if (node == null || typeof node === "boolean") return "";
@@ -155,12 +164,17 @@ function opcionesDe(children: React.ReactNode): Opcion[] {
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ invalid, className, children, id, disabled, value, defaultValue, onChange, ...props }, ref) => {
+  (
+    { invalid, className, children, id, disabled, value, defaultValue, onChange, searchable, ...props },
+    ref
+  ) => {
     const opciones = opcionesDe(children);
     const selectRef = useRef<HTMLSelectElement | null>(null);
     const botonRef = useRef<HTMLButtonElement>(null);
     const listaRef = useRef<HTMLUListElement>(null);
+    const busquedaRef = useRef<HTMLInputElement>(null);
     const [open, setOpen] = useState(false);
+    const [busqueda, setBusqueda] = useState("");
     const [interno, setInterno] = useState<string>(() => {
       if (defaultValue != null) return String(defaultValue);
       return opciones.find((o) => !o.disabled)?.value ?? opciones[0]?.value ?? "";
@@ -168,6 +182,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
 
     const actual = value != null ? String(value) : interno;
     const seleccionada = opciones.find((o) => o.value === actual);
+    const visibles =
+      searchable && busqueda.trim()
+        ? opciones.filter((o) => normalizar(o.label).includes(normalizar(busqueda)))
+        : opciones;
 
     // Elegir desde la lista: se escribe en el select nativo y se emite `change`,
     // así el flujo (React onChange, forms, tests) es el mismo que el nativo.
@@ -184,12 +202,16 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
 
     useEffect(() => {
       if (!open) return;
-      const lista = listaRef.current;
-      lista
-        ?.querySelector<HTMLButtonElement>('[aria-selected="true"]')
-        ?.scrollIntoView({ block: "nearest" });
-      lista?.querySelector<HTMLButtonElement>('[aria-selected="true"]')?.focus();
-    }, [open]);
+      if (searchable) {
+        busquedaRef.current?.focus();
+        return;
+      }
+      const seleccionado = listaRef.current?.querySelector<HTMLButtonElement>(
+        '[aria-selected="true"]'
+      );
+      seleccionado?.scrollIntoView({ block: "nearest" });
+      seleccionado?.focus();
+    }, [open, searchable]);
 
     function navegarLista(e: React.KeyboardEvent) {
       const botones = Array.from(
@@ -246,7 +268,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-label={seleccionada?.label || undefined}
-          onClick={() => setOpen((v) => !v)}
+          onClick={() => {
+            setBusqueda("");
+            setOpen((v) => !v);
+          }}
           onKeyDown={(e) => {
             if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
               e.preventDefault();
@@ -300,13 +325,56 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
               onClick={() => setOpen(false)}
               className="fixed inset-0 z-40 cursor-default"
             />
-            <ul
-              ref={listaRef}
-              role="listbox"
-              onKeyDown={navegarLista}
-              className="absolute z-50 mt-2 flex max-h-64 w-full flex-col gap-1 overflow-y-auto rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] p-1.5 shadow-[shadow:var(--shadow-2)]"
-            >
-              {opciones.map((o) => {
+            <div className="absolute z-50 mt-2 w-full rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] p-1.5 shadow-[shadow:var(--shadow-2)]">
+              {searchable && (
+                <div className="relative mb-1">
+                  <span
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--c-ink-subtle)]"
+                    aria-hidden
+                  >
+                    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                      <circle cx={9} cy={9} r={5.5} />
+                      <path d="m13.5 13.5 3 3" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                  <input
+                    ref={busquedaRef}
+                    type="text"
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        setOpen(false);
+                        botonRef.current?.focus();
+                      } else if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        listaRef.current
+                          ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+                          ?.focus();
+                      } else if (e.key === "Enter") {
+                        e.preventDefault();
+                        const primera = visibles.find((o) => !o.disabled);
+                        if (primera) elegir(primera.value);
+                      }
+                    }}
+                    placeholder="Escribí para filtrar…"
+                    aria-label="filtrar opciones"
+                    className="min-h-[36px] w-full rounded-[var(--r-md)] border border-[var(--c-border)] bg-[var(--c-surface-2)] pl-9 pr-3 text-[length:var(--t-small)] text-[var(--c-ink)] placeholder:text-[var(--c-ink-subtle)] focus:border-[var(--c-brand-300)] focus:outline-none"
+                  />
+                </div>
+              )}
+              <ul
+                ref={listaRef}
+                role="listbox"
+                onKeyDown={navegarLista}
+                className="flex max-h-64 flex-col gap-1 overflow-y-auto"
+              >
+              {visibles.length === 0 && (
+                <li className="px-3 py-2.5 text-[length:var(--t-small)] text-[var(--c-ink-subtle)]">
+                  Sin resultados para “{busqueda}”
+                </li>
+              )}
+              {visibles.map((o) => {
                 const activa = o.value === actual;
                 return (
                   <li key={o.value}>
@@ -341,7 +409,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                   </li>
                 );
               })}
-            </ul>
+              </ul>
+            </div>
           </>
         )}
       </div>

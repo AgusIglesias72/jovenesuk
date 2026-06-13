@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { test, expect } from "@playwright/test";
 
-import { codigoViajeUnico, crearColegio, crearViaje } from "./helpers";
+import { codigoViajeUnico, confirmarModal, crearColegio, crearViaje } from "./helpers";
 
 /**
  * RECORRIDO COMPLETO del negocio, de punta a punta:
@@ -19,7 +19,6 @@ function webhookSecret(): string {
 }
 
 test("recorrido completo: del colegio al dashboard", async ({ page, request }) => {
-  page.on("dialog", (d) => d.accept());
   test.setTimeout(180_000);
 
   // ── 1 · Colegio destino con Test de Nivel REQUERIDO (config documental) ──
@@ -78,6 +77,7 @@ test("recorrido completo: del colegio al dashboard", async ({ page, request }) =
   ).toBeVisible();
 
   await cuotas.getByRole("button", { name: "Confirmar pago presencial" }).click();
+  await confirmarModal(page, "Sí, confirmar pago");
   await expect(page.locator('[data-paso="b1"]').getByText("Completado").first()).toBeVisible();
   await expect(page.locator('[data-paso="b2"]').getByText("Completado").first()).toBeVisible();
   await expect(page.locator('[data-paso="c2"]').getByText("Pendiente").first()).toBeVisible();

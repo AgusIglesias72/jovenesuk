@@ -5,11 +5,13 @@ import { useState, useTransition } from "react";
 
 import {
   Button,
+  DateInput,
   Field,
   Input,
   LinkButton,
   Select,
   Textarea,
+  useConfirm,
 } from "@/components/ui";
 import {
   ALUMNO_ESTADO_LABELS,
@@ -102,6 +104,7 @@ export function AlumnoForm({
   initial?: Alumno;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [values, setValues] = useState<FormValues>(() => initialValues(initial));
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
@@ -142,11 +145,18 @@ export function AlumnoForm({
     });
   }
 
-  function darDeBaja() {
+  async function darDeBaja() {
     if (!initial) return;
-    const motivo = window.prompt("Motivo de la baja (opcional):") ?? null;
+    const { confirmado, valor } = await confirm({
+      titulo: `¿Dar de baja a ${initial.nombre} ${initial.apellido}?`,
+      detalle: "Se lo quita de los listados activos. Sus datos y su historial se conservan.",
+      tone: "danger",
+      confirmLabel: "Sí, dar de baja",
+      campo: { label: "Motivo (opcional)", placeholder: "Ej: la familia pospone el viaje" },
+    });
+    if (!confirmado) return;
     startTransition(async () => {
-      const result = await darDeBajaAlumnoAction(initial.id, motivo);
+      const result = await darDeBajaAlumnoAction(initial.id, valor || null);
       if (result.ok) {
         router.push("/alumnos");
         router.refresh();
@@ -303,13 +313,22 @@ function TextField({
 }) {
   return (
     <Field label={label} required={required} error={error} help={help} className={className}>
-      <Input
-        type={type}
-        value={value}
-        invalid={!!error}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      {type === "date" ? (
+        <DateInput
+          value={value}
+          invalid={!!error}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      ) : (
+        <Input
+          type={type}
+          value={value}
+          invalid={!!error}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
     </Field>
   );
 }

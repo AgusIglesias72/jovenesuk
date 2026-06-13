@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
-import { Badge, Button, Checkbox, Field, Input, Select, StepBadge, Textarea } from "@/components/ui";
+import { Badge, Button, Checkbox, DateInput, Field, Input, Select, StepBadge, Textarea } from "@/components/ui";
 import {
   EXCURSION_ESTADOS,
   PASAJE_SUBESTADOS,
@@ -361,10 +361,10 @@ function PasajesForm({ metadata, disabled, onSave }: FormProps) {
           <Input value={eTicketUrl} onChange={(e) => setETicketUrl(e.target.value)} disabled={disabled} placeholder="https://…" />
         </Field>
         <Field label="Fecha de salida">
-          <Input type="date" value={fechaSalida} onChange={(e) => setFechaSalida(e.target.value)} disabled={disabled} />
+          <DateInput value={fechaSalida} onChange={(e) => setFechaSalida(e.target.value)} disabled={disabled} />
         </Field>
         <Field label="Fecha de llegada">
-          <Input type="date" value={fechaLlegada} onChange={(e) => setFechaLlegada(e.target.value)} disabled={disabled} />
+          <DateInput value={fechaLlegada} onChange={(e) => setFechaLlegada(e.target.value)} disabled={disabled} />
         </Field>
       </div>
       <Field label="Notas">
@@ -426,7 +426,7 @@ function ExcursionesForm({ metadata, disabled, onSave }: FormProps) {
             <Input value={r.nombre} onChange={(e) => update(i, { nombre: e.target.value })} disabled={disabled} />
           </Field>
           <Field label="Fecha" className="sm:col-span-2">
-            <Input type="date" value={r.fecha} onChange={(e) => update(i, { fecha: e.target.value })} disabled={disabled} />
+            <DateInput value={r.fecha} onChange={(e) => update(i, { fecha: e.target.value })} disabled={disabled} />
           </Field>
           <Field label="Proveedor" className="sm:col-span-3">
             <Input value={r.proveedor} onChange={(e) => update(i, { proveedor: e.target.value })} disabled={disabled} />

@@ -15,7 +15,9 @@ import {
 import { getViajeById } from "@/lib/db/queries/viajes";
 import type { NewAuditoriaEntry } from "@/lib/db/schema/auditoria";
 
-export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
+export type ActionResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: string; requiereConfirmacion?: boolean };
 
 async function safeAudit(entry: NewAuditoriaEntry) {
   try {
@@ -41,7 +43,8 @@ const idsSchema = z.object({
 
 export async function asignarGroupLeaderAction(
   viajeId: string,
-  groupLeaderId: string
+  groupLeaderId: string,
+  opts?: { confirmar?: boolean }
 ): Promise<ActionResult<{ id: string }>> {
   const session = await requireAdminJuk();
 
@@ -54,6 +57,29 @@ export async function asignarGroupLeaderAction(
   ]);
   if (!viaje || !gl) return { ok: false, error: "Viaje o Group Leader inexistente." };
   if (viaje.estado === "cancelado") return { ok: false, error: "El viaje está cancelado." };
+
+  // Advertencia confirmable: el police check no está aprobado y vigente para el
+  // viaje (el paso Police Checks del M7 va a nacer/quedar en rojo).
+  if (!opts?.confirmar) {
+    const advertencias: string[] = [];
+    if (gl.policeCheckEstado !== "aprobado") {
+      advertencias.push(
+        `su police check está "${gl.policeCheckEstado.replace("_", " ")}" (no aprobado)`
+      );
+    } else if (
+      gl.policeCheckFechaVencimiento &&
+      gl.policeCheckFechaVencimiento < viaje.fechaFin
+    ) {
+      advertencias.push("su police check vence antes de que termine el viaje");
+    }
+    if (advertencias.length > 0) {
+      return {
+        ok: false,
+        requiereConfirmacion: true,
+        error: `Atención: ${advertencias.join(" y ")}. ¿Asignar igual?`,
+      };
+    }
+  }
 
   try {
     const rel = await asignarGroupLeaderAViaje(viajeId, groupLeaderId);

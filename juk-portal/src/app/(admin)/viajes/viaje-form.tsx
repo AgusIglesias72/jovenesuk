@@ -5,11 +5,13 @@ import { useState, useTransition } from "react";
 
 import {
   Button,
+  DateInput,
   Field,
   Input,
   LinkButton,
   Select,
   Textarea,
+  useConfirm,
 } from "@/components/ui";
 import { toDateInput } from "@/lib/utils/date";
 import {
@@ -104,6 +106,7 @@ export function ViajeForm({
   colegiosCliente: ColegioOption[];
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [values, setValues] = useState<FormValues>(() => initialValues(initial));
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
@@ -162,13 +165,16 @@ export function ViajeForm({
           ? await createViajeAction(payload)
           : await updateViajeAction(payload);
       // US-13: cambiar fechas con pasaportes comprometidos pide confirmación.
-      if (
-        !result.ok &&
-        "requiereConfirmacion" in result &&
-        result.requiereConfirmacion &&
-        window.confirm(result.error)
-      ) {
-        result = await updateViajeAction(payload, { confirmarPasaportes: true });
+      if (!result.ok && "requiereConfirmacion" in result && result.requiereConfirmacion) {
+        const { confirmado } = await confirm({
+          titulo: "Atención",
+          detalle: result.error,
+          tone: "warning",
+          confirmLabel: "Guardar igual",
+        });
+        if (confirmado) {
+          result = await updateViajeAction(payload, { confirmarPasaportes: true });
+        }
       }
       if (result.ok) {
         router.push("/viajes");
@@ -181,15 +187,24 @@ export function ViajeForm({
     });
   }
 
-  function cancelarViaje() {
+  async function cancelarViaje() {
     if (!initial) return;
     // US-13: confirmación + ofrecer notificar a los inscriptos por email.
-    if (!window.confirm(`¿Cancelar el viaje ${initial.codigo}? Los alumnos inscriptos quedan liberados.`)) {
-      return;
-    }
-    const notificar = window.confirm(
-      "¿Notificar la cancelación por email a las familias de los inscriptos?"
-    );
+    const { confirmado } = await confirm({
+      titulo: `¿Cancelar el viaje ${initial.codigo}?`,
+      detalle: "Los alumnos inscriptos quedan liberados. Esta acción no se puede deshacer.",
+      tone: "danger",
+      confirmLabel: "Sí, cancelar el viaje",
+      cancelLabel: "Volver",
+    });
+    if (!confirmado) return;
+    const { confirmado: notificar } = await confirm({
+      titulo: "¿Avisar a las familias?",
+      detalle: "Se envía un email de cancelación a los tutores de todos los inscriptos.",
+      tone: "brand",
+      confirmLabel: "Avisar a las familias",
+      cancelLabel: "No avisar",
+    });
     startTransition(async () => {
       const result = await cancelarViajeAction(initial.id, { notificarInscriptos: notificar });
       if (result.ok) {
@@ -254,16 +269,14 @@ export function ViajeForm({
           </Select>
         </Field>
         <Field label="Fecha de inicio" required error={fe("fechaInicio")}>
-          <Input
-            type="date"
+          <DateInput
             value={values.fechaInicio}
             invalid={!!fe("fechaInicio")}
             onChange={(e) => set("fechaInicio", e.target.value)}
           />
         </Field>
         <Field label="Fecha de fin" required error={fe("fechaFin")}>
-          <Input
-            type="date"
+          <DateInput
             value={values.fechaFin}
             invalid={!!fe("fechaFin")}
             onChange={(e) => set("fechaFin", e.target.value)}
@@ -294,6 +307,7 @@ export function ViajeForm({
           }
         >
           <Select
+            searchable
             value={values.colegioClienteId}
             invalid={!!fe("colegioClienteId")}
             onChange={(e) => set("colegioClienteId", e.target.value)}
@@ -308,6 +322,7 @@ export function ViajeForm({
         </Field>
         <Field label="Colegio destino" required error={fe("colegioDestinoId")}>
           <Select
+            searchable
             value={values.colegioDestinoId}
             invalid={!!fe("colegioDestinoId")}
             onChange={(e) => set("colegioDestinoId", e.target.value)}

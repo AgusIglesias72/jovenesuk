@@ -11,6 +11,7 @@ export {
   HelpText,
   ErrorText,
 } from "./field";
+export { DateInput } from "./date-input";
 
 // Badges & status
 export {
@@ -57,6 +58,17 @@ export {
 
 // Page header
 export { PageHeader } from "./page-header";
+
+// Pagination
+export { Pagination } from "./pagination";
+
+// Overlays
+export {
+  ConfirmProvider,
+  useConfirm,
+  type ConfirmOptions,
+  type ConfirmResultado,
+} from "./confirm-dialog";
 
 // Loading
 export { GlobeLoader } from "./globe-loader";

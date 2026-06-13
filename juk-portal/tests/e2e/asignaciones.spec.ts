@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
-import { crearAlumno, crearViaje } from "./helpers";
+import { confirmarModal, crearAlumno, crearViaje } from "./helpers";
 
 // El panel de asignación de alumnos (hay otros paneles con botón "Asignar" en la
 // misma página, como el de Group Leaders, así que scopeamos por la sección).
@@ -16,7 +16,6 @@ function selectorElegibles(page: Page) {
 }
 
 test("asigna un alumno a un viaje y descuenta el cupo", async ({ page }) => {
-  page.on("dialog", (d) => d.accept());
   const alumno = await crearAlumno(page);
   await crearViaje(page);
   const panel = alumnosPanel(page);
@@ -32,7 +31,6 @@ test("asigna un alumno a un viaje y descuenta el cupo", async ({ page }) => {
 // estado, así que re-asignar un alumno previamente desasignado (cancelado) debía
 // reactivar la fila en vez de fallar con "ya está asignado".
 test("permite re-asignar un alumno que fue desasignado del mismo viaje", async ({ page }) => {
-  page.on("dialog", (d) => d.accept());
   const alumno = await crearAlumno(page);
   await crearViaje(page);
   const panel = alumnosPanel(page);
@@ -45,6 +43,7 @@ test("permite re-asignar un alumno que fue desasignado del mismo viaje", async (
 
   // 2) Quitar (soft-cancel: la fila queda en "cancelada", no se borra)
   await panel.getByRole("button", { name: "Quitar" }).click();
+  await confirmarModal(page, "Sí, quitar");
   await expect(page.getByText("Todavía no hay alumnos asignados.")).toBeVisible();
 
   // 3) Re-asignar el mismo alumno al mismo viaje

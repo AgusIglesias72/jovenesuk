@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
-import { crearAlumno, crearViaje } from "./helpers";
+import { confirmarModal, crearAlumno, crearViaje } from "./helpers";
 
 function selectorElegibles(page: Page) {
   return page.locator("select", {
@@ -11,8 +11,6 @@ function selectorElegibles(page: Page) {
 test("plan de cuotas end-to-end: pagos completan B1, desbloquean C2 y B2 cierra presencial", async ({
   page,
 }) => {
-  // Aceptar los confirm() (B2 presencial); sin esto Playwright los descarta.
-  page.on("dialog", (d) => d.accept());
   // Alta + asignación (viaje con origen independiente → B2 aplica)
   const alumno = await crearAlumno(page);
   await crearViaje(page);
@@ -48,6 +46,7 @@ test("plan de cuotas end-to-end: pagos completan B1, desbloquean C2 y B2 cierra 
 
   // Confirmar B2 (última cuota presencial) → B1 completado, C2 desbloqueado, B2 completado
   await panel.getByRole("button", { name: "Confirmar pago presencial" }).click();
+  await confirmarModal(page, "Sí, confirmar pago");
   await expect(b1.locator("span").filter({ hasText: "Completado" }).first()).toBeVisible({ timeout: 15000 });
   await expect(c2.locator("span").filter({ hasText: "Pendiente" }).first()).toBeVisible({ timeout: 15000 });
   const b2 = page.locator('[data-paso="b2"]');

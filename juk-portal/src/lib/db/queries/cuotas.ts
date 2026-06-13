@@ -20,6 +20,28 @@ export async function listCuotasByAsignacion(asignacionId: string): Promise<Cuot
     .orderBy(cuotas.numero);
 }
 
+export async function getCuotaById(id: string): Promise<Cuota | null> {
+  const rows = await db.select().from(cuotas).where(eq(cuotas.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+
+/**
+ * Advertencia confirmable: registrar un pago con cuotas anteriores impagas
+ * suele ser un click equivocado (las familias pagan en orden). Devuelve el
+ * texto de la advertencia, o null si no aplica.
+ */
+export async function advertenciaPagoFueraDeOrden(cuotaId: string): Promise<string | null> {
+  const cuota = await getCuotaById(cuotaId);
+  if (!cuota || cuota.estado === "pagada") return null;
+  const plan = await listCuotasByAsignacion(cuota.asignacionId);
+  const anteriores = plan.filter((c) => c.numero < cuota.numero && c.estado !== "pagada");
+  if (anteriores.length === 0) return null;
+  const nums = anteriores.map((c) => c.numero).join(", ");
+  return `Atención: hay ${
+    anteriores.length === 1 ? "una cuota anterior impaga" : "cuotas anteriores impagas"
+  } (n° ${nums}). ¿Registrar este pago igual?`;
+}
+
 export class PlanConPagosError extends Error {
   constructor() {
     super("El plan ya tiene pagos registrados; no se puede regenerar.");

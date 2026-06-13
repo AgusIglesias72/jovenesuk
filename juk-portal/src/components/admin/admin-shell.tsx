@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ConfirmProvider } from "@/components/ui";
 import { cn } from "@/lib/utils/cn";
 
 /**
@@ -43,8 +44,10 @@ export function AdminShell({ user, children }: AdminShellProps) {
       : user.role;
 
   return (
-    <div className="grid min-h-screen grid-cols-[264px_1fr] bg-[var(--c-page)]">
-      <aside className="flex flex-col bg-[image:var(--grad-brand)] p-4 text-[var(--c-ink-onbrand)]">
+    <div className="grid h-screen grid-cols-[264px_1fr] overflow-hidden bg-[var(--c-page)]">
+      {/* Sidebar fijo: alto = pantalla; la nav scrollea adentro y el chip del
+          usuario queda siempre visible abajo. */}
+      <aside className="flex h-screen flex-col bg-[image:var(--grad-brand)] p-4 text-[var(--c-ink-onbrand)]">
         {/* Logo */}
         <div className="mb-7 flex items-center gap-3 px-2 pt-1">
           <span
@@ -63,6 +66,7 @@ export function AdminShell({ user, children }: AdminShellProps) {
           </div>
         </div>
 
+        <div className="flex-1 overflow-y-auto">
         <SidebarSection title="Operación">
           <SidebarItem
             icon={<IconGrid />}
@@ -118,9 +122,10 @@ export function AdminShell({ user, children }: AdminShellProps) {
             />
           </SidebarSection>
         )}
+        </div>
 
-        {/* User chip */}
-        <div className="mt-auto flex items-center gap-3 rounded-[var(--r-lg)] bg-white/10 p-3">
+        {/* User chip — fuera del área scrolleable: siempre visible */}
+        <div className="mt-3 flex items-center gap-3 rounded-[var(--r-lg)] bg-white/10 p-3">
           <span
             className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--r-pill)] bg-[image:var(--grad-warm)] text-[11px] font-extrabold text-[var(--c-ink-onaccent)]"
             aria-hidden
@@ -138,13 +143,13 @@ export function AdminShell({ user, children }: AdminShellProps) {
         </div>
       </aside>
 
-      <main className="flex flex-col overflow-hidden">
+      <main className="flex h-screen flex-col overflow-hidden">
         {/* Topbar */}
         <div className="flex items-center gap-4 border-b border-[var(--c-border)] bg-[var(--c-surface)] px-6 py-3">
           <Breadcrumb items={buildBreadcrumb(pathname)} />
         </div>
         <div className="flex-1 overflow-auto bg-[image:var(--grad-page)] p-6">
-          {children}
+          <ConfirmProvider>{children}</ConfirmProvider>
         </div>
       </main>
     </div>

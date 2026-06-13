@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
-import { crearAlumno, crearViaje } from "./helpers";
+import { confirmarModal, crearAlumno, crearViaje } from "./helpers";
 
 function selectorElegibles(page: Page) {
   return page.locator("select", {
@@ -9,8 +9,6 @@ function selectorElegibles(page: Page) {
 }
 
 test("módulo Pagos: lista las cuotas, filtra por viaje y registra un pago", async ({ page }) => {
-  page.on("dialog", (d) => d.accept());
-
   // Alumno + viaje + plan de 2 cuotas (desde la ficha)
   const alumno = await crearAlumno(page);
   const codigo = await crearViaje(page);
@@ -51,6 +49,7 @@ test("módulo Pagos: lista las cuotas, filtra por viaje y registra un pago", asy
   // Registrar el pago de la cuota 1 desde el módulo
   const fila1 = page.locator("tbody tr").first();
   await fila1.getByRole("button", { name: "Registrar pago" }).click();
+  await confirmarModal(page, "Registrar pago");
   await expect(fila1.getByText("Pagada")).toBeVisible({ timeout: 15000 });
 
   // El filtro por estado deja solo la pendiente
