@@ -93,7 +93,28 @@ lógica/seguridad arreglados (mora UTC, metadata C2, sign-up público bloqueado,
 server-side, TOCTOU) y los gaps de spec implementados (sub-estados ETA/A3, filtro por alerta,
 viajes del próximo año, alerta PC >12m, re-validación de pasaportes al editar fechas,
 notificación al cancelar, transiciones automáticas por fecha, fecha de cambio de pasaporte).
-E2E del recorrido completo del negocio; suite 30/30, 116 unit. Backlog UX: reemplazar
+E2E del recorrido completo del negocio. Backlog UX: reemplazar
 window.confirm/prompt por un modal del design system, guard de cambios sin guardar.
+
+**13/06/2026 — UX + Pagos + Configuración:**
+- **Select del design system** en toda la app (botón + listbox estilo STUDIO; el `<select>`
+  nativo queda invisible como fuente de verdad — forms, labels y Playwright `selectOption`
+  siguen funcionando). Un solo componente: `components/ui/field.tsx`.
+- **Skeletons en todos los loading states** (`components/ui/skeleton.tsx`: List/Form/Ficha/
+  ViajeDetalle/Dashboard) con `loading.tsx` por segmento; el GlobeLoader quedó sin uso (fondo
+  ya transparente) hasta decidirle un lugar.
+- **Navegación instantánea:** el sidebar usaba `<a href>` (full reload) → `next/link`;
+  `staleTimes` en next.config. La raíz `/` es pública (landing en construcción del usuario);
+  el login sanea `returnTo`.
+- **Módulo Pagos** (`/pagos`): todas las cuotas con mora derivada, filtros (estado/viaje/
+  moneda), resumen por moneda y registrar pago inline. **US-24**: sección "Pagos del viaje"
+  en `/viajes/[id]` (pagas/total, abonado, saldo, mora; orden por mora/saldo/nombre).
+- **Configuración** (`/configuracion`, solo super_admin): remitentes de mail configurables
+  (automáticos noreply@ / comunicaciones info@ — MIN-09 resuelto operativamente, tabla
+  `configuracion` key-value, migración 0014) + **envío de prueba** por template con datos de
+  ejemplo. `sendEmail` resuelve el remitente desde la config con fallback a env/defaults.
+- Suite: **32/32 E2E, 128 unit**.
+
 Próximo: conectar Trigger.dev y credenciales reales de R2 (las actuales parecen placeholders),
-resumen semanal, calendario del dashboard, portales externos (Familias/Representante).
+resumen semanal, calendario del dashboard, portales externos (Familias/Representante),
+migrar URLs de ids a slugs (preferencia del equipo, anotada en CLAUDE.md).
