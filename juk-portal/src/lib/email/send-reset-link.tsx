@@ -12,6 +12,7 @@ export async function sendResetPasswordEmail(opts: {
 }) {
   await sendEmail({
     to: opts.to,
+    tipo: "automatico",
     subject: "Restablecé tu contraseña · Portal JUK",
     react: <ResetPasswordEmail name={opts.name} resetUrl={opts.resetUrl} />,
   });

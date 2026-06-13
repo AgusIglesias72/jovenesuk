@@ -20,6 +20,7 @@ export async function sendPasswordChangedEmail(opts: {
 
   await sendEmail({
     to: opts.to,
+    tipo: "automatico",
     subject: "Tu contraseña fue cambiada · Portal JUK",
     react: (
       <PasswordChangedEmail

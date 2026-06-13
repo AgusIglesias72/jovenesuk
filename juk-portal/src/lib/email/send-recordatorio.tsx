@@ -13,6 +13,7 @@ export async function sendRecordatorioEmail(opts: {
 }) {
   return sendEmail({
     to: opts.to,
+    tipo: "automatico",
     subject: `Recordatorio · ${opts.paso} de ${opts.alumnoNombre} (${opts.diasAntes} día${opts.diasAntes === 1 ? "" : "s"})`,
     react: (
       <RecordatorioEmail

@@ -99,6 +99,13 @@
       "when": 1781285724158,
       "tag": "0013_hard_wiccan",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1781308654125,
+      "tag": "0014_flippant_gabe_jones",
+      "breakpoints": true
     }
   ]
 }

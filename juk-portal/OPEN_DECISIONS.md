@@ -59,8 +59,10 @@ es permanente. Impacta recién en el Portal de Familias.
 
 ### MIN-09 · Email emisor de recordatorios: ¿info@ o noreply@?
 
-Pregunta abierta oficial del Interno (M6). **Propuesta nuestra:** automáticos desde `noreply@`,
-comunicaciones con respuesta esperada desde `info@`. Confirmar al construir recordatorios.
+✅ **Resuelto operativamente (12/06/2026):** automáticos (recordatorios, reset, avisos) desde
+`noreply@`; comunicaciones con respuesta esperada (credenciales, cancelaciones) desde `info@`.
+Ambos remitentes son **configurables desde `/configuracion`** (solo super_admin), con envío de
+prueba por template. Si el equipo prefiere otra distribución, se cambia desde la UI sin deploy.
 
 ### MIN-10 · Precio por alumno / cálculo del precio final
 

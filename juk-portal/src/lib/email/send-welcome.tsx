@@ -16,6 +16,7 @@ export async function sendWelcomeEmail(opts: {
 
   await sendEmail({
     to: opts.to,
+    tipo: "comunicacion",
     subject: `Acceso al Portal JUK · ${opts.name}`,
     react: (
       <WelcomeEmail

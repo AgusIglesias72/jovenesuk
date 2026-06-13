@@ -246,6 +246,7 @@ export async function cancelarViajeAction(
           if (!alumno) continue;
           await sendEmail({
             to: alumno.tutor1Email,
+            tipo: "comunicacion",
             subject: `Cancelación del viaje ${viaje.codigo}`,
             react: ViajeCanceladoEmail({
               tutorNombre: alumno.tutor1Nombre,
