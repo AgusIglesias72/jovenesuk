@@ -8,11 +8,7 @@ import { requireRole } from "@/lib/auth/helpers";
 import { registrarAuditoria } from "@/lib/db/queries/auditoria";
 import { setMailSettings } from "@/lib/db/queries/configuracion";
 import { sendEmail } from "@/lib/email";
-import { PasswordChangedEmail } from "@/lib/email/templates/password-changed-email";
-import { RecordatorioEmail } from "@/lib/email/templates/recordatorio-email";
-import { ResetPasswordEmail } from "@/lib/email/templates/reset-password-email";
-import { ViajeCanceladoEmail } from "@/lib/email/templates/viaje-cancelado-email";
-import { WelcomeEmail } from "@/lib/email/templates/welcome-email";
+import { construirTemplatePrueba } from "@/lib/email/preview";
 import { mailSettingsSchema, type TipoEmail } from "@/lib/domain/configuracion";
 import { fieldErrorsFromZod } from "@/lib/utils/zod";
 
@@ -56,61 +52,6 @@ export async function guardarMailsAction(
   }
 }
 
-function templatePrueba(key: MailTemplateKey, destinatario: string) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  switch (key) {
-    case "welcome":
-      return {
-        subject: "Acceso al Portal JUK · Ejemplo",
-        react: (
-          <WelcomeEmail
-            name="Nombre de Ejemplo"
-            email={destinatario}
-            temporaryPassword="Temporal123!"
-            loginUrl={`${appUrl}/login`}
-            invitedByName="María"
-          />
-        ),
-      };
-    case "reset-password":
-      return {
-        subject: "Restablecé tu contraseña · Portal JUK",
-        react: <ResetPasswordEmail name="Nombre de Ejemplo" resetUrl={`${appUrl}/reset-password`} />,
-      };
-    case "password-changed":
-      return {
-        subject: "Tu contraseña fue cambiada · Portal JUK",
-        react: <PasswordChangedEmail name="Nombre de Ejemplo" changedAt="12 de junio de 2026, 10:00 (ART)" />,
-      };
-    case "recordatorio":
-      return {
-        subject: "Recordatorio · Application Form de Alumno Ejemplo (7 días)",
-        react: (
-          <RecordatorioEmail
-            tutorNombre="Tutora de Ejemplo"
-            alumnoNombre="Alumno Ejemplo"
-            viajeCodigo="UK-2026-JUL-LONDON"
-            paso="Application Form"
-            diasAntes={7}
-            fechaObjetivo={new Date(Date.now() + 7 * 86_400_000)}
-          />
-        ),
-      };
-    case "viaje-cancelado":
-      return {
-        subject: "Cancelación del viaje UK-2026-JUL-LONDON",
-        react: (
-          <ViajeCanceladoEmail
-            tutorNombre="Tutora de Ejemplo"
-            alumnoNombre="Alumno Ejemplo"
-            viajeNombre="Londres en Julio"
-            viajeCodigo="UK-2026-JUL-LONDON"
-          />
-        ),
-      };
-  }
-}
-
 const pruebaSchema = z.object({
   template: z.enum(MAIL_TEMPLATES.map((t) => t.key) as [MailTemplateKey, ...MailTemplateKey[]]),
   to: z.string().trim().email("Email inválido."),
@@ -132,8 +73,8 @@ export async function enviarMailPruebaAction(
   }
 
   const meta = MAIL_TEMPLATES.find((t) => t.key === parsed.data.template);
-  const contenido = templatePrueba(parsed.data.template, parsed.data.to);
-  if (!meta || !contenido) return { ok: false, error: "Template desconocido." };
+  const contenido = construirTemplatePrueba(parsed.data.template, parsed.data.to);
+  if (!meta) return { ok: false, error: "Template desconocido." };
 
   try {
     await sendEmail({

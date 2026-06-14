@@ -17,27 +17,31 @@ import { cn } from "@/lib/utils/cn";
  *
  * Uso (desde cualquier client component bajo el AdminShell):
  *   const toast = useToast();
- *   toast.success("Viaje creado");
- *   toast.error("No se pudo guardar");
- *   toast.info("Cambios pendientes");
+ *   toast.success("Viaje creado");                       // mensaje solo → centrado
+ *   toast.error("No se pudo guardar", {                  // título + descripción → alineado a la izquierda
+ *     descripcion: "Revisá la conexión e intentá de nuevo.",
+ *   });
  *
- * El stack se renderiza fijo abajo a la derecha. Auto-dismiss a los 5s
- * (7s para errores). El contenedor es aria-live="polite"; cada toast es
- * role="alert" (error) o role="status" (info/success).
+ * Stack fijo abajo a la derecha. Auto-dismiss a los 5s (7s para errores) con
+ * animación de entrada/salida deslizando hacia la derecha. El contenedor es
+ * aria-live="polite"; cada toast es role="alert" (error) o role="status".
  */
 
 type ToastTone = "success" | "error" | "info";
+
+type ToastOpts = { descripcion?: string };
 
 type ToastItem = {
   id: number;
   tone: ToastTone;
   mensaje: string;
+  descripcion?: string;
 };
 
 type ToastApi = {
-  success: (msg: string) => void;
-  error: (msg: string) => void;
-  info: (msg: string) => void;
+  success: (mensaje: string, opts?: ToastOpts) => void;
+  error: (mensaje: string, opts?: ToastOpts) => void;
+  info: (mensaje: string, opts?: ToastOpts) => void;
 };
 
 const ToastContext = createContext<ToastApi | null>(null);
@@ -62,16 +66,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((ts) => ts.filter((t) => t.id !== id));
   }, []);
 
-  const push = useCallback((tone: ToastTone, mensaje: string) => {
+  const push = useCallback((tone: ToastTone, mensaje: string, opts?: ToastOpts) => {
     const id = nextId.current++;
-    setToasts((ts) => [...ts, { id, tone, mensaje }]);
+    setToasts((ts) => [...ts, { id, tone, mensaje, descripcion: opts?.descripcion }]);
   }, []);
 
   const api = useMemo<ToastApi>(
     () => ({
-      success: (msg) => push("success", msg),
-      error: (msg) => push("error", msg),
-      info: (msg) => push("info", msg),
+      success: (m, o) => push("success", m, o),
+      error: (m, o) => push("error", m, o),
+      info: (m, o) => push("info", m, o),
     }),
     [push]
   );
@@ -85,31 +89,32 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         className="pointer-events-none fixed bottom-4 right-4 z-[100] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2"
       >
         {toasts.map((t) => (
-          <ToastCard key={t.id} toast={t} onClose={() => dismiss(t.id)} />
+          <ToastCard key={t.id} toast={t} onRemove={() => dismiss(t.id)} />
         ))}
       </div>
     </ToastContext.Provider>
   );
 }
 
-function ToastCard({
-  toast,
-  onClose,
-}: {
-  toast: ToastItem;
-  onClose: () => void;
-}) {
-  const [visible, setVisible] = useState(false);
+function ToastCard({ toast, onRemove }: { toast: ToastItem; onRemove: () => void }) {
+  const [estado, setEstado] = useState<"entrando" | "visible" | "saliendo">("entrando");
   const { icon, fg } = TONE_CONFIG[toast.tone];
+  const tieneDetalle = !!toast.descripcion;
+
+  // Cierra con animación: desliza hacia la derecha y recién después se quita.
+  const cerrar = useCallback(() => {
+    setEstado("saliendo");
+    window.setTimeout(onRemove, 220);
+  }, [onRemove]);
 
   useEffect(() => {
-    const raf = requestAnimationFrame(() => setVisible(true));
-    const timer = window.setTimeout(onClose, DURACION[toast.tone]);
+    const raf = requestAnimationFrame(() => setEstado("visible"));
+    const timer = window.setTimeout(cerrar, DURACION[toast.tone]);
     return () => {
       cancelAnimationFrame(raf);
       window.clearTimeout(timer);
     };
-  }, [toast.tone, onClose]);
+  }, [toast.tone, cerrar]);
 
   return (
     <div
@@ -119,8 +124,12 @@ function ToastCard({
       className={cn(
         // pointer-events-none: el toast nunca intercepta clicks sobre el
         // contenido que tiene debajo (sólo el botón de cerrar es clickeable).
-        "pointer-events-none flex w-full items-start gap-3 rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] p-4 shadow-[shadow:var(--shadow-2)] transition duration-200 ease-out",
-        visible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
+        "pointer-events-none flex w-full items-start gap-3 rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] p-4 shadow-[shadow:var(--shadow-2)] transition-all duration-200 ease-out",
+        estado === "visible"
+          ? "translate-x-0 opacity-100"
+          : estado === "saliendo"
+            ? "translate-x-full opacity-0"
+            : "translate-x-6 opacity-0"
       )}
     >
       <span
@@ -130,12 +139,19 @@ function ToastCard({
       >
         {icon}
       </span>
-      <p className="min-w-0 flex-1 text-[length:var(--t-small)] font-semibold leading-snug text-[var(--c-ink)]">
-        {toast.mensaje}
-      </p>
+      <div className={cn("min-w-0 flex-1", tieneDetalle ? "text-left" : "text-center")}>
+        <p className="text-[length:var(--t-small)] font-semibold leading-snug text-[var(--c-ink)]">
+          {toast.mensaje}
+        </p>
+        {tieneDetalle && (
+          <p className="mt-0.5 text-[length:var(--t-small)] leading-snug text-[var(--c-ink-muted)]">
+            {toast.descripcion}
+          </p>
+        )}
+      </div>
       <button
         type="button"
-        onClick={onClose}
+        onClick={cerrar}
         aria-label="cerrar"
         className="pointer-events-auto grid h-7 w-7 shrink-0 place-items-center rounded-[var(--r-pill)] text-[var(--c-ink-subtle)] transition-colors hover:bg-[var(--c-surface-2)] hover:text-[var(--c-ink)]"
       >
