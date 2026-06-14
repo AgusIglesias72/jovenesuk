@@ -24,9 +24,12 @@ test("recorrido completo: del colegio al dashboard", async ({ page, request }) =
   // ── 1 · Colegio destino con Test de Nivel REQUERIDO (config documental) ──
   const colegio = await crearColegio(page);
   await page.goto("/colegios");
-  // Lista paginada: filtrar por nombre antes de buscar la fila.
+  // Lista paginada: filtrar por nombre. Esperar a que el buscador (debounce
+  // 300ms) navegue antes de clickear "Editar", si no el click se pierde.
   await page.getByPlaceholder("Buscar por nombre o ciudad…").fill(colegio.nombre);
+  await page.waitForURL(/\/colegios\?q=/);
   await page.getByRole("row", { name: new RegExp(colegio.nombre) }).getByRole("link", { name: "Editar" }).click();
+  await page.waitForURL(/\/colegios\/[0-9a-f-]+\/editar/);
   await page.getByLabel("Test de Nivel").selectOption("requerido");
   await page.getByRole("button", { name: "Guardar" }).click();
   await expect(page).toHaveURL(/\/colegios$/);
