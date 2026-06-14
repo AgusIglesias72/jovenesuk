@@ -33,26 +33,16 @@ export async function crearViaje(
   await page.getByRole("button", { name: "Guardar" }).click();
 
   await expect(page).toHaveURL(/\/viajes$/);
-  // La lista está paginada (50/pág): filtrar por código deja el viaje en la página 1.
-  await page.getByPlaceholder("Buscar por código o nombre…").fill(codigo);
-  const verLink = page
-    .getByRole("row", { name: new RegExp(codigo) })
-    .getByRole("link", { name: "Ver" });
-  await expect(verLink).toBeVisible();
-  await verLink.click();
-  await page.waitForURL(/\/viajes\/UK-/);
+  // El detalle se resuelve por slug (código), así que vamos directo —
+  // evita la carrera entre el debounce del buscador y el click en "Ver".
+  await abrirViaje(page, codigo);
   return codigo;
 }
 
-/** Abre el detalle de un viaje por código (robusto a la paginación). */
+/** Abre el detalle de un viaje por su código (slug). */
 export async function abrirViaje(page: Page, codigo: string) {
-  await page.goto("/viajes");
-  await page.getByPlaceholder("Buscar por código o nombre…").fill(codigo);
-  await page
-    .getByRole("row", { name: new RegExp(codigo) })
-    .getByRole("link", { name: "Ver" })
-    .click();
-  await page.waitForURL(/\/viajes\/UK-/);
+  await page.goto(`/viajes/${codigo}`);
+  await page.waitForURL(`**/viajes/${codigo}`);
 }
 
 export type AlumnoCreado = { nombre: string; apellido: string; label: string };
