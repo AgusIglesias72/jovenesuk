@@ -23,6 +23,7 @@ import {
   subirDocumentoFamiliaAction,
   type FamiliaResult,
 } from "../../_actions";
+import { ProgresoBarra } from "../../_ui";
 
 /**
  * Tarjeta operable de un paso del tablero, desde el portal de familias. Según el
@@ -63,13 +64,26 @@ export function DocumentacionPasos({
   pasos: PasoAlumno[];
 }) {
   const { listos, total } = listosDe(pasos);
+  const pendientes = pasos.filter(
+    (p) => p.estado === "bloqueado" || p.estado === "vencido"
+  ).length;
   return (
     <section className="space-y-3">
-      <div className="flex items-baseline justify-between gap-3">
-        <h3 className="font-display text-base font-bold text-[var(--c-ink)]">{titulo}</h3>
-        <span className="text-[length:var(--t-small)] font-semibold text-[var(--c-ink-muted)]">
-          {listos} de {total} trámites listos
-        </span>
+      <div className="rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] p-4 shadow-[shadow:var(--shadow-1)]">
+        <div className="flex items-baseline justify-between gap-3">
+          <h3 className="font-display text-base font-bold text-[var(--c-ink)]">{titulo}</h3>
+          <span className="text-[length:var(--t-small)] font-semibold text-[var(--c-ink-muted)]">
+            {listos} de {total} listos
+          </span>
+        </div>
+        <div className="mt-3">
+          <ProgresoBarra valor={listos} total={total} tone={listos === total ? "success" : "brand"} />
+        </div>
+        {pendientes > 0 && (
+          <p className="mt-2 text-[length:var(--t-small)] font-medium text-[var(--c-danger)]">
+            {pendientes === 1 ? "Hay 1 trámite que requiere tu acción." : `Hay ${pendientes} trámites que requieren tu acción.`}
+          </p>
+        )}
       </div>
       <ul className="space-y-2">
         {pasos.map((paso) => (

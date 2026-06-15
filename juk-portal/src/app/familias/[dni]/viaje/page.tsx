@@ -4,7 +4,7 @@ import { getViajeById } from "@/lib/db/queries/viajes";
 import { PAIS_LABELS, TIPO_ALOJAMIENTO_LABELS } from "@/lib/domain/colegios";
 
 import { cargarAlumnoFamilia, asignacionesActivas } from "../_data";
-import { EstadoVacio, SeccionTitulo, ViajeHeader } from "../../_ui";
+import { EstadoVacio, FamiliaPageHeader, SeccionTitulo, ViajeHeader } from "../../_ui";
 
 export const metadata = { title: "Mi viaje · JUK" };
 
@@ -14,7 +14,12 @@ export default async function ViajePage({ params }: { params: Promise<{ dni: str
   const activas = await asignacionesActivas(alumno.id);
 
   if (activas.length === 0) {
-    return <EstadoVacio>Vas a ver los detalles cuando estés asignado a un viaje.</EstadoVacio>;
+    return (
+      <div className="space-y-6">
+        <FamiliaPageHeader title="Viaje" />
+        <EstadoVacio>Vas a ver los detalles cuando estés asignado a un viaje.</EstadoVacio>
+      </div>
+    );
   }
 
   const viajes = await Promise.all(
@@ -30,8 +35,13 @@ export default async function ViajePage({ params }: { params: Promise<{ dni: str
   );
 
   return (
-    <div className="space-y-8">
-      {viajes.map(({ a, viaje, colegio, principal }) => (
+    <div className="space-y-6">
+      <FamiliaPageHeader
+        title="Viaje"
+        subtitle="Toda la info de tu viaje. El itinerario oficial lo publicamos más cerca de la salida."
+      />
+      <div className="space-y-8">
+        {viajes.map(({ a, viaje, colegio, principal }) => (
         <section key={a.asignacionId} className="space-y-4">
           <ViajeHeader
             nombre={a.viajeNombre}
@@ -70,7 +80,8 @@ export default async function ViajePage({ params }: { params: Promise<{ dni: str
             </div>
           </div>
         </section>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

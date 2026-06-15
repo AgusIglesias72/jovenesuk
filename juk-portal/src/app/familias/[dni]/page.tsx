@@ -2,10 +2,16 @@ import Link from "next/link";
 
 import { listCuotasByAsignacion } from "@/lib/db/queries/cuotas";
 import { listPasosByAsignacion } from "@/lib/db/queries/pasos-alumno";
-import { formatMonto, saldoPendiente, type Moneda } from "@/lib/domain/cuotas";
+import { estaVencida, formatMonto, saldoPendiente, type Moneda } from "@/lib/domain/cuotas";
 
 import { asignacionesActivas, cargarAlumnoFamilia } from "./_data";
-import { completitud, EstadoVacio, ViajeHeader } from "../_ui";
+import {
+  completitud,
+  EstadoVacio,
+  FamiliaPageHeader,
+  ProgresoBarra,
+  ViajeHeader,
+} from "../_ui";
 
 export const metadata = { title: "Mi viaje · JUK" };
 
@@ -15,8 +21,18 @@ export default async function ResumenPage({ params }: { params: Promise<{ dni: s
   const activas = await asignacionesActivas(alumno.id);
 
   if (activas.length === 0) {
-    return <EstadoVacio>Todavía no estás asignado a un viaje. Te avisamos cuando se confirme.</EstadoVacio>;
+    return (
+      <div className="space-y-6">
+        <FamiliaPageHeader title="Resumen" />
+        <EstadoVacio>
+          Todavía no estás asignado a un viaje. Te avisamos cuando se confirme.
+        </EstadoVacio>
+      </div>
+    );
   }
+
+  const hoy = new Date();
+  const base = `/familias/${dni}`;
 
   const viajes = await Promise.all(
     activas.map(async (a) => {
@@ -25,15 +41,73 @@ export default async function ResumenPage({ params }: { params: Promise<{ dni: s
         listCuotasByAsignacion(a.asignacionId),
       ]);
       const doc = completitud(pasos);
+      const docAccion = pasos.filter(
+        (p) => p.estado === "bloqueado" || p.estado === "vencido"
+      ).length;
+      const cuotasVencidas = cuotas.filter((c) => estaVencida(c, hoy)).length;
       const moneda = (cuotas[0]?.moneda ?? "USD") as Moneda;
-      return { a, doc, saldo: saldoPendiente(cuotas), tieneCuotas: cuotas.length > 0, moneda };
+      return {
+        a,
+        doc,
+        docAccion,
+        cuotasVencidas,
+        saldo: saldoPendiente(cuotas),
+        tieneCuotas: cuotas.length > 0,
+        moneda,
+      };
     })
   );
 
-  const base = `/familias/${dni}`;
+  const totalDocAccion = viajes.reduce((acc, v) => acc + v.docAccion, 0);
+  const totalCuotasVencidas = viajes.reduce((acc, v) => acc + v.cuotasVencidas, 0);
+  const hayAlertas = totalDocAccion > 0 || totalCuotasVencidas > 0;
 
   return (
     <div className="space-y-6">
+      <FamiliaPageHeader
+        title="Resumen"
+        subtitle={`Seguí acá cómo va el viaje de ${alumno.nombre}.`}
+      />
+
+      {hayAlertas && (
+        <section
+          aria-label="Necesita tu atención"
+          className="space-y-2 rounded-[var(--r-lg)] border border-[var(--c-danger)] bg-[var(--c-danger-bg)] p-4"
+        >
+          <p className="text-[length:var(--t-small)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-danger)]">
+            Necesita tu atención
+          </p>
+          <ul className="space-y-1.5">
+            {totalDocAccion > 0 && (
+              <li>
+                <Link
+                  href={`${base}/documentacion`}
+                  className="text-[length:var(--t-small)] font-semibold text-[var(--c-danger)] underline-offset-2 hover:underline"
+                >
+                  {totalDocAccion === 1
+                    ? "1 trámite requiere tu acción"
+                    : `${totalDocAccion} trámites requieren tu acción`}{" "}
+                  →
+                </Link>
+              </li>
+            )}
+            {totalCuotasVencidas > 0 && (
+              <li>
+                <Link
+                  href={`${base}/pagos`}
+                  className="text-[length:var(--t-small)] font-semibold text-[var(--c-danger)] underline-offset-2 hover:underline"
+                >
+                  {totalCuotasVencidas === 1
+                    ? "1 cuota vencida"
+                    : `${totalCuotasVencidas} cuotas vencidas`}{" "}
+                  →
+                </Link>
+              </li>
+            )}
+          </ul>
+        </section>
+      )}
+
       {viajes.map(({ a, doc, saldo, tieneCuotas, moneda }) => (
         <section key={a.asignacionId} className="space-y-4">
           <ViajeHeader
@@ -49,6 +123,7 @@ export default async function ResumenPage({ params }: { params: Promise<{ dni: s
               titulo="Documentación"
               valor={`${doc.listos} de ${doc.total}`}
               sub="trámites listos"
+              progreso={{ valor: doc.listos, total: doc.total }}
             />
             <ResumenCard
               href={`${base}/pagos`}
@@ -75,12 +150,14 @@ function ResumenCard({
   valor,
   sub,
   alerta,
+  progreso,
 }: {
   href: string;
   titulo: string;
   valor: string;
   sub: string;
   alerta?: boolean;
+  progreso?: { valor: number; total: number };
 }) {
   return (
     <Link
@@ -98,6 +175,15 @@ function ResumenCard({
         {valor}
       </p>
       <p className="mt-0.5 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">{sub}</p>
+      {progreso && (
+        <div className="mt-3">
+          <ProgresoBarra
+            valor={progreso.valor}
+            total={progreso.total}
+            tone={progreso.valor === progreso.total ? "success" : "brand"}
+          />
+        </div>
+      )}
     </Link>
   );
 }

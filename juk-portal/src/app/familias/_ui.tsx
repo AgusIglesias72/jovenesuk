@@ -1,14 +1,4 @@
-import { Badge } from "@/components/ui/badge";
-import { type Cuota } from "@/lib/db/schema/cuotas";
 import { type PasoAlumno } from "@/lib/db/schema/pasos-alumno";
-import {
-  estadoEfectivoCuota,
-  formatMonto,
-  saldoPendiente,
-  totalPagado,
-  totalPlan,
-} from "@/lib/domain/cuotas";
-import { PASO_CODIGOS, PASO_LABELS, type PasoCodigo, type PasoEstado } from "@/lib/domain/pasos";
 import { formatFecha } from "@/lib/utils/date";
 
 /**
@@ -16,110 +6,66 @@ import { formatFecha } from "@/lib/utils/date";
  * Familias. Copy familiar y amable; sin jerga interna.
  */
 
-type Tone = "neutral" | "info" | "success" | "danger";
-
-const ESTADO_FAMILIA: Record<PasoEstado, { label: string; tone: Tone; atenuado?: boolean }> = {
-  completado: { label: "Listo", tone: "success" },
-  en_progreso: { label: "En curso", tone: "info" },
-  pendiente: { label: "Pendiente", tone: "neutral" },
-  bloqueado: { label: "Requiere acción", tone: "danger" },
-  vencido: { label: "Requiere acción", tone: "danger" },
-  na: { label: "No aplica", tone: "neutral", atenuado: true },
-};
-
-const CUOTA_FAMILIA: Record<
-  ReturnType<typeof estadoEfectivoCuota>,
-  { label: string; tone: Tone }
-> = {
-  pagada: { label: "Pagada", tone: "success" },
-  vencida: { label: "Vencida", tone: "danger" },
-  pendiente: { label: "Pendiente", tone: "neutral" },
-};
-
-export function ordenarPasos(pasos: PasoAlumno[]): PasoAlumno[] {
-  const orden = new Map<PasoCodigo, number>(PASO_CODIGOS.map((c, i) => [c, i]));
-  return [...pasos].sort(
-    (a, b) => (orden.get(a.codigo as PasoCodigo) ?? 99) - (orden.get(b.codigo as PasoCodigo) ?? 99)
-  );
-}
-
 export function completitud(pasos: PasoAlumno[]): { listos: number; total: number } {
   const aplican = pasos.filter((p) => p.estado !== "na");
   return { listos: aplican.filter((p) => p.estado === "completado").length, total: aplican.length };
 }
 
-const CARD =
-  "rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] px-4 py-3 shadow-[shadow:var(--shadow-1)]";
-
-export function DocumentacionLista({ pasos }: { pasos: PasoAlumno[] }) {
+/**
+ * Encabezado de página del portal (título + bajada), análogo al PageHeader del
+ * back-office. El breadcrumb lo aporta el shell; esto es el H1 de cada módulo.
+ */
+export function FamiliaPageHeader({
+  title,
+  subtitle,
+  actions,
+}: {
+  title: string;
+  subtitle?: React.ReactNode;
+  actions?: React.ReactNode;
+}) {
   return (
-    <ul className="space-y-2">
-      {pasos.map((paso) => {
-        const cfg = ESTADO_FAMILIA[paso.estado as PasoEstado];
-        return (
-          <li key={paso.id} className={`flex items-center justify-between gap-3 ${CARD}`}>
-            <span
-              className={`text-[length:var(--t-body)] font-medium text-[var(--c-ink)] ${
-                cfg.atenuado ? "opacity-60" : ""
-              }`}
-            >
-              {PASO_LABELS[paso.codigo as PasoCodigo] ?? paso.codigo}
-            </span>
-            <Badge tone={cfg.tone} className={cfg.atenuado ? "opacity-70" : ""}>
-              {cfg.label}
-            </Badge>
-          </li>
-        );
-      })}
-    </ul>
+    <header className="flex items-start justify-between gap-4">
+      <div>
+        <h1 className="m-0 font-display text-[length:var(--t-h1)] font-bold leading-[var(--lh-tight)] tracking-[var(--ls-tight)] text-[var(--c-ink)]">
+          {title}
+        </h1>
+        {subtitle && (
+          <div className="mt-1 text-[length:var(--t-small)] leading-[var(--lh-body)] text-[var(--c-ink-muted)]">
+            {subtitle}
+          </div>
+        )}
+      </div>
+      {actions && <div className="flex gap-2">{actions}</div>}
+    </header>
   );
 }
 
-export function PagosResumen({ cuotas }: { cuotas: Cuota[] }) {
-  if (cuotas.length === 0) {
-    return (
-      <p className={`text-[length:var(--t-small)] text-[var(--c-ink-muted)] ${CARD}`}>
-        Todavía no hay un plan de pagos cargado.
-      </p>
-    );
-  }
-  const hoy = new Date();
-  const moneda = cuotas[0]!.moneda;
-
+/** Barra de progreso simple (trámites/pagos). `valor`/`total` en unidades. */
+export function ProgresoBarra({
+  valor,
+  total,
+  tone = "brand",
+}: {
+  valor: number;
+  total: number;
+  tone?: "brand" | "success";
+}) {
+  const pct = total > 0 ? Math.round((valor / total) * 100) : 0;
   return (
-    <div className="space-y-3">
-      <dl className="grid grid-cols-3 gap-2 rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] p-4 shadow-[shadow:var(--shadow-1)]">
-        <Resumen rotulo="Total" valor={formatMonto(totalPlan(cuotas), moneda)} />
-        <Resumen rotulo="Pagado" valor={formatMonto(totalPagado(cuotas), moneda)} />
-        <Resumen rotulo="Saldo" valor={formatMonto(saldoPendiente(cuotas), moneda)} />
-      </dl>
-      <ul className="space-y-2">
-        {cuotas.map((cuota) => {
-          const cfg = CUOTA_FAMILIA[estadoEfectivoCuota(cuota, hoy)];
-          return (
-            <li key={cuota.id} className={`flex items-center justify-between gap-3 ${CARD}`}>
-              <div className="min-w-0">
-                <p className="text-[length:var(--t-body)] font-semibold text-[var(--c-ink)]">
-                  Cuota {cuota.numero} · {formatMonto(cuota.monto, cuota.moneda)}
-                </p>
-                <p className="mt-0.5 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
-                  Vence {formatFecha(cuota.fechaVencimiento)}
-                </p>
-              </div>
-              <Badge tone={cfg.tone}>{cfg.label}</Badge>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
-function Resumen({ rotulo, valor }: { rotulo: string; valor: string }) {
-  return (
-    <div>
-      <dt className="text-[length:var(--t-small)] font-medium text-[var(--c-ink-muted)]">{rotulo}</dt>
-      <dd className="mt-0.5 text-[length:var(--t-body)] font-bold text-[var(--c-ink)]">{valor}</dd>
+    <div
+      className="h-2 w-full overflow-hidden rounded-[var(--r-pill)] bg-[var(--c-border)]"
+      role="progressbar"
+      aria-valuenow={valor}
+      aria-valuemin={0}
+      aria-valuemax={total}
+    >
+      <div
+        className={`h-full rounded-[var(--r-pill)] transition-[width] duration-500 ${
+          tone === "success" ? "bg-[var(--c-success)]" : "bg-[var(--c-brand)]"
+        }`}
+        style={{ width: `${pct}%` }}
+      />
     </div>
   );
 }

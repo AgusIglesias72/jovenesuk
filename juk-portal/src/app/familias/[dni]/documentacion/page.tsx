@@ -3,7 +3,7 @@ import { type PasoAlumno } from "@/lib/db/schema/pasos-alumno";
 import { PASO_CODIGOS, type PasoCodigo } from "@/lib/domain/pasos";
 
 import { cargarAlumnoFamilia, asignacionesActivas } from "../_data";
-import { EstadoVacio } from "../../_ui";
+import { EstadoVacio, FamiliaPageHeader } from "../../_ui";
 import { DocumentacionPasos } from "./paso-familia";
 
 export const metadata = { title: "Documentación · JUK" };
@@ -21,7 +21,12 @@ export default async function DocumentacionPage({ params }: { params: Promise<{ 
   const activas = await asignacionesActivas(alumno.id);
 
   if (activas.length === 0) {
-    return <EstadoVacio>Vas a ver la documentación cuando estés asignado a un viaje.</EstadoVacio>;
+    return (
+      <div className="space-y-6">
+        <FamiliaPageHeader title="Documentación" />
+        <EstadoVacio>Vas a ver la documentación cuando estés asignado a un viaje.</EstadoVacio>
+      </div>
+    );
   }
 
   const viajes = await Promise.all(
@@ -32,14 +37,16 @@ export default async function DocumentacionPage({ params }: { params: Promise<{ 
   );
 
   return (
-    <div className="space-y-8">
-      <p className="text-[length:var(--t-small)] leading-[var(--lh-body)] text-[var(--c-ink-muted)]">
-        Acá ves el estado de cada trámite del viaje. Subí los documentos que te pidamos y reportá el
-        avance de los que dependen de vos. Te avisamos por email cuando alguno necesite tu acción.
-      </p>
-      {viajes.map(({ a, pasos }) => (
-        <DocumentacionPasos key={a.asignacionId} titulo={a.viajeNombre} pasos={pasos} />
-      ))}
+    <div className="space-y-6">
+      <FamiliaPageHeader
+        title="Documentación"
+        subtitle="Subí los documentos que te pidamos y reportá el avance de los que dependen de vos. Te avisamos por email cuando alguno necesite tu acción."
+      />
+      <div className="space-y-8">
+        {viajes.map(({ a, pasos }) => (
+          <DocumentacionPasos key={a.asignacionId} titulo={a.viajeNombre} pasos={pasos} />
+        ))}
+      </div>
     </div>
   );
 }

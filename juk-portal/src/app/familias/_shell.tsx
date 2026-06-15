@@ -54,6 +54,22 @@ function esActivo(pathname: string, base: string, mod: Modulo): boolean {
   return mod.sub ? pathname.startsWith(`${base}/${mod.sub}`) : pathname === base;
 }
 
+/** Label de la sección a partir del último segmento de la URL. */
+function seccionLabel(pathname: string, base: string): string | null {
+  if (pathname === base) return null;
+  const sub = pathname.slice(base.length + 1).split("/")[0] ?? "";
+  const mod = MODULOS.find((m) => m.sub === sub);
+  return mod?.label ?? null;
+}
+
+type Crumb = { label: string; href?: string };
+
+function breadcrumb(pathname: string, base: string, nombreAlumno: string): Crumb[] {
+  const seccion = seccionLabel(pathname, base);
+  const raiz: Crumb = { label: nombreAlumno, href: seccion ? base : undefined };
+  return seccion ? [raiz, { label: seccion }] : [raiz];
+}
+
 export function FamiliaShell({
   dniActual,
   nombreAlumno,
@@ -214,6 +230,10 @@ export function FamiliaShell({
 
       {/* ---------- Contenido ---------- */}
       <main className="lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
+        {/* Topbar con breadcrumb (desktop), como el back-office */}
+        <div className="hidden border-b border-[var(--c-border)] bg-[var(--c-surface)] px-8 py-3 lg:block">
+          <FamiliaBreadcrumb items={breadcrumb(pathname, base, nombreAlumno)} />
+        </div>
         <div className="mx-auto w-full max-w-3xl px-4 py-6 lg:mx-0 lg:max-w-none lg:flex-1 lg:overflow-auto lg:px-8 lg:py-8">
           <ConfirmProvider>
             <ToastProvider>{children}</ToastProvider>
@@ -221,6 +241,36 @@ export function FamiliaShell({
         </div>
       </main>
     </div>
+  );
+}
+
+/* ============================================================
+   Breadcrumb (topbar desktop)
+   ============================================================ */
+
+function FamiliaBreadcrumb({ items }: { items: Crumb[] }) {
+  return (
+    <nav className="text-[length:var(--t-small)] text-[var(--c-ink-subtle)]" aria-label="Breadcrumb">
+      {items.map((it, i) => {
+        const isLast = i === items.length - 1;
+        return (
+          <span key={i}>
+            {it.href && !isLast ? (
+              <Link href={it.href} className="transition-colors hover:text-[var(--c-brand)]">
+                {it.label}
+              </Link>
+            ) : (
+              <span className={isLast ? "font-semibold text-[var(--c-ink)]" : ""}>{it.label}</span>
+            )}
+            {!isLast && (
+              <span className="mx-1.5 opacity-50" aria-hidden>
+                ›
+              </span>
+            )}
+          </span>
+        );
+      })}
+    </nav>
   );
 }
 

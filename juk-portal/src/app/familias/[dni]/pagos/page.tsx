@@ -2,7 +2,8 @@ import { listCuotasByAsignacion } from "@/lib/db/queries/cuotas";
 import { estaVencida } from "@/lib/domain/cuotas";
 
 import { cargarAlumnoFamilia, asignacionesActivas } from "../_data";
-import { EstadoVacio, PagosResumen, SeccionTitulo } from "../../_ui";
+import { EstadoVacio, FamiliaPageHeader } from "../../_ui";
+import { PagosDetalle } from "./pagos-detalle";
 
 export const metadata = { title: "Pagos · JUK" };
 
@@ -12,18 +13,33 @@ export default async function PagosPage({ params }: { params: Promise<{ dni: str
   const activas = await asignacionesActivas(alumno.id);
 
   if (activas.length === 0) {
-    return <EstadoVacio>Vas a ver el plan de pagos cuando estés asignado a un viaje.</EstadoVacio>;
+    return (
+      <div className="space-y-6">
+        <FamiliaPageHeader title="Pagos" />
+        <EstadoVacio>Vas a ver el plan de pagos cuando estés asignado a un viaje.</EstadoVacio>
+      </div>
+    );
   }
 
   const viajes = await Promise.all(
-    activas.map(async (a) => ({ a, cuotas: await listCuotasByAsignacion(a.asignacionId) }))
+    activas.map(async (a) => ({
+      asignacionId: a.asignacionId,
+      viajeNombre: a.viajeNombre,
+      viajeCodigo: a.viajeCodigo,
+      cuotas: await listCuotasByAsignacion(a.asignacionId),
+    }))
   );
 
   const hoy = new Date();
   const hayVencidas = viajes.some((v) => v.cuotas.some((c) => estaVencida(c, hoy)));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <FamiliaPageHeader
+        title="Pagos"
+        subtitle="Estado de cada cuota de tu plan. Los pagos los registra JUK; este panel es informativo (no se paga desde acá)."
+      />
+
       {hayVencidas && (
         <div
           role="status"
@@ -32,16 +48,8 @@ export default async function PagosPage({ params }: { params: Promise<{ dni: str
           Tenés una cuota vencida. Regularizá tu situación para asegurar el viaje.
         </div>
       )}
-      <p className="text-[length:var(--t-small)] leading-[var(--lh-body)] text-[var(--c-ink-muted)]">
-        Estado de cada cuota. Los pagos se registran cuando los confirmamos; este panel es
-        informativo (no se paga desde acá).
-      </p>
-      {viajes.map(({ a, cuotas }) => (
-        <section key={a.asignacionId} className="space-y-3">
-          <SeccionTitulo titulo={a.viajeNombre} />
-          <PagosResumen cuotas={cuotas} />
-        </section>
-      ))}
+
+      <PagosDetalle viajes={viajes} />
     </div>
   );
 }
