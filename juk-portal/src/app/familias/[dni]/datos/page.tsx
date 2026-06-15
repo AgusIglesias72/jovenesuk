@@ -2,6 +2,7 @@ import { formatFecha } from "@/lib/utils/date";
 
 import { cargarAlumnoFamilia } from "../_data";
 import { SeccionTitulo } from "../../_ui";
+import { ReportarDato } from "./reportar-dato";
 
 export const metadata = { title: "Mis datos · JUK" };
 
@@ -35,6 +36,8 @@ export default async function DatosPage({ params }: { params: Promise<{ dni: str
         <Dato label="Celular" valor={alumno.tutor1Celular} />
         {alumno.tutor2Nombre && <Dato label="Segundo tutor" valor={alumno.tutor2Nombre} />}
       </Bloque>
+
+      <ReportarDato alumnoDni={alumno.dni} />
     </div>
   );
 }

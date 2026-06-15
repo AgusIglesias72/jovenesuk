@@ -58,6 +58,9 @@ test("los datos de Pasajes se guardan y persisten", async ({ page }) => {
   await page.getByLabel("N° de vuelo").fill("BA246");
   await page.getByRole("button", { name: "Guardar datos" }).click();
 
+  // Esperar la confirmación del guardado antes de recargar: sin esto, el reload
+  // puede ganarle a la server action y la aserción de persistencia se vuelve flaky.
+  await expect(page.getByText("Paso guardado")).toBeVisible();
   await page.reload();
   await expect(page.getByLabel("Aerolínea")).toHaveValue("British Airways");
   await expect(page.getByLabel("N° de vuelo")).toHaveValue("BA246");
