@@ -179,4 +179,106 @@
   --sh-lg: 0 18px 40px -12px rgba(13, 16, 24, 0.22), 0 4px 8px rgba(13, 16, 24, 0.06);
   --sh-focus: 0 0 0 3px var(--c-brand-ring);
   --sh-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+  /* ============================================================================
+     MAPEO para las SECCIONES COMPARTIDAS del lab (design/shared/)
+     Las secciones compartidas consumen la convención común (--c-page, --t-h1,
+     --b-paso-*, …). Acá se mapea 1:1 a la paleta/escala de CONSOLE: acento
+     único indigo, tipografía densa, radios crisp, tap compacto (34px).
+     ============================================================================ */
+  --c-page: var(--c-bg);
+  --c-surface-inverse: var(--c-header);
+  --c-overlay: rgba(13, 16, 24, 0.04);
+  --c-ink-muted: var(--c-ink-2);
+  --c-ink-subtle: var(--c-ink-3);
+  --c-ink-onbrand: var(--c-ink-inv);
+  --c-ink-onbrand-muted: var(--c-ink-inv-2);
+  --c-ink-onaccent: #ffffff;
+  --c-border-brand: #c7d2fe;
+  --c-ring: var(--c-brand-ring);
+
+  --c-brand-700: var(--c-brand-active);
+  --c-brand-600: var(--c-brand-hover);
+  --c-brand-500: #6366f1;
+  --c-brand-300: #a5b4fc;
+  --c-brand-100: #e0e7ff;
+  --c-brand-50: var(--c-brand-soft);
+
+  --c-accent: var(--c-brand);
+  --c-accent-600: var(--c-brand-hover);
+  --c-accent-300: #a5b4fc;
+  --c-accent-soft: var(--c-brand-soft);
+  --c-honey: var(--c-warning);
+  --c-honey-soft: var(--c-warning-soft);
+  --c-berry: #b01e68;
+  --c-berry-soft: #fce7f1;
+
+  --c-success-bg: var(--c-success-soft);
+  --c-warning-bg: var(--c-warning-soft);
+  --c-danger-bg: var(--c-danger-soft);
+  --c-info-bg: var(--c-info-soft);
+  --c-neutral-bg: var(--c-neutral-soft);
+
+  --grad-brand: linear-gradient(150deg, #1c2230 0%, #0d1018 70%, #0a0d14 100%);
+  --grad-warm: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  --grad-page: none;
+
+  --b-viaje-abierta: var(--badge-inscripcion_abierta-ink);
+  --b-viaje-abierta-bg: var(--badge-inscripcion_abierta-bg);
+  --b-viaje-confirmado: var(--badge-confirmado-ink);
+  --b-viaje-confirmado-bg: var(--badge-confirmado-bg);
+  --b-viaje-en_curso: var(--badge-en_curso-ink);
+  --b-viaje-en_curso-bg: var(--badge-en_curso-bg);
+  --b-viaje-finalizado: var(--badge-finalizado-ink);
+  --b-viaje-finalizado-bg: var(--badge-finalizado-bg);
+  --b-viaje-cancelado: var(--badge-cancelado-ink);
+  --b-viaje-cancelado-bg: var(--badge-cancelado-bg);
+
+  --b-paso-pendiente: var(--badge-pendiente-ink);
+  --b-paso-pendiente-bg: var(--badge-pendiente-bg);
+  --b-paso-en_progreso: var(--badge-en_progreso-ink);
+  --b-paso-en_progreso-bg: var(--badge-en_progreso-bg);
+  --b-paso-completado: var(--badge-completado-ink);
+  --b-paso-completado-bg: var(--badge-completado-bg);
+  --b-paso-bloqueado: var(--badge-bloqueado-ink);
+  --b-paso-bloqueado-bg: var(--badge-bloqueado-bg);
+  --b-paso-na: var(--badge-na-ink);
+  --b-paso-na-bg: var(--badge-na-bg);
+  --b-paso-vencido: var(--c-berry);
+  --b-paso-vencido-bg: var(--c-berry-soft);
+
+  --b-police-pendiente: var(--badge-police_pendiente-ink);
+  --b-police-pendiente-bg: var(--badge-police_pendiente-bg);
+  --b-police-en_tramite: var(--badge-en_tramite-ink);
+  --b-police-en_tramite-bg: var(--badge-en_tramite-bg);
+  --b-police-aprobado: var(--badge-aprobado-ink);
+  --b-police-aprobado-bg: var(--badge-aprobado-bg);
+  --b-police-vencido: var(--badge-vencido-ink);
+  --b-police-vencido-bg: var(--badge-vencido-bg);
+
+  --t-display-1: var(--t-3xl);
+  --t-display-2: var(--t-2xl);
+  --t-h1: var(--t-xl);
+  --t-h2: var(--t-lg);
+  --t-h3: var(--t-md);
+  --t-body: var(--t-base);
+  --t-small: var(--t-sm);
+  --t-label: var(--t-xs);
+  --t-mono: var(--t-sm);
+  --lh-body: var(--lh-normal);
+  --ls-label: var(--ls-caps);
+
+  --r-xl: 12px;
+  --r-pill: var(--r-full);
+  --shadow-soft: var(--sh-xs);
+  --shadow-1: var(--sh-sm);
+  --shadow-2: var(--sh-md);
+  --shadow-3: var(--sh-lg);
+  --shadow-accent: 0 8px 20px -6px rgba(79, 70, 229, 0.45);
+  --shadow-brand: 0 8px 20px -6px rgba(13, 16, 24, 0.3);
+  --shadow-inset: var(--sh-inset-top);
+  --ring-focus: var(--sh-focus);
+  --ring-accent: var(--sh-focus);
+  --ring-error: 0 0 0 3px rgba(209, 41, 83, 0.3);
+  --tap: var(--control-h);
 }

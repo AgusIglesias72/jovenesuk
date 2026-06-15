@@ -176,4 +176,11 @@
   /* ── Misc ── */
   --hairline: 1px;
   --tap: 44px; /* target de toque mínimo */
+
+  /* ════════════════════════════════════════════════════════════════
+   * Extensión para las SECCIONES COMPARTIDAS del lab (design/shared/)
+   * ════════════════════════════════════════════════════════════════ */
+  --c-accent-300: #ecd9a6;
+  --b-paso-vencido: var(--c-berry);
+  --b-paso-vencido-bg: var(--c-berry-soft);
 }

@@ -13,6 +13,12 @@ import {
   SectionTitle,
   Textarea,
 } from "./primitives";
+import { ComponentesScreen } from "../shared/gallery";
+import { PagosScreen } from "../shared/pagos";
+import { PantallasScreen } from "../shared/pantallas";
+import { PantallasAdminScreen } from "../shared/pantallas-admin";
+import { SeguimientoScreen } from "../shared/seguimiento";
+import "../shared/animations.css";
 import "./tokens.css";
 
 const display = Fraunces({
@@ -208,6 +214,11 @@ const NAV = [
   { id: "alumnos", label: "Alumnos (ABM)" },
   { id: "viaje", label: "Detalle de viaje" },
   { id: "login", label: "Login" },
+  { id: "seguimiento", label: "Seguimiento M6" },
+  { id: "pagos", label: "Pagos" },
+  { id: "pantallas", label: "Pantallas" },
+  { id: "pantallas-admin", label: "Admin" },
+  { id: "componentes", label: "Componentes" },
 ];
 
 function SubNav() {
@@ -1119,6 +1130,11 @@ export default function MarinoPage() {
       <AlumnosScreen />
       <ViajeScreen />
       <LoginScreen />
+      <SeguimientoScreen n="05" />
+      <PagosScreen n="06" />
+      <PantallasScreen n="07" />
+      <PantallasAdminScreen n="08" />
+      <ComponentesScreen n="09" />
       <footer className="border-t border-[var(--c-border)] px-6 py-8 text-center text-[var(--t-small)] text-[var(--c-ink-subtle)]">
         Dirección <span className="font-semibold text-[var(--c-ink-muted)]">Marino</span> · concept de
         handoff · restilá todo desde{" "}

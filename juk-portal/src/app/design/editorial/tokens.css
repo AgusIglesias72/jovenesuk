@@ -143,4 +143,38 @@
 
   /* ── Misc ── */
   --hairline: 1px;
+
+  /* ════════════════════════════════════════════════════════════════
+   * Extensión para las SECCIONES COMPARTIDAS del lab (design/shared/)
+   * Mapea la convención común a la paleta editorial: acento = oro,
+   * berry = coral, gradientes navy. Ajustá acá para restilarlas.
+   * ════════════════════════════════════════════════════════════════ */
+  --c-brand-50: #f4f7fd;
+  --c-accent: var(--c-gold-bright);
+  --c-accent-600: var(--c-gold);
+  --c-accent-300: #edd28e;
+  --c-accent-soft: var(--c-gold-soft);
+  --c-honey: var(--c-gold-bright);
+  --c-honey-soft: var(--c-gold-soft);
+  --c-berry: var(--c-coral);
+  --c-berry-soft: var(--c-coral-soft);
+  --c-ink-onaccent: #3a2c0f;
+  --c-surface-3: #f6f1e7;
+  --c-border-brand: var(--c-brand-300);
+  --c-ring: rgba(10, 31, 68, 0.12);
+
+  --grad-brand: linear-gradient(150deg, #1c3d75 0%, #0a1f44 65%, #071834 100%);
+  --grad-warm: linear-gradient(135deg, #e6b54d 0%, #c79a3c 100%);
+  --grad-page: radial-gradient(1100px 520px at 85% -10%, rgba(244, 230, 196, 0.55) 0%, rgba(244, 230, 196, 0) 55%),
+               radial-gradient(900px 480px at -5% 110%, rgba(236, 241, 250, 0.7) 0%, rgba(236, 241, 250, 0) 50%);
+
+  --r-xl: 14px;
+  --shadow-soft: 0 1px 3px rgba(10, 31, 68, 0.04);
+  --shadow-accent: 0 10px 24px rgba(199, 154, 60, 0.28);
+  --shadow-brand: 0 12px 28px rgba(10, 31, 68, 0.25);
+  --ring-accent: 0 0 0 3px rgba(230, 181, 77, 0.35);
+  --tap: 44px;
+
+  --b-paso-vencido: var(--c-coral);
+  --b-paso-vencido-bg: var(--c-coral-soft);
 }

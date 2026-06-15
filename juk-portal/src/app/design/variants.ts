@@ -13,4 +13,5 @@ export const DESIGN_VARIANTS: DesignVariant[] = [
   { slug: "marino", name: "Marino", desc: "JUK sobrio y claro. Navy + oro sobre blanco, redondeado, botones sólidos." },
   { slug: "puerto", name: "Puerto", desc: "JUK sobrio con estructura. Navy con presencia, oro de acento, redondeado." },
   { slug: "autor", name: "Autor", desc: "Diseño de autor, con carácter y oficio — sin la estética genérica de IA." },
+  { slug: "shadcn", name: "Shadcn", desc: "La base neutral de shadcn/ui: blanco + neutral, Inter, radio 10px, sin color de marca." },
 ];

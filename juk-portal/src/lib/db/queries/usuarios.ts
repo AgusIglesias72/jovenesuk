@@ -1,4 +1,4 @@
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { users, type User } from "@/lib/db/schema/users";
@@ -18,6 +18,17 @@ export async function listUsuarios(): Promise<UsuarioListItem[]> {
     .from(users)
     .where(inArray(users.role, ["admin_juk", "super_admin"]))
     .orderBy(asc(users.name));
+}
+
+/** Emails de los admins activos — destinatarios de los avisos internos. */
+export async function listEmailsAdmins(): Promise<string[]> {
+  const rows = await db
+    .select({ email: users.email })
+    .from(users)
+    .where(
+      and(inArray(users.role, ["admin_juk", "super_admin"]), eq(users.isActive, true))
+    );
+  return rows.map((r) => r.email);
 }
 
 export async function getUsuarioById(id: string): Promise<User | null> {

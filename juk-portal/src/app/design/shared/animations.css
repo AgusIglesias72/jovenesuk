@@ -1,0 +1,29 @@
+/*
+ * Animaciones de las secciones compartidas del Design Lab (overlays,
+ * toasts, carousel). Los keyframes son globales: cada page.tsx de
+ * variante que use las secciones compartidas importa este archivo.
+ */
+@keyframes studio-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes studio-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes studio-slide-left {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+
+@keyframes studio-toast {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes studio-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}

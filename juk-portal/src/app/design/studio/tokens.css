@@ -101,6 +101,8 @@
   --b-paso-bloqueado-bg: var(--c-danger-bg);
   --b-paso-na: var(--c-ink-subtle);
   --b-paso-na-bg: var(--c-overlay);
+  --b-paso-vencido: var(--c-berry);
+  --b-paso-vencido-bg: var(--c-berry-soft);
 
   /* ── Badges · Police check ── */
   --b-police-pendiente: var(--c-neutral);
@@ -166,3 +168,5 @@
   --hairline: 1px;
   --tap: 44px; /* target de toque mínimo (touch-first) */
 }
+
+/* Las animaciones de overlays/toasts/carousel viven en ../shared/animations.css */

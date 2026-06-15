@@ -104,6 +104,12 @@ export function AdminShell({ user, children }: AdminShellProps) {
             href="/pagos"
             active={pathname.startsWith("/pagos")}
           />
+          <SidebarItem
+            icon={<IconInbox />}
+            label="Consultas"
+            href="/consultas"
+            active={pathname.startsWith("/consultas")}
+          />
         </SidebarSection>
 
         {user.role === "super_admin" && (
@@ -291,6 +297,7 @@ function buildBreadcrumb(pathname: string): { label: string; href?: string }[] {
     viajes: "Viajes",
     colegios: "Colegios",
     pagos: "Pagos",
+    consultas: "Consultas",
     usuarios: "Usuarios",
     configuracion: "Configuración",
     tests: "Tests",
@@ -348,6 +355,13 @@ function IconCard() {
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6}>
       <rect x={2} y={3} width={12} height={10} rx={1} />
       <path d="M2 6h12" />
+    </svg>
+  );
+}
+function IconInbox() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6}>
+      <path d="M2 9l2-6h8l2 6M2 9v4h12V9M2 9h3l1 2h4l1-2h3" />
     </svg>
   );
 }

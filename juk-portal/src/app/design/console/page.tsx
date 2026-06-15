@@ -8,6 +8,12 @@ import { Alumnos } from "./screens/Alumnos";
 import { Dashboard } from "./screens/Dashboard";
 import { Login } from "./screens/Login";
 import { Viaje } from "./screens/Viaje";
+import { ComponentesScreen } from "../shared/gallery";
+import { PagosScreen } from "../shared/pagos";
+import { PantallasScreen } from "../shared/pantallas";
+import { PantallasAdminScreen } from "../shared/pantallas-admin";
+import { SeguimientoScreen } from "../shared/seguimiento";
+import "../shared/animations.css";
 
 // Tipografías expuestas como CSS vars (consumidas por tokens.css):
 //  - Display: Newsreader (serif editorial con carácter, no genérico)
@@ -50,6 +56,15 @@ export default function ConsolePage() {
         <Alumnos />
         <Viaje />
         <Login />
+
+        {/* Secciones compartidas del lab — restiladas por el mapeo de tokens.css */}
+        <div className="-mx-[var(--s-6)]">
+          <SeguimientoScreen n="05" />
+          <PagosScreen n="06" />
+          <PantallasScreen n="07" />
+          <PantallasAdminScreen n="08" />
+          <ComponentesScreen n="09" />
+        </div>
 
         <footer className="border-t border-[var(--c-border)] py-[var(--s-6)] text-center">
           <p className="font-[var(--font-mono)] text-[length:var(--t-2xs)] uppercase tracking-[var(--ls-wide)] text-[var(--c-ink-4)]">

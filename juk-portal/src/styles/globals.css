@@ -30,3 +30,13 @@ body.v-studio {
   box-sizing: border-box;
 }
 
+/* El preflight de Tailwind resetea el cursor de los botones a default;
+   todo lo clickeable debe mostrar pointer (pedido del equipo). */
+button:not(:disabled),
+[role="button"]:not(:disabled),
+summary,
+label[for],
+select:not(:disabled) {
+  cursor: pointer;
+}
+

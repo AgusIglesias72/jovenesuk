@@ -38,8 +38,15 @@ export default defineConfig({
     { name: "cleanup", testMatch: /global\.teardown\.ts/ },
     {
       name: "chromium",
+      testIgnore: /public\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], storageState: "tests/e2e/.auth/admin.json" },
       dependencies: ["setup"],
+    },
+    // Sitio público: sin auth ni DB, no depende del setup.
+    {
+      name: "public",
+      testMatch: /public\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
     },
   ],
   webServer: {

@@ -183,4 +183,22 @@
   --hairline: 1px;
   --rule-bold: 2px;
   --tap: 42px;
+
+  /* ════════════════════════════════════════════════════════════════
+   * Extensión para las SECCIONES COMPARTIDAS del lab (design/shared/)
+   * honey = ocre cálido, berry = borravino apagado; los "gradientes"
+   * son planos casi sólidos para respetar el carácter de imprenta.
+   * ════════════════════════════════════════════════════════════════ */
+  --c-accent-600: var(--c-accent-700);
+  --c-honey: #b98a2e;
+  --c-honey-soft: #f1e5c9;
+  --c-berry: #8e4458;
+  --c-berry-soft: #efdde2;
+
+  --grad-brand: linear-gradient(150deg, #1d3a63 0%, #142a4c 70%, #11233f 100%);
+  --grad-warm: linear-gradient(135deg, #c25243 0%, #b23a2e 100%);
+  --grad-page: linear-gradient(0deg, rgba(241, 229, 201, 0.18), rgba(241, 229, 201, 0.18));
+
+  --b-paso-vencido: var(--c-berry);
+  --b-paso-vencido-bg: var(--c-berry-soft);
 }

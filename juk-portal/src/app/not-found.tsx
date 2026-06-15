@@ -25,13 +25,13 @@ export default function NotFound() {
           Esta página se fue de excursión
         </h1>
         <p className="mt-2 text-[length:var(--t-body)] leading-[var(--lh-body)] text-[var(--c-ink-muted)]">
-          La dirección no existe o se movió. Si llegaste por un link interno,
-          avisanos y lo arreglamos.
+          La dirección no existe o se movió. Volvé al inicio o mirá nuestras
+          salidas y notas para seguir explorando.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <LinkButton href="/dashboard">Ir al dashboard</LinkButton>
-          <LinkButton href="/alumnos" variant="secondary">
-            Buscar un alumno
+          <LinkButton href="/">Volver al inicio</LinkButton>
+          <LinkButton href="/salidas" variant="secondary">
+            Ver las salidas
           </LinkButton>
         </div>
       </div>

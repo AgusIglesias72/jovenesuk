@@ -2,13 +2,28 @@
 
 import { useEffect, useState } from "react";
 
-import { IconChart, IconGrid, IconPlane, IconUsers, IconLock } from "./icons";
+import {
+  IconCalendar,
+  IconChart,
+  IconCheck,
+  IconCog,
+  IconGrid,
+  IconLock,
+  IconPin,
+  IconPlane,
+  IconUsers,
+} from "./icons";
 
 const ANCHORS = [
   { id: "dashboard", label: "Dashboard", icon: IconChart },
   { id: "alumnos", label: "Alumnos · ABM", icon: IconUsers },
   { id: "viaje", label: "Detalle de viaje", icon: IconPlane },
   { id: "login", label: "Login", icon: IconLock },
+  { id: "seguimiento", label: "Seguimiento M6", icon: IconCheck },
+  { id: "pagos", label: "Pagos", icon: IconCalendar },
+  { id: "pantallas", label: "Pantallas", icon: IconPin },
+  { id: "pantallas-admin", label: "Admin", icon: IconCog },
+  { id: "componentes", label: "Componentes", icon: IconGrid },
 ];
 
 export function SubNav() {

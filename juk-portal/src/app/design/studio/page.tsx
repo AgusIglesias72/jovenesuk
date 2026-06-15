@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { Bricolage_Grotesque, Plus_Jakarta_Sans, Space_Mono } from "next/font/google";
+import Image from "next/image";
 
 import {
+  AvatarGroup,
   Badge,
   Button,
   Card,
@@ -9,10 +11,18 @@ import {
   FieldNote,
   Input,
   Label,
-  Select,
+  Screen,
+  ScreenHeading,
   SectionTitle,
   Textarea,
-} from "./primitives";
+} from "../shared/primitives";
+import { ComponentesScreen } from "../shared/gallery";
+import { SelectMenu } from "../shared/interactive";
+import { PagosScreen } from "../shared/pagos";
+import { PantallasScreen } from "../shared/pantallas";
+import { PantallasAdminScreen } from "../shared/pantallas-admin";
+import { SeguimientoScreen } from "../shared/seguimiento";
+import "../shared/animations.css";
 import "./tokens.css";
 
 const display = Bricolage_Grotesque({
@@ -32,48 +42,6 @@ const mono = Space_Mono({
 });
 
 export const metadata = { title: "Studio · Design Lab · JUK" };
-
-/* ════════════════════════════════════════════════════════════════
- * Pieces compartidas
- * ════════════════════════════════════════════════════════════════ */
-
-function ScreenHeading({
-  n,
-  title,
-  sub,
-}: {
-  n: string;
-  title: string;
-  sub: string;
-}) {
-  return (
-    <div className="mb-6 flex items-end gap-4">
-      <span className="font-[family-name:var(--font-mono)] text-[var(--t-small)] font-bold text-[var(--c-brand-300)]">
-        {n}
-      </span>
-      <div>
-        <h2 className="font-[family-name:var(--font-display)] text-[var(--t-h1)] font-bold leading-[var(--lh-tight)] tracking-[var(--ls-tight)] text-[var(--c-ink)]">
-          {title}
-        </h2>
-        <p className="mt-1 text-[var(--t-small)] text-[var(--c-ink-muted)]">{sub}</p>
-      </div>
-    </div>
-  );
-}
-
-function Screen({
-  id,
-  children,
-}: {
-  id: string;
-  children: ReactNode;
-}) {
-  return (
-    <section id={id} className="scroll-mt-28 px-4 py-12 sm:px-6 lg:px-10">
-      <div className="mx-auto max-w-6xl">{children}</div>
-    </section>
-  );
-}
 
 /* ════════════════════════════════════════════════════════════════
  * Tira de TOKENS
@@ -105,21 +73,21 @@ function TokensStrip() {
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div className="flex items-center gap-3">
             <span
-              className="grid h-9 w-9 place-items-center rounded-[var(--r-md)] text-[var(--c-ink-onaccent)] shadow-[var(--shadow-accent)]"
+              className="grid h-9 w-9 place-items-center rounded-[var(--r-md)] text-[var(--c-ink-onaccent)] shadow-[shadow:var(--shadow-accent)]"
               style={{ backgroundImage: "var(--grad-warm)" }}
             >
               <span className="font-[family-name:var(--font-display)] text-lg font-extrabold">J</span>
             </span>
             <div>
-              <p className="font-[family-name:var(--font-display)] text-[var(--t-h3)] font-bold text-[var(--c-ink)]">
+              <p className="font-[family-name:var(--font-display)] text-[length:var(--t-h3)] font-bold text-[var(--c-ink)]">
                 Dirección Studio
               </p>
-              <p className="text-[var(--t-small)] text-[var(--c-ink-muted)]">
+              <p className="text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
                 Cálido · redondeado · touch-first
               </p>
             </div>
           </div>
-          <p className="font-[family-name:var(--font-mono)] text-[var(--t-small)] text-[var(--c-ink-subtle)]">
+          <p className="font-[family-name:var(--font-mono)] text-[length:var(--t-small)] text-[var(--c-ink-subtle)]">
             Editá{" "}
             <span className="rounded-[var(--r-xs)] bg-[var(--c-surface-2)] px-1.5 py-0.5 text-[var(--c-brand)]">
               src/app/design/studio/tokens.css
@@ -131,14 +99,14 @@ function TokensStrip() {
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr_1fr]">
           {/* Paleta */}
           <div>
-            <p className="mb-2 text-[var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-subtle)]">
+            <p className="mb-2 text-[length:var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-subtle)]">
               Paleta
             </p>
             <div className="flex flex-wrap gap-2">
               {SWATCHES.map((s) => (
                 <div
                   key={s.label}
-                  className="flex h-14 w-[88px] flex-col justify-end rounded-[var(--r-md)] border border-[var(--c-border)] p-2 shadow-[var(--shadow-soft)]"
+                  className="flex h-14 w-[88px] flex-col justify-end rounded-[var(--r-md)] border border-[var(--c-border)] p-2 shadow-[shadow:var(--shadow-soft)]"
                   style={{ backgroundColor: s.v }}
                 >
                   <span
@@ -154,23 +122,23 @@ function TokensStrip() {
 
           {/* Tipografía */}
           <div>
-            <p className="mb-2 text-[var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-subtle)]">
+            <p className="mb-2 text-[length:var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-subtle)]">
               Tipografía
             </p>
             <p className="font-[family-name:var(--font-display)] text-3xl font-extrabold leading-none tracking-[var(--ls-tight)] text-[var(--c-ink)]">
               Bricolage
             </p>
-            <p className="mt-1 font-[family-name:var(--font-body)] text-[var(--t-body)] text-[var(--c-ink-muted)]">
+            <p className="mt-1 font-[family-name:var(--font-body)] text-[length:var(--t-body)] text-[var(--c-ink-muted)]">
               Plus Jakarta Sans — cuerpo cálido y redondo.
             </p>
-            <p className="mt-1 font-[family-name:var(--font-mono)] text-[var(--t-mono)] text-[var(--c-ink-subtle)]">
+            <p className="mt-1 font-[family-name:var(--font-mono)] text-[length:var(--t-mono)] text-[var(--c-ink-subtle)]">
               Space Mono · UK-2026-JUL-LONDON
             </p>
           </div>
 
           {/* Radios + sombra */}
           <div>
-            <p className="mb-2 text-[var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-subtle)]">
+            <p className="mb-2 text-[length:var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-subtle)]">
               Radios & sombra
             </p>
             <div className="flex items-end gap-2">
@@ -187,10 +155,10 @@ function TokensStrip() {
               ))}
             </div>
             <div className="mt-3 flex gap-2">
-              <span className="rounded-[var(--r-md)] bg-[var(--c-surface)] px-3 py-2 text-[var(--t-small)] shadow-[var(--shadow-1)]">
+              <span className="rounded-[var(--r-md)] bg-[var(--c-surface)] px-3 py-2 text-[length:var(--t-small)] shadow-[shadow:var(--shadow-1)]">
                 shadow-1
               </span>
-              <span className="rounded-[var(--r-md)] bg-[var(--c-surface)] px-3 py-2 text-[var(--t-small)] shadow-[var(--shadow-2)]">
+              <span className="rounded-[var(--r-md)] bg-[var(--c-surface)] px-3 py-2 text-[length:var(--t-small)] shadow-[shadow:var(--shadow-2)]">
                 shadow-2
               </span>
             </div>
@@ -209,7 +177,11 @@ const NAV = [
   { id: "dashboard", label: "Dashboard" },
   { id: "alumnos", label: "Alumnos (ABM)" },
   { id: "viaje", label: "Detalle de viaje" },
-  { id: "login", label: "Login" },
+  { id: "seguimiento", label: "Seguimiento M6" },
+  { id: "pagos", label: "Pagos" },
+  { id: "pantallas", label: "Pantallas" },
+  { id: "pantallas-admin", label: "Admin" },
+  { id: "componentes", label: "Componentes" },
 ];
 
 function SubNav() {
@@ -220,7 +192,7 @@ function SubNav() {
           <a
             key={n.id}
             href={`#${n.id}`}
-            className="whitespace-nowrap rounded-[var(--r-pill)] px-4 py-2 text-[var(--t-small)] font-semibold text-[var(--c-ink-muted)] transition-colors hover:bg-[var(--c-surface)] hover:text-[var(--c-brand)]"
+            className="whitespace-nowrap rounded-[var(--r-pill)] px-4 py-2 text-[length:var(--t-small)] font-semibold text-[var(--c-ink-muted)] transition-colors hover:bg-[var(--c-surface)] hover:text-[var(--c-brand)]"
           >
             {n.label}
           </a>
@@ -261,7 +233,7 @@ function StatCard({
       >
         {icon}
       </div>
-      <p className="text-[var(--t-small)] font-semibold text-[var(--c-ink-muted)]">{label}</p>
+      <p className="text-[length:var(--t-small)] font-semibold text-[var(--c-ink-muted)]">{label}</p>
       <p
         className="mt-2 font-[family-name:var(--font-display)] text-5xl font-extrabold leading-none tracking-[var(--ls-tight)]"
         style={{ color: accent }}
@@ -272,61 +244,272 @@ function StatCard({
   );
 }
 
-function TripCard({
-  code,
-  title,
-  badge,
-  dates,
-  school,
-  used,
-  total,
-}: {
+type Viaje = {
   code: string;
   title: string;
-  badge: ReactNode;
-  dates: string;
   school: string;
+  dates: string;
   used: number;
   total: number;
-}) {
-  const pct = Math.round((used / total) * 100);
+  img: string;
+  estado: { label: string; k: string };
+};
+
+const VIAJES: Viaje[] = [
+  {
+    code: "UK-2026-JUL-LONDON",
+    title: "Londres en Julio · Campus",
+    school: "London School of English",
+    dates: "04/07/2026 – 25/07/2026",
+    used: 12,
+    total: 24,
+    img: "/design/trips/london-bridge.jpg",
+    estado: { label: "Inscripción abierta", k: "abierta" },
+  },
+  {
+    code: "UK-2026-JUL-BRIGHTON",
+    title: "Brighton Costa · Campus",
+    school: "Brighton Language College",
+    dates: "11/07/2026 – 01/08/2026",
+    used: 18,
+    total: 20,
+    img: "/design/trips/brighton.jpg",
+    estado: { label: "Confirmado", k: "confirmado" },
+  },
+  {
+    code: "UK-2026-AGO-OXFORD",
+    title: "Oxford Académico · Homestay",
+    school: "Oxford International",
+    dates: "08/08/2026 – 29/08/2026",
+    used: 5,
+    total: 16,
+    img: "/design/trips/oxford.jpg",
+    estado: { label: "Inscripción abierta", k: "abierta" },
+  },
+];
+
+const VIAJES_POSTER: Viaje[] = [
+  { ...VIAJES[0]!, img: "/design/trips/london-night.jpg" },
+  {
+    code: "UK-2027-ENE-EDINBURGH",
+    title: "Edimburgo de Invierno · Homestay",
+    school: "Edinburgh School of English",
+    dates: "09/01/2027 – 30/01/2027",
+    used: 0,
+    total: 12,
+    img: "/design/trips/edinburgh.jpg",
+    estado: { label: "Inscripción abierta", k: "abierta" },
+  },
+  { ...VIAJES[1]! },
+];
+
+function estadoBadge(v: Viaje, onPhoto = false) {
   return (
-    <Card className="group flex flex-col overflow-hidden transition-transform duration-200 hover:-translate-y-1 hover:shadow-[var(--shadow-2)]">
-      <div
-        className="relative h-24"
-        style={{ backgroundImage: "var(--grad-brand)" }}
-      >
-        <div className="absolute inset-0 opacity-30 [background-image:radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.5),transparent_45%)]" />
-        <span className="absolute left-4 top-4 font-[family-name:var(--font-mono)] text-[var(--t-small)] font-bold text-[var(--c-ink-onbrand)]">
-          {code}
+    <Badge
+      fg={`var(--b-viaje-${v.estado.k})`}
+      bg={onPhoto ? "var(--c-surface)" : `var(--b-viaje-${v.estado.k}-bg)`}
+      dot
+    >
+      {v.estado.label}
+    </Badge>
+  );
+}
+
+function CupoBar({ v, compact }: { v: Viaje; compact?: boolean }) {
+  const pct = Math.round((v.used / v.total) * 100);
+  return (
+    <div className={compact ? "w-32" : ""}>
+      {!compact && (
+        <div className="flex items-center justify-between text-[length:var(--t-small)]">
+          <span className="font-semibold text-[var(--c-ink)]">Cupo</span>
+          <span className="font-[family-name:var(--font-mono)] text-[var(--c-ink-muted)]">
+            {v.used}/{v.total}
+          </span>
+        </div>
+      )}
+      <div className={`${compact ? "" : "mt-2 "}h-2.5 w-full overflow-hidden rounded-[var(--r-pill)] bg-[var(--c-surface-2)]`}>
+        <div
+          className="h-full rounded-[var(--r-pill)]"
+          style={{ width: `${pct}%`, backgroundImage: "var(--grad-warm)" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* V1 — Clásica: foto arriba, datos abajo */
+function TripCard({ v }: { v: Viaje }) {
+  return (
+    <Card className="group flex flex-col overflow-hidden transition-transform duration-200 hover:-translate-y-1 hover:shadow-[shadow:var(--shadow-2)]">
+      <div className="relative h-32 overflow-hidden">
+        <Image
+          src={v.img}
+          alt={v.title}
+          fill
+          sizes="(max-width: 1024px) 100vw, 33vw"
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[rgba(23,63,58,0.7)] via-[rgba(23,63,58,0.15)] to-transparent" />
+        <span className="absolute left-4 bottom-3 rounded-[var(--r-xs)] bg-[rgba(23,63,58,0.55)] px-2 py-1 font-[family-name:var(--font-mono)] text-[11px] font-bold text-[var(--c-ink-onbrand)] backdrop-blur-sm">
+          {v.code}
         </span>
-        <span className="absolute right-4 top-4">{badge}</span>
+        <span className="absolute right-3 top-3">{estadoBadge(v, true)}</span>
       </div>
       <div className="flex flex-1 flex-col p-5">
-        <h3 className="font-[family-name:var(--font-display)] text-[var(--t-h3)] font-bold text-[var(--c-ink)]">
-          {title}
+        <h3 className="font-[family-name:var(--font-display)] text-[length:var(--t-h3)] font-bold text-[var(--c-ink)]">
+          {v.title}
         </h3>
-        <p className="mt-1 text-[var(--t-small)] text-[var(--c-ink-muted)]">{school}</p>
-        <p className="mt-3 inline-flex items-center gap-2 text-[var(--t-small)] text-[var(--c-ink-muted)]">
-          <span aria-hidden>🗓️</span> {dates}
+        <p className="mt-1 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">{v.school}</p>
+        <p className="mt-3 inline-flex items-center gap-2 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
+          <span aria-hidden>🗓️</span> {v.dates}
         </p>
-
-        <div className="mt-4 pt-4 border-t border-[var(--c-border)]">
-          <div className="flex items-center justify-between text-[var(--t-small)]">
-            <span className="font-semibold text-[var(--c-ink)]">Cupo</span>
-            <span className="font-[family-name:var(--font-mono)] text-[var(--c-ink-muted)]">
-              {used}/{total}
-            </span>
-          </div>
-          <div className="mt-2 h-2.5 w-full overflow-hidden rounded-[var(--r-pill)] bg-[var(--c-surface-2)]">
-            <div
-              className="h-full rounded-[var(--r-pill)]"
-              style={{ width: `${pct}%`, backgroundImage: "var(--grad-warm)" }}
-            />
-          </div>
+        <div className="mt-4 border-t border-[var(--c-border)] pt-4">
+          <CupoBar v={v} />
         </div>
       </div>
     </Card>
+  );
+}
+
+/* V2 — Destacada: full-width, foto a la izquierda, operación a la derecha */
+function TripCardDestacada({ v }: { v: Viaje }) {
+  return (
+    <Card className="group grid overflow-hidden transition-shadow hover:shadow-[shadow:var(--shadow-2)] md:grid-cols-[1.1fr_1.4fr]">
+      <div className="relative min-h-[200px] overflow-hidden md:min-h-[260px]">
+        <Image
+          src={v.img}
+          alt={v.title}
+          fill
+          sizes="(max-width: 768px) 100vw, 45vw"
+          className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-tr from-[rgba(23,63,58,0.65)] via-transparent to-transparent" />
+        <span className="absolute bottom-4 left-4 rounded-[var(--r-xs)] bg-[rgba(23,63,58,0.55)] px-2 py-1 font-[family-name:var(--font-mono)] text-[11px] font-bold text-[var(--c-ink-onbrand)] backdrop-blur-sm">
+          {v.code}
+        </span>
+      </div>
+      <div className="flex flex-col gap-4 p-6">
+        <div className="flex flex-wrap items-center gap-2">
+          {estadoBadge(v)}
+          <Badge tone="neutral">21 noches</Badge>
+          <Badge tone="brand">Campus</Badge>
+        </div>
+        <div>
+          <h3 className="font-[family-name:var(--font-display)] text-[length:var(--t-display-2)] font-extrabold leading-[var(--lh-tight)] tracking-[var(--ls-tight)] text-[var(--c-ink)]">
+            {v.title}
+          </h3>
+          <p className="mt-1 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
+            {v.school} · {v.dates}
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CupoBar v={v} />
+          <div>
+            <p className="text-[length:var(--t-small)] font-semibold text-[var(--c-ink)]">Group Leaders</p>
+            <div className="mt-1.5 flex items-center gap-2">
+              <AvatarGroup names={["Paula Vidal", "Mariano Sosa"]} />
+              <span className="text-[length:var(--t-small)] text-[var(--c-ink-subtle)]">2 asignados</span>
+            </div>
+          </div>
+        </div>
+        <div className="mt-auto flex flex-wrap items-center gap-3 border-t border-[var(--c-border)] pt-4">
+          <Button variant="primary" size="sm">
+            Ver viaje
+          </Button>
+          <Button variant="outline" size="sm">
+            Asignar alumnos
+          </Button>
+          <span className="ml-auto text-[length:var(--t-small)] text-[var(--c-ink-subtle)]">
+            Sale en <span className="font-bold text-[var(--c-accent-600)]">23 días</span>
+          </span>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+/* V3 — Fila compacta: full-width, varias por lista */
+function TripRows({ viajes }: { viajes: Viaje[] }) {
+  return (
+    <Card className="overflow-hidden">
+      <ul>
+        {viajes.map((v, i) => (
+          <li
+            key={v.code}
+            className={`group flex cursor-pointer items-center gap-4 px-4 py-3.5 transition-colors hover:bg-[var(--c-brand-50)] sm:px-5 ${i > 0 ? "border-t border-[var(--c-border)]" : ""}`}
+          >
+            <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-[var(--r-md)] sm:h-[72px] sm:w-28">
+              <Image src={v.img} alt={v.title} fill sizes="120px" className="object-cover" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-[family-name:var(--font-display)] font-bold text-[var(--c-ink)] transition-colors group-hover:text-[var(--c-brand)]">
+                {v.title}
+              </p>
+              <p className="truncate font-[family-name:var(--font-mono)] text-[11px] font-bold text-[var(--c-ink-subtle)]">
+                {v.code}
+              </p>
+              <p className="mt-0.5 truncate text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
+                🗓️ {v.dates}
+              </p>
+            </div>
+            <div className="hidden items-center gap-2 md:flex">
+              <CupoBar v={v} compact />
+              <span className="w-12 font-[family-name:var(--font-mono)] text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
+                {v.used}/{v.total}
+              </span>
+            </div>
+            <span className="hidden sm:block">{estadoBadge(v)}</span>
+            <span aria-hidden className="text-[var(--c-ink-subtle)] transition-transform group-hover:translate-x-1 group-hover:text-[var(--c-brand)]">
+              →
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+/* V4 — Póster: la foto ES la tarjeta */
+function TripCardPoster({ v }: { v: Viaje }) {
+  return (
+    <Card className="group relative h-72 overflow-hidden border-0 transition-transform duration-200 hover:-translate-y-1 hover:shadow-[shadow:var(--shadow-3)]">
+      <Image
+        src={v.img}
+        alt={v.title}
+        fill
+        sizes="(max-width: 1024px) 100vw, 33vw"
+        className="object-cover transition-transform duration-700 group-hover:scale-105"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-[rgba(18,42,38,0.88)] via-[rgba(18,42,38,0.25)] to-[rgba(18,42,38,0.05)]" />
+      <span className="absolute right-3 top-3 rounded-[var(--r-pill)] border border-[rgba(255,255,255,0.35)] bg-[rgba(255,255,255,0.18)] px-3 py-1 text-[11px] font-bold text-white backdrop-blur-md">
+        {v.estado.label}
+      </span>
+      <div className="absolute inset-x-0 bottom-0 p-5 text-[var(--c-ink-onbrand)]">
+        <p className="font-[family-name:var(--font-mono)] text-[11px] font-bold text-[var(--c-ink-onbrand-muted)]">
+          {v.code}
+        </p>
+        <h3 className="mt-1 font-[family-name:var(--font-display)] text-[length:var(--t-h2)] font-extrabold leading-[var(--lh-tight)] tracking-[var(--ls-tight)]">
+          {v.title}
+        </h3>
+        <div className="mt-2 flex items-center justify-between text-[length:var(--t-small)]">
+          <span className="text-[var(--c-ink-onbrand-muted)]">{v.dates}</span>
+          <span className="rounded-[var(--r-pill)] bg-[rgba(255,255,255,0.18)] px-2.5 py-0.5 font-[family-name:var(--font-mono)] text-[11px] font-bold backdrop-blur-md">
+            {v.used}/{v.total}
+          </span>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function VarianteTag({ v, nombre }: { v: string; nombre: string }) {
+  return (
+    <p className="mb-3 mt-8 flex items-center gap-2.5 text-[length:var(--t-small)]">
+      <span className="rounded-[var(--r-xs)] bg-[var(--c-surface-inverse)] px-2 py-0.5 font-[family-name:var(--font-mono)] text-[11px] font-bold text-[var(--c-ink-onbrand)]">
+        {v}
+      </span>
+      <span className="font-semibold text-[var(--c-ink-muted)]">{nombre}</span>
+    </p>
   );
 }
 
@@ -341,10 +524,10 @@ function DashboardScreen() {
 
       <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[var(--t-small)] font-semibold uppercase tracking-[var(--ls-label)] text-[var(--c-accent-600)]">
+          <p className="text-[length:var(--t-small)] font-semibold uppercase tracking-[var(--ls-label)] text-[var(--c-accent-600)]">
             Lunes 31 de mayo
           </p>
-          <h3 className="font-[family-name:var(--font-display)] text-[var(--t-display-2)] font-extrabold leading-[var(--lh-tight)] tracking-[var(--ls-tight)] text-[var(--c-ink)]">
+          <h3 className="font-[family-name:var(--font-display)] text-[length:var(--t-display-2)] font-extrabold leading-[var(--lh-tight)] tracking-[var(--ls-tight)] text-[var(--c-ink)]">
             Buen día, Agustín.
           </h3>
         </div>
@@ -384,64 +567,43 @@ function DashboardScreen() {
           </span>
           <div>
             <p className="font-semibold text-[var(--c-ink)]">Sin alertas por ahora</p>
-            <p className="text-[var(--t-small)] text-[var(--c-ink-muted)]">
+            <p className="text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
               Cuando un paso se trabe o un pasaporte esté por vencer, lo vas a ver acá.
             </p>
           </div>
         </Card>
       </div>
 
-      {/* Viajes próximos */}
+      {/* Viajes próximos — 4 variantes de tarjeta para comparar */}
       <div className="mt-8">
         <div className="flex items-end justify-between">
           <SectionTitle kicker="Viajes próximos">En el horizonte</SectionTitle>
           <a
             href="#viaje"
-            className="text-[var(--t-small)] font-semibold text-[var(--c-brand)] hover:underline"
+            className="text-[length:var(--t-small)] font-semibold text-[var(--c-brand)] hover:underline"
           >
             Ver todos →
           </a>
         </div>
-        <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          <TripCard
-            code="UK-2026-JUL-LONDON"
-            title="Londres en Julio · Campus"
-            badge={
-              <Badge fg="var(--b-viaje-abierta)" bg="var(--c-surface)" dot>
-                Inscripción abierta
-              </Badge>
-            }
-            dates="04/07/2026 – 25/07/2026"
-            school="London School of English"
-            used={12}
-            total={24}
-          />
-          <TripCard
-            code="UK-2026-JUL-BRIGHTON"
-            title="Brighton Costa · Campus"
-            badge={
-              <Badge fg="var(--b-viaje-confirmado)" bg="var(--c-surface)" dot>
-                Confirmado
-              </Badge>
-            }
-            dates="11/07/2026 – 01/08/2026"
-            school="Brighton Language College"
-            used={18}
-            total={20}
-          />
-          <TripCard
-            code="UK-2026-AGO-OXFORD"
-            title="Oxford Académico · Homestay"
-            badge={
-              <Badge fg="var(--b-viaje-abierta)" bg="var(--c-surface)" dot>
-                Inscripción abierta
-              </Badge>
-            }
-            dates="08/08/2026 – 29/08/2026"
-            school="Oxford International"
-            used={5}
-            total={16}
-          />
+
+        <VarianteTag v="V1" nombre="Clásica — foto arriba, grilla de 3" />
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {VIAJES.map((v) => (
+            <TripCard key={v.code} v={v} />
+          ))}
+        </div>
+
+        <VarianteTag v="V2" nombre="Destacada — full-width, para el viaje que sale primero" />
+        {VIAJES[0] && <TripCardDestacada v={{ ...VIAJES[0], img: "/design/trips/london-westminster.jpg" }} />}
+
+        <VarianteTag v="V3" nombre="Fila compacta — full-width, lista densa para muchos viajes" />
+        <TripRows viajes={VIAJES} />
+
+        <VarianteTag v="V4" nombre="Póster — la foto es la tarjeta, para portadas y destacados" />
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {VIAJES_POSTER.map((v) => (
+            <TripCardPoster key={v.code + v.img} v={v} />
+          ))}
         </div>
       </div>
     </Screen>
@@ -458,6 +620,7 @@ type AlumnoRow = {
   dni: string;
   pasaporte: string;
   vto: string;
+  viaje: string | null;
   estado: { label: string; fg: string; bg: string };
 };
 
@@ -469,12 +632,12 @@ const ESTADO = {
 };
 
 const ALUMNOS: AlumnoRow[] = [
-  { apellido: "Álvarez", nombre: "Catalina", dni: "45.102.338", pasaporte: "AAR201144", vto: "12/09/2031", estado: ESTADO.activo },
-  { apellido: "Benítez", nombre: "Tomás", dni: "44.788.901", pasaporte: "AAR198052", vto: "03/05/2027", estado: ESTADO.inscripto },
-  { apellido: "Castro", nombre: "Malena", dni: "46.013.557", pasaporte: "—", vto: "—", estado: ESTADO.pendiente },
-  { apellido: "Domínguez", nombre: "Ignacio", dni: "45.667.210", pasaporte: "AAR210995", vto: "28/11/2030", estado: ESTADO.activo },
-  { apellido: "Fernández", nombre: "Lucía", dni: "44.231.880", pasaporte: "AAR175340", vto: "14/02/2026", estado: ESTADO.inscripto },
-  { apellido: "Gómez", nombre: "Bautista", dni: "46.520.114", pasaporte: "—", vto: "—", estado: ESTADO.baja },
+  { apellido: "Álvarez", nombre: "Catalina", dni: "45.102.338", pasaporte: "AAR201144", vto: "12/09/2031", viaje: "UK-2026-JUL-LONDON", estado: ESTADO.activo },
+  { apellido: "Benítez", nombre: "Tomás", dni: "44.788.901", pasaporte: "AAR198052", vto: "03/05/2027", viaje: "UK-2026-JUL-LONDON", estado: ESTADO.inscripto },
+  { apellido: "Castro", nombre: "Malena", dni: "46.013.557", pasaporte: "—", vto: "—", viaje: null, estado: ESTADO.pendiente },
+  { apellido: "Domínguez", nombre: "Ignacio", dni: "45.667.210", pasaporte: "AAR210995", vto: "28/11/2030", viaje: "UK-2026-JUL-BRIGHTON", estado: ESTADO.activo },
+  { apellido: "Fernández", nombre: "Lucía", dni: "44.231.880", pasaporte: "AAR175340", vto: "14/02/2026", viaje: "UK-2026-AGO-OXFORD", estado: ESTADO.inscripto },
+  { apellido: "Gómez", nombre: "Bautista", dni: "46.520.114", pasaporte: "—", vto: "—", viaje: null, estado: ESTADO.baja },
 ];
 
 function AlumnosListCard() {
@@ -483,10 +646,10 @@ function AlumnosListCard() {
       {/* header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--c-border)] p-5">
         <div>
-          <h3 className="font-[family-name:var(--font-display)] text-[var(--t-h2)] font-bold text-[var(--c-ink)]">
+          <h3 className="font-[family-name:var(--font-display)] text-[length:var(--t-h2)] font-bold text-[var(--c-ink)]">
             Alumnos
           </h3>
-          <p className="text-[var(--t-small)] text-[var(--c-ink-muted)]">60 alumnos</p>
+          <p className="text-[length:var(--t-small)] text-[var(--c-ink-muted)]">60 alumnos</p>
         </div>
         <Button variant="accent" size="sm">
           + Nuevo alumno
@@ -501,11 +664,14 @@ function AlumnosListCard() {
           </span>
           <input
             placeholder="Buscar por nombre, DNI o pasaporte…"
-            className="min-h-[var(--tap)] w-full rounded-[var(--r-pill)] border border-[var(--c-border-strong)] bg-[var(--c-surface)] pl-11 pr-4 text-[var(--t-body)] text-[var(--c-ink)] placeholder:text-[var(--c-ink-subtle)] focus:border-[var(--c-brand-300)] focus:shadow-[var(--ring-focus)] focus:outline-none"
+            className="min-h-[var(--tap)] w-full rounded-[var(--r-pill)] border border-[var(--c-border-strong)] bg-[var(--c-surface)] pl-11 pr-4 text-[length:var(--t-body)] text-[var(--c-ink)] placeholder:text-[var(--c-ink-subtle)] focus:border-[var(--c-brand-300)] focus:shadow-[shadow:var(--ring-focus)] focus:outline-none"
           />
         </div>
         <div className="w-full sm:w-56">
-          <Select options={["Todos los estados", "Activo", "Inscripto", "Pendiente", "Baja"]} />
+          <SelectMenu
+            defaultValue="Todos los estados"
+            options={["Todos los estados", "Activo", "Inscripto", "Pendiente", "Baja"]}
+          />
         </div>
       </div>
 
@@ -513,9 +679,10 @@ function AlumnosListCard() {
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-left">
           <thead>
-            <tr className="bg-[var(--c-surface-2)] text-[var(--t-label)] uppercase tracking-[var(--ls-label)] text-[var(--c-ink-muted)]">
+            <tr className="bg-[var(--c-surface-2)] text-[length:var(--t-label)] uppercase tracking-[var(--ls-label)] text-[var(--c-ink-muted)]">
               <th className="px-5 py-3 font-bold">Alumno</th>
               <th className="px-5 py-3 font-bold">Pasaporte</th>
+              <th className="hidden px-5 py-3 font-bold md:table-cell">Viaje</th>
               <th className="px-5 py-3 font-bold">Estado</th>
               <th className="px-5 py-3 text-right font-bold">Acción</th>
             </tr>
@@ -529,7 +696,7 @@ function AlumnosListCard() {
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-3">
                     <span
-                      className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--r-pill)] font-[family-name:var(--font-display)] text-[var(--t-small)] font-bold text-[var(--c-brand)]"
+                      className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--r-pill)] font-[family-name:var(--font-display)] text-[length:var(--t-small)] font-bold text-[var(--c-brand)]"
                       style={{ backgroundColor: "var(--c-brand-100)" }}
                       aria-hidden
                     >
@@ -540,7 +707,7 @@ function AlumnosListCard() {
                       <p className="font-semibold text-[var(--c-ink)]">
                         {a.apellido}, {a.nombre}
                       </p>
-                      <p className="font-[family-name:var(--font-mono)] text-[var(--t-small)] text-[var(--c-ink-subtle)]">
+                      <p className="font-[family-name:var(--font-mono)] text-[length:var(--t-small)] text-[var(--c-ink-subtle)]">
                         DNI {a.dni}
                       </p>
                     </div>
@@ -548,14 +715,23 @@ function AlumnosListCard() {
                 </td>
                 <td className="px-5 py-3 align-middle">
                   {a.pasaporte === "—" ? (
-                    <span className="text-[var(--t-small)] text-[var(--c-ink-subtle)]">Sin cargar</span>
+                    <span className="text-[length:var(--t-small)] text-[var(--c-ink-subtle)]">Sin cargar</span>
                   ) : (
                     <div>
-                      <p className="font-[family-name:var(--font-mono)] text-[var(--t-small)] text-[var(--c-ink)]">
+                      <p className="font-[family-name:var(--font-mono)] text-[length:var(--t-small)] text-[var(--c-ink)]">
                         {a.pasaporte}
                       </p>
-                      <p className="text-[var(--t-small)] text-[var(--c-ink-muted)]">vto {a.vto}</p>
+                      <p className="text-[length:var(--t-small)] text-[var(--c-ink-muted)]">vto {a.vto}</p>
                     </div>
+                  )}
+                </td>
+                <td className="hidden px-5 py-3 align-middle md:table-cell">
+                  {a.viaje ? (
+                    <span className="font-[family-name:var(--font-mono)] text-[length:var(--t-small)] font-bold text-[var(--c-brand)]">
+                      {a.viaje}
+                    </span>
+                  ) : (
+                    <span className="text-[length:var(--t-small)] text-[var(--c-ink-subtle)]">Sin asignar</span>
                   )}
                 </td>
                 <td className="px-5 py-3 align-middle">
@@ -581,10 +757,10 @@ function AlumnoForm() {
   return (
     <Card className="overflow-hidden">
       <div className="border-b border-[var(--c-border)] bg-[var(--c-surface-3)] p-5">
-        <h3 className="font-[family-name:var(--font-display)] text-[var(--t-h2)] font-bold text-[var(--c-ink)]">
+        <h3 className="font-[family-name:var(--font-display)] text-[length:var(--t-h2)] font-bold text-[var(--c-ink)]">
           Nuevo alumno
         </h3>
-        <p className="text-[var(--t-small)] text-[var(--c-ink-muted)]">
+        <p className="text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
           Los campos con <span className="text-[var(--c-accent-600)]">*</span> son obligatorios.
         </p>
       </div>
@@ -593,7 +769,7 @@ function AlumnoForm() {
         {/* Datos personales */}
         <div>
           <SectionTitle kicker="Sección 1">Datos personales</SectionTitle>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <Label htmlFor="nombre" required>
                 Nombre
@@ -682,8 +858,9 @@ function AlumnoForm() {
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="fiscal">Condición fiscal</Label>
-              <Select
+              <SelectMenu
                 id="fiscal"
+                defaultValue="Consumidor final"
                 options={["Consumidor final", "Responsable inscripto", "Monotributo", "Exento"]}
               />
             </div>
@@ -733,9 +910,9 @@ function AlumnosScreen() {
       <ScreenHeading
         n="02"
         title="Alumnos · ABM"
-        sub="Lista filtrable y el formulario de alta — con todos los estados de los campos."
+        sub="Lista filtrable a pantalla completa, y abajo el formulario de alta con todos los estados de los campos."
       />
-      <div className="grid gap-6 lg:grid-cols-[1fr_1fr] xl:grid-cols-[0.9fr_1.1fr]">
+      <div className="space-y-6">
         <AlumnosListCard />
         <AlumnoForm />
       </div>
@@ -807,12 +984,12 @@ function StepCard({
       className={[
         "flex min-w-[180px] flex-1 flex-col gap-3 rounded-[var(--r-lg)] border p-4 transition-shadow",
         active
-          ? "border-[var(--c-brand-300)] bg-[var(--c-brand-50)] shadow-[var(--shadow-2)]"
-          : "border-[var(--c-border)] bg-[var(--c-surface)] shadow-[var(--shadow-soft)]",
+          ? "border-[var(--c-brand-300)] bg-[var(--c-brand-50)] shadow-[shadow:var(--shadow-2)]"
+          : "border-[var(--c-border)] bg-[var(--c-surface)] shadow-[shadow:var(--shadow-soft)]",
       ].join(" ")}
     >
       <div className="flex items-center justify-between">
-        <span className="font-[family-name:var(--font-mono)] text-[var(--t-small)] font-bold text-[var(--c-ink-subtle)]">
+        <span className="font-[family-name:var(--font-mono)] text-[length:var(--t-small)] font-bold text-[var(--c-ink-subtle)]">
           {n}
         </span>
         <Badge fg={c.fg} bg={c.bg} dot>
@@ -821,7 +998,7 @@ function StepCard({
       </div>
       <p className="font-semibold text-[var(--c-ink)]">{label}</p>
       {aviso && (
-        <p className="inline-flex items-center gap-1.5 rounded-[var(--r-sm)] bg-[var(--c-danger-bg)] px-2 py-1 text-[var(--t-small)] font-medium text-[var(--c-danger)]">
+        <p className="inline-flex items-center gap-1.5 rounded-[var(--r-sm)] bg-[var(--c-danger-bg)] px-2 py-1 text-[length:var(--t-small)] font-medium text-[var(--c-danger)]">
           <span aria-hidden>🔒</span> {aviso}
         </p>
       )}
@@ -847,10 +1024,10 @@ function ViajeScreen() {
         <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(circle_at_90%_10%,rgba(255,255,255,0.6),transparent_40%)]" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div>
-            <span className="font-[family-name:var(--font-mono)] text-[var(--t-small)] font-bold text-[var(--c-ink-onbrand-muted)]">
+            <span className="font-[family-name:var(--font-mono)] text-[length:var(--t-small)] font-bold text-[var(--c-ink-onbrand-muted)]">
               UK-2026-JUL-LONDON
             </span>
-            <h3 className="mt-1 font-[family-name:var(--font-display)] text-[var(--t-display-2)] font-extrabold leading-[var(--lh-tight)] tracking-[var(--ls-tight)]">
+            <h3 className="mt-1 font-[family-name:var(--font-display)] text-[length:var(--t-display-2)] font-extrabold leading-[var(--lh-tight)] tracking-[var(--ls-tight)]">
               Londres en Julio · Campus
             </h3>
           </div>
@@ -862,10 +1039,10 @@ function ViajeScreen() {
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         {DATOS_VIAJE.map((d) => (
           <Card key={d.k} className="p-4">
-            <p className="text-[var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-subtle)]">
+            <p className="text-[length:var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-subtle)]">
               {d.k}
             </p>
-            <div className="mt-2 text-[var(--t-body)] font-semibold text-[var(--c-ink)]">{d.v}</div>
+            <div className="mt-2 text-[length:var(--t-body)] font-semibold text-[var(--c-ink)]">{d.v}</div>
           </Card>
         ))}
       </div>
@@ -878,7 +1055,10 @@ function ViajeScreen() {
           </div>
           <div className="flex flex-wrap gap-3 border-b border-[var(--c-border)] bg-[var(--c-surface-3)] p-4">
             <div className="min-w-[200px] flex-1">
-              <Select options={["Buscar alumno para asignar…", "Álvarez, Catalina", "Benítez, Tomás", "Castro, Malena"]} />
+              <SelectMenu
+                placeholder="Buscar alumno para asignar…"
+                options={["Álvarez, Catalina", "Benítez, Tomás", "Castro, Malena"]}
+              />
             </div>
             <Button variant="primary" size="sm">
               Asignar
@@ -893,7 +1073,7 @@ function ViajeScreen() {
               🎒
             </span>
             <p className="font-semibold text-[var(--c-ink)]">Todavía no hay alumnos asignados</p>
-            <p className="max-w-xs text-[var(--t-small)] text-[var(--c-ink-muted)]">
+            <p className="max-w-xs text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
               Buscá un alumno arriba y asignalo. El cupo se actualiza solo.
             </p>
           </div>
@@ -906,7 +1086,7 @@ function ViajeScreen() {
           </div>
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-[var(--c-surface-2)] text-[var(--t-label)] uppercase tracking-[var(--ls-label)] text-[var(--c-ink-muted)]">
+              <tr className="bg-[var(--c-surface-2)] text-[length:var(--t-label)] uppercase tracking-[var(--ls-label)] text-[var(--c-ink-muted)]">
                 <th className="px-5 py-3 font-bold">Leader</th>
                 <th className="px-5 py-3 font-bold">Police check</th>
                 <th className="px-5 py-3 font-bold">Rol</th>
@@ -916,7 +1096,7 @@ function ViajeScreen() {
               <tr className="bg-[var(--c-surface)]">
                 <td className="px-5 py-3">
                   <p className="font-semibold text-[var(--c-ink)]">Paula Vidal</p>
-                  <p className="text-[var(--t-small)] text-[var(--c-ink-muted)]">paula@jovenesuk.com</p>
+                  <p className="text-[length:var(--t-small)] text-[var(--c-ink-muted)]">paula@jovenesuk.com</p>
                 </td>
                 <td className="px-5 py-3">
                   <Badge fg="var(--b-police-aprobado)" bg="var(--b-police-aprobado-bg)" dot>
@@ -930,7 +1110,7 @@ function ViajeScreen() {
               <tr className="bg-[var(--c-surface-3)]">
                 <td className="px-5 py-3">
                   <p className="font-semibold text-[var(--c-ink)]">Mariano Sosa</p>
-                  <p className="text-[var(--t-small)] text-[var(--c-ink-muted)]">mariano@jovenesuk.com</p>
+                  <p className="text-[length:var(--t-small)] text-[var(--c-ink-muted)]">mariano@jovenesuk.com</p>
                 </td>
                 <td className="px-5 py-3">
                   <Badge fg="var(--b-police-en_tramite)" bg="var(--b-police-en_tramite-bg)" dot>
@@ -966,10 +1146,10 @@ function ViajeScreen() {
         <Card className="mt-5 overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--c-border)] bg-[var(--c-brand-50)] p-5">
             <div className="flex items-center gap-3">
-              <span className="font-[family-name:var(--font-mono)] text-[var(--t-small)] font-bold text-[var(--c-brand)]">
+              <span className="font-[family-name:var(--font-mono)] text-[length:var(--t-small)] font-bold text-[var(--c-brand)]">
                 01
               </span>
-              <h4 className="font-[family-name:var(--font-display)] text-[var(--t-h3)] font-bold text-[var(--c-ink)]">
+              <h4 className="font-[family-name:var(--font-display)] text-[length:var(--t-h3)] font-bold text-[var(--c-ink)]">
                 Pasajes
               </h4>
             </div>
@@ -980,7 +1160,7 @@ function ViajeScreen() {
           <div className="grid gap-4 p-5 sm:grid-cols-2">
             <div>
               <Label htmlFor="substate">Sub-estado</Label>
-              <Select
+              <SelectMenu
                 id="substate"
                 options={["Cotizando", "Reservado", "Emitido", "Confirmado"]}
                 defaultValue="Reservado"
@@ -1021,98 +1201,6 @@ function ViajeScreen() {
 }
 
 /* ════════════════════════════════════════════════════════════════
- * 4 · LOGIN
- * ════════════════════════════════════════════════════════════════ */
-
-function LoginScreen() {
-  return (
-    <Screen id="login">
-      <ScreenHeading
-        n="04"
-        title="Login / onboarding"
-        sub="La puerta de entrada: marca cálida a la izquierda, formulario directo a la derecha."
-      />
-      <Card className="overflow-hidden p-0">
-        <div className="grid lg:grid-cols-2">
-          {/* panel de marca */}
-          <div className="relative flex min-h-[440px] flex-col justify-between overflow-hidden p-8 text-[var(--c-ink-onbrand)]">
-            <div className="absolute inset-0" style={{ backgroundImage: "var(--grad-brand)" }} />
-            <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full opacity-30 blur-2xl" style={{ backgroundImage: "var(--grad-warm)" }} />
-            <div className="absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-[var(--c-brand-500)] opacity-30 blur-2xl" />
-
-            <div className="relative flex items-center gap-3">
-              <span
-                className="grid h-12 w-12 place-items-center rounded-[var(--r-lg)] text-[var(--c-ink-onaccent)] shadow-[var(--shadow-accent)]"
-                style={{ backgroundImage: "var(--grad-warm)" }}
-              >
-                <span className="font-[family-name:var(--font-display)] text-2xl font-extrabold">J</span>
-              </span>
-              <div className="leading-tight">
-                <p className="font-[family-name:var(--font-display)] font-bold">Jóvenes en UK</p>
-                <p className="text-[var(--t-small)] text-[var(--c-ink-onbrand-muted)]">Portal Interno</p>
-              </div>
-            </div>
-
-            <div className="relative">
-              <p className="font-[family-name:var(--font-display)] text-[var(--t-display-2)] font-extrabold leading-[var(--lh-tight)] tracking-[var(--ls-tight)]">
-                Todo lo que hace que el viaje salga bien, en un solo lugar.
-              </p>
-              <p className="mt-4 max-w-sm text-[var(--c-ink-onbrand-muted)]">
-                Alumnos, viajes, group leaders y el seguimiento de cada paso — del primer formulario al
-                regreso a casa.
-              </p>
-            </div>
-
-            <div className="relative flex gap-2">
-              <span className="h-2 w-8 rounded-[var(--r-pill)] bg-[var(--c-accent)]" />
-              <span className="h-2 w-2 rounded-[var(--r-pill)] bg-[var(--c-ink-onbrand-muted)]" />
-              <span className="h-2 w-2 rounded-[var(--r-pill)] bg-[var(--c-ink-onbrand-muted)]" />
-            </div>
-          </div>
-
-          {/* formulario */}
-          <div className="flex items-center justify-center p-8 sm:p-12">
-            <div className="w-full max-w-sm">
-              <h3 className="font-[family-name:var(--font-display)] text-[var(--t-h1)] font-extrabold tracking-[var(--ls-tight)] text-[var(--c-ink)]">
-                Ingresar al portal
-              </h3>
-              <p className="mt-1 text-[var(--t-small)] text-[var(--c-ink-muted)]">
-                Usá tu cuenta del equipo de Jóvenes en UK.
-              </p>
-
-              <form className="mt-8 space-y-4">
-                <div>
-                  <Label htmlFor="login-email" required>
-                    Email
-                  </Label>
-                  <Input id="login-email" type="email" placeholder="vos@jovenesuk.com" />
-                </div>
-                <div>
-                  <Label htmlFor="login-pass" required>
-                    Contraseña
-                  </Label>
-                  <Input id="login-pass" type="password" placeholder="••••••••" />
-                </div>
-                <Button type="submit" variant="primary" className="w-full">
-                  Ingresar
-                </Button>
-              </form>
-
-              <p className="mt-6 text-center text-[var(--t-small)] text-[var(--c-ink-muted)]">
-                ¿Olvidaste tu contraseña?{" "}
-                <a className="font-semibold text-[var(--c-brand)] hover:underline" href="#login">
-                  Restablecerla
-                </a>
-              </p>
-            </div>
-          </div>
-        </div>
-      </Card>
-    </Screen>
-  );
-}
-
-/* ════════════════════════════════════════════════════════════════
  * PAGE
  * ════════════════════════════════════════════════════════════════ */
 
@@ -1130,8 +1218,12 @@ export default function StudioPage() {
       <DashboardScreen />
       <AlumnosScreen />
       <ViajeScreen />
-      <LoginScreen />
-      <footer className="border-t border-[var(--c-border)] px-6 py-8 text-center text-[var(--t-small)] text-[var(--c-ink-subtle)]">
+      <SeguimientoScreen />
+      <PagosScreen />
+      <PantallasScreen />
+      <PantallasAdminScreen />
+      <ComponentesScreen />
+      <footer className="border-t border-[var(--c-border)] px-6 py-8 text-center text-[length:var(--t-small)] text-[var(--c-ink-subtle)]">
         Dirección <span className="font-semibold text-[var(--c-ink-muted)]">Studio</span> · concept de
         handoff · restilá todo desde{" "}
         <span className="font-[family-name:var(--font-mono)]">tokens.css</span>

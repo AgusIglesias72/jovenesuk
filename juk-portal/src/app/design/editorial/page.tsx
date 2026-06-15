@@ -6,6 +6,12 @@ import { ScreenDashboard } from "./ScreenDashboard";
 import { ScreenLogin } from "./ScreenLogin";
 import { ScreenViaje } from "./ScreenViaje";
 import { Eyebrow } from "./primitives";
+import { ComponentesScreen } from "../shared/gallery";
+import { PagosScreen } from "../shared/pagos";
+import { PantallasScreen } from "../shared/pantallas";
+import { PantallasAdminScreen } from "../shared/pantallas-admin";
+import { SeguimientoScreen } from "../shared/seguimiento";
+import "../shared/animations.css";
 import "./tokens.css";
 
 const fraunces = Fraunces({
@@ -24,6 +30,11 @@ const sections = [
   { id: "alumnos", label: "02 · Alumnos" },
   { id: "viaje", label: "03 · Detalle de viaje" },
   { id: "login", label: "04 · Login" },
+  { id: "seguimiento", label: "05 · Seguimiento M6" },
+  { id: "pagos", label: "06 · Pagos" },
+  { id: "pantallas", label: "07 · Pantallas" },
+  { id: "pantallas-admin", label: "08 · Admin" },
+  { id: "componentes", label: "09 · Componentes" },
 ] as const;
 
 /* ── Tira de tokens ──────────────────────────────────────────────── */
@@ -193,6 +204,15 @@ export default function EditorialPage() {
 
       <SectionAnchor id="login" kicker="Pantalla 04 — Login / onboarding" />
       <ScreenLogin />
+
+      {/* ── Secciones compartidas del lab (restiladas por estos tokens) ── */}
+      <div className="border-t border-[var(--c-border)]">
+        <SeguimientoScreen n="05" />
+        <PagosScreen n="06" />
+        <PantallasScreen n="07" />
+        <PantallasAdminScreen n="08" />
+        <ComponentesScreen n="09" />
+      </div>
 
       <footer className="border-t border-[var(--c-border)] py-[var(--sp-7)] text-center">
         <p className="font-[family-name:var(--font-mono)] text-[length:var(--t-small)] text-[var(--c-ink-subtle)]">

@@ -15,6 +15,12 @@ import {
   Textarea,
   numeral,
 } from "./primitives";
+import { ComponentesScreen } from "../shared/gallery";
+import { PagosScreen } from "../shared/pagos";
+import { PantallasScreen } from "../shared/pantallas";
+import { PantallasAdminScreen } from "../shared/pantallas-admin";
+import { SeguimientoScreen } from "../shared/seguimiento";
+import "../shared/animations.css";
 import "./tokens.css";
 
 /* Display serif con carácter "wonky" óptico — el alma de la dirección. */
@@ -219,6 +225,11 @@ const NAV = [
   { id: "alumnos", label: "Alumnos", n: "02" },
   { id: "viaje", label: "Viaje", n: "03" },
   { id: "login", label: "Login", n: "04" },
+  { id: "seguimiento", label: "Seguimiento M6", n: "05" },
+  { id: "pagos", label: "Pagos", n: "06" },
+  { id: "pantallas", label: "Pantallas", n: "07" },
+  { id: "pantallas-admin", label: "Admin", n: "08" },
+  { id: "componentes", label: "Componentes", n: "09" },
 ];
 
 function SubNav() {
@@ -1165,6 +1176,11 @@ export default function AutorPage() {
       <AlumnosScreen />
       <ViajeScreen />
       <LoginScreen />
+      <SeguimientoScreen n="05" />
+      <PagosScreen n="06" />
+      <PantallasScreen n="07" />
+      <PantallasAdminScreen n="08" />
+      <ComponentesScreen n="09" />
       <footer className="border-t-2 border-[var(--c-rule)] px-6 py-8 text-center">
         <p className="font-[family-name:var(--font-mono)] text-[var(--t-micro)] uppercase tracking-[var(--ls-label)] text-[var(--c-ink-subtle)]">
           Dirección <span className="text-[var(--c-accent)]">Autor</span> · concept de handoff · restilá

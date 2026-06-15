@@ -5,7 +5,9 @@ import {
   alumnos,
   asignaciones,
   colegios,
+  consultas,
   groupLeaders,
+  suscriptores,
   users,
   viajes,
 } from "../../src/lib/db/schema";
@@ -19,6 +21,7 @@ import {
  *   - colegios:  nombre  LIKE 'Colegio E2E %'
  *   - GLs:       email   LIKE 'gl-%@example.com'
  *   - usuarios:  rol familia con esos emails de tutor
+ *   - leads:     consultas/suscriptores con email LIKE '%@e2e.example.com'
  *
  * NO toca datos reales ni el seed [DEMO] (viajes UK-2026-*, dni DEMO-*, etc.).
  * Borra en orden de FK: cuotas/pasos_alumno/pasos_viaje/group_leaders_viaje/
@@ -64,6 +67,10 @@ export async function cleanupE2EData() {
         )
       )
     );
+
+  // Leads de la web pública (sin FK hacia el resto): emails @e2e.example.com.
+  await db.delete(consultas).where(like(consultas.email, "%@e2e.example.com"));
+  await db.delete(suscriptores).where(like(suscriptores.email, "%@e2e.example.com"));
 
   return { viajes: vids.length, alumnos: aids.length, colegios: cids.length, groupLeaders: gids.length };
 }

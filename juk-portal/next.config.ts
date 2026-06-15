@@ -11,12 +11,25 @@ const config: NextConfig = {
 
   // Image optimization domains (R2 public URL, etc.)
   images: {
+    formats: ["image/avif", "image/webp"],
     remotePatterns: [
       {
         protocol: "https",
         hostname: "files.jovenesenuk.com",
       },
     ],
+  },
+
+  // Redirects 301 desde las URLs del sitio Wix viejo, para no perder el SEO
+  // acumulado tras el cambio de dominio. Ampliar con las que aparezcan en
+  // Search Console del sitio actual antes del cutover.
+  async redirects() {
+    return [
+      { source: "/quienessomos", destination: "/quienes-somos", permanent: true },
+      { source: "/salidagrupal", destination: "/salidas#grupal", permanent: true },
+      { source: "/salida-para-institutos", destination: "/salidas#institutos", permanent: true },
+      { source: "/salida-individual", destination: "/salidas#individual", permanent: true },
+    ];
   },
 
   // PWA-friendly headers

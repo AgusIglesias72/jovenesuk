@@ -1,0 +1,71 @@
+/*
+ * Animaciones propias de la landing pública. Los keyframes generales del
+ * design system viven en app/design/shared/animations.css (ya globales);
+ * acá van solo los que la landing necesita y el lab no.
+ */
+@keyframes landing-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes landing-rise {
+  from { opacity: 0; transform: translateY(26px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes landing-drift {
+  0%, 100% { transform: translateY(0) rotate(var(--tilt, 0deg)); }
+  50% { transform: translateY(-9px) rotate(var(--tilt, 0deg)); }
+}
+
+@keyframes landing-dash {
+  to { stroke-dashoffset: -240; }
+}
+
+@keyframes landing-ping {
+  0% { opacity: 0.8; transform: scale(0.5); }
+  75%, 100% { opacity: 0; transform: scale(2.4); }
+}
+
+.landing-ping {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: landing-ping 2.8s ease-out infinite;
+}
+
+/* Texto con relleno degradado. Como clase porque el shorthand `background`
+   en arbitrary values de Tailwind pisa el background-clip. */
+.landing-grad-text {
+  background-image: var(--grad-warm);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Foco de teclado visible para todo el sitio público. El border-radius aplica
+   solo al ring de foco (box-shadow), no a la forma del elemento, así que no
+   rompe pills ni botones redondeados. */
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+[role="button"]:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+  border-radius: var(--r-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .landing-anim,
+  .landing-anim * {
+    animation: none !important;
+  }
+}

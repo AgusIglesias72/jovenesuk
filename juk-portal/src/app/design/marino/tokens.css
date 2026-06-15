@@ -170,4 +170,22 @@
   /* ── Misc ── */
   --hairline: 1px;
   --tap: 44px; /* target de toque mínimo (touch-first) */
+
+  /* ════════════════════════════════════════════════════════════════
+   * Extensión para las SECCIONES COMPARTIDAS del lab (design/shared/)
+   * honey = oro, berry = coral, gradientes navy.
+   * ════════════════════════════════════════════════════════════════ */
+  --c-accent-300: #f0d291;
+  --c-honey: var(--c-accent);
+  --c-honey-soft: var(--c-accent-soft);
+  --c-berry: var(--c-coral-600);
+  --c-berry-soft: var(--c-coral-soft);
+
+  --grad-brand: linear-gradient(150deg, #122d5c 0%, #0a1f44 65%, #071630 100%);
+  --grad-warm: linear-gradient(135deg, #e6b54d 0%, #c89a3a 100%);
+  --grad-page: radial-gradient(1100px 520px at 85% -10%, rgba(251, 241, 216, 0.6) 0%, rgba(251, 241, 216, 0) 55%),
+               radial-gradient(900px 480px at -5% 110%, rgba(245, 248, 253, 0.8) 0%, rgba(245, 248, 253, 0) 50%);
+
+  --b-paso-vencido: var(--c-coral-600);
+  --b-paso-vencido-bg: var(--c-coral-soft);
 }
