@@ -33,7 +33,7 @@ export default async function FamiliasHomePage() {
         {alumnos.map((alumno) => (
           <li key={alumno.id}>
             <Link
-              href={`/familias/${alumno.id}`}
+              href={`/familias/${alumno.dni}`}
               className="flex min-h-[var(--tap)] items-center justify-between gap-3 rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] px-4 py-4 shadow-[shadow:var(--shadow-1)] transition-colors hover:border-[var(--c-ink-subtle)]"
             >
               <span className="text-[length:var(--t-body)] font-semibold text-[var(--c-ink)]">
