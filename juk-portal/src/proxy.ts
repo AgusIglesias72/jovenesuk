@@ -26,7 +26,12 @@ export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const search = request.nextUrl.search;
   const host = request.headers.get("host") ?? "";
-  const sessionToken = request.cookies.get("juk.session_token");
+  // En producción Better-Auth usa cookies seguras con prefijo __Secure-
+  // (advanced.useSecureCookies). Hay que mirar ambos nombres o el proxy nunca
+  // ve la sesión en prod y rebota al login en loop.
+  const sessionToken =
+    request.cookies.get("juk.session_token") ??
+    request.cookies.get("__Secure-juk.session_token");
 
   // Sitio público de jovenesenuk.com (sin auth): landing, páginas
   // institucionales y notas de contenido (SEO).

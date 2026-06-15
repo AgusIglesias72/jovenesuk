@@ -897,7 +897,7 @@ const FAQ_SCHEMA = {
 
 export function Faq() {
   return (
-    <section id="preguntas-frecuentes" className="scroll-mt-20 px-4 pb-20 sm:px-6 lg:px-10">
+    <section id="preguntas-frecuentes" className="scroll-mt-20 px-4 py-20 sm:px-6 lg:px-10 lg:py-28">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_SCHEMA) }}
