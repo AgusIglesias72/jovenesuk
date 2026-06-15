@@ -1,4 +1,5 @@
 import { formatFecha } from "@/lib/utils/date";
+import { formatearDni } from "@/lib/utils/dni";
 
 import { cargarAlumnoFamilia, asignacionesActivas } from "../_data";
 import { FamiliaPageHeader, SeccionTitulo } from "../../_ui";
@@ -38,7 +39,7 @@ export default async function DatosPage({ params }: { params: Promise<{ dni: str
 
       <Bloque titulo="Datos del alumno">
         <Dato label="Nombre y apellido" valor={`${alumno.nombre} ${alumno.apellido}`} />
-        <Dato label="DNI" valor={alumno.dni} mono />
+        <Dato label="DNI" valor={formatearDni(alumno.dni)} mono />
         <Dato label="Fecha de nacimiento" valor={formatFecha(alumno.fechaNacimiento)} />
         <Dato label="Pasaporte" valor={alumno.numeroPasaporte} mono />
         <Dato label="Vence el pasaporte" valor={formatFecha(alumno.fechaVencimientoPasaporte)} />

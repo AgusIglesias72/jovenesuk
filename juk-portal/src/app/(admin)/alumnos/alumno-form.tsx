@@ -21,6 +21,7 @@ import {
   CONDICIONES_FISCALES,
 } from "@/lib/domain/alumnos";
 import { toDateInput } from "@/lib/utils/date";
+import { formatearDni, soloDigitos } from "@/lib/utils/dni";
 import type { Alumno } from "@/lib/db/schema/alumnos";
 
 import {
@@ -209,7 +210,7 @@ export function AlumnoForm({
         <TextField label="Nombre" required value={values.nombre} error={fe("nombre")} onChange={(v) => set("nombre", v)} />
         <TextField label="Apellido" required value={values.apellido} error={fe("apellido")} onChange={(v) => set("apellido", v)} />
         <TextField label="Fecha de nacimiento" required type="date" value={values.fechaNacimiento} error={fe("fechaNacimiento")} onChange={(v) => set("fechaNacimiento", v)} />
-        <TextField label="DNI" required value={values.dni} error={fe("dni")} onChange={(v) => set("dni", v)} />
+        <TextField label="DNI" required value={formatearDni(values.dni)} error={fe("dni")} onChange={(v) => set("dni", soloDigitos(v))} />
         <TextField label="N° de pasaporte" required value={values.numeroPasaporte} error={fe("numeroPasaporte")} onChange={(v) => set("numeroPasaporte", v)} />
         <TextField label="Vencimiento del pasaporte" required type="date" value={values.fechaVencimientoPasaporte} error={fe("fechaVencimientoPasaporte")} onChange={(v) => set("fechaVencimientoPasaporte", v)} />
       </Section>

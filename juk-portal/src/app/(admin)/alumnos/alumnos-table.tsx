@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Badge, Table, TBody, TD, TH, THead, TableWrap, TR } from "@/components/ui";
 import { ALUMNO_ESTADO_LABELS, ALUMNO_ESTADO_TONE } from "@/lib/domain/alumnos";
 import { formatFecha } from "@/lib/utils/date";
+import { formatearDni } from "@/lib/utils/dni";
 import type { Alumno } from "@/lib/db/schema/alumnos";
 
 export function AlumnosTable({ alumnos }: { alumnos: Alumno[] }) {
@@ -39,7 +40,7 @@ export function AlumnosTable({ alumnos }: { alumnos: Alumno[] }) {
                 <div className="font-mono text-xs text-gray-500">{a.numeroPasaporte}</div>
               </TD>
               <TD>
-                <span className="font-mono text-xs text-gray-700 tabular-nums">{a.dni}</span>
+                <span className="font-mono text-xs text-gray-700 tabular-nums">{formatearDni(a.dni)}</span>
               </TD>
               <TD>
                 <span className="font-mono text-xs text-gray-700 tabular-nums">

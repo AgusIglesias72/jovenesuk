@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { ConfirmProvider, ToastProvider } from "@/components/ui";
 import { cn } from "@/lib/utils/cn";
 
+import { LogoutButton } from "./logout-button";
+
 /**
  * AdminShell — authenticated layout following the STUDIO direction.
  *
@@ -144,7 +146,7 @@ export function AdminShell({ user, children }: AdminShellProps) {
           >
             {initials || "U"}
           </span>
-          <div className="min-w-0 leading-tight">
+          <div className="min-w-0 flex-1 leading-tight">
             <p className="truncate text-[length:var(--t-small)] font-bold text-[var(--c-ink-onbrand)]">
               {user.name}
             </p>
@@ -152,6 +154,7 @@ export function AdminShell({ user, children }: AdminShellProps) {
               {roleLabel}
             </p>
           </div>
+          <LogoutButton />
         </div>
       </aside>
 

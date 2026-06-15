@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils/cn";
 
@@ -10,7 +10,9 @@ import { cn } from "@/lib/utils/cn";
  *
  * El <input type="date"> nativo queda invisible debajo como fuente de verdad:
  * mantiene el formato ISO del form, el label (getByLabel) y el .fill() de
- * Playwright. La UI visible muestra DD/MM/YYYY y abre el calendario propio.
+ * Playwright. Encima hay un input de texto visible donde se puede TIPEAR la
+ * fecha en DD/MM/AAAA, y un calendario propio que navega días → meses → años
+ * (para saltar a un año lejano sin clickear de a un mes).
  *
  * API compatible con <Input type="date">: value ISO + onChange con e.target.value.
  */
@@ -20,6 +22,12 @@ const MESES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
+const MESES_CORTO = [
+  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+];
+
+type Modo = "dias" | "meses" | "anios";
 
 function parseISO(v: string | undefined | null): Date | null {
   if (!v) return null;
@@ -35,6 +43,21 @@ function aISO(y: number, m: number, d: number): string {
 function fmtDDMM(d: Date | null): string {
   if (!d) return "";
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+// "12052010" → "12/05/2010", parcial incluido ("1205" → "12/05").
+function formatearTipeo(raw: string): string {
+  const n = raw.replace(/\D/g, "").slice(0, 8);
+  let out = n.slice(0, 2);
+  if (n.length > 2) out += "/" + n.slice(2, 4);
+  if (n.length > 4) out += "/" + n.slice(4, 8);
+  return out;
+}
+
+function fechaValida(d: number, m: number, y: number): boolean {
+  if (m < 1 || m > 12 || d < 1 || d > 31 || y < 1) return false;
+  const dt = new Date(y, m - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
 }
 
 interface DateInputProps
@@ -56,9 +79,14 @@ export function DateInput({
   ...props
 }: DateInputProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const botonRef = useRef<HTMLButtonElement>(null);
+  const textoRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
+  const [modo, setModo] = useState<Modo>("dias");
   const [interno, setInterno] = useState(defaultValue ?? "");
+  const [enfocado, setEnfocado] = useState(false);
+  const [texto, setTexto] = useState(() =>
+    fmtDDMM(parseISO(value != null ? value : (defaultValue ?? ""))),
+  );
 
   const actual = value != null ? value : interno;
   const fecha = parseISO(actual);
@@ -69,36 +97,96 @@ export function DateInput({
     m: (fecha ?? hoy).getMonth(),
   }));
 
-  // Al abrir, el calendario arranca en el mes de la fecha actual del input.
+  // Mientras no se esté tipeando, el texto visible refleja el valor del form.
+  useEffect(() => {
+    if (enfocado) return;
+    // Sync controlado desde el valor ISO (no hay equivalente en render).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTexto(fmtDDMM(parseISO(actual)));
+  }, [actual, enfocado]);
+
+  // Escribe el valor ISO en el input nativo (fuente de verdad) y dispara los
+  // eventos para que el form / onChange se enteren, igual que un input real.
+  function commitISO(iso: string) {
+    const el = inputRef.current;
+    if (!el) return;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    setter?.call(el, iso);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function alTipear(raw: string) {
+    const n = raw.replace(/\D/g, "").slice(0, 8);
+    setTexto(formatearTipeo(raw));
+    if (n.length === 0) {
+      commitISO("");
+      return;
+    }
+    if (n.length === 8) {
+      const d = Number(n.slice(0, 2));
+      const m = Number(n.slice(2, 4));
+      const y = Number(n.slice(4, 8));
+      if (fechaValida(d, m, y)) {
+        commitISO(aISO(y, m - 1, d));
+        setVista({ y, m: m - 1 });
+      }
+    }
+  }
+
+  // Al abrir, el calendario arranca en el mes de la fecha actual y en vista de días.
   function alternar() {
     if (!open && fecha) setVista({ y: fecha.getFullYear(), m: fecha.getMonth() });
+    setModo("dias");
     setOpen((v) => !v);
   }
 
   const offset = (new Date(vista.y, vista.m, 1).getDay() + 6) % 7; // semana arranca lunes
   const totalDias = new Date(vista.y, vista.m + 1, 0).getDate();
+  const inicioBloque = Math.floor(vista.y / 12) * 12; // bloque de 12 años alineado
 
+  const moverAnio = (delta: number) => setVista(({ y, m }) => ({ y: y + delta, m }));
   const moverMes = (delta: number) =>
     setVista(({ y, m }) => {
       const d = new Date(y, m + delta, 1);
       return { y: d.getFullYear(), m: d.getMonth() };
     });
 
-  function elegir(dia: number) {
-    const iso = aISO(vista.y, vista.m, dia);
-    const el = inputRef.current;
-    if (el) {
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-      setter?.call(el, iso);
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-    }
+  function anterior() {
+    if (modo === "dias") moverMes(-1);
+    else if (modo === "meses") moverAnio(-1);
+    else moverAnio(-12);
+  }
+  function siguiente() {
+    if (modo === "dias") moverMes(1);
+    else if (modo === "meses") moverAnio(1);
+    else moverAnio(12);
+  }
+
+  function elegirDia(dia: number) {
+    commitISO(aISO(vista.y, vista.m, dia));
     setOpen(false);
-    botonRef.current?.focus();
+    textoRef.current?.focus();
   }
 
   const esDia = (d: Date | null, dia: number) =>
     !!d && d.getFullYear() === vista.y && d.getMonth() === vista.m && d.getDate() === dia;
+
+  const tituloCabecera =
+    modo === "dias"
+      ? `${MESES[vista.m]} ${vista.y}`
+      : modo === "meses"
+        ? `${vista.y}`
+        : `${inicioBloque}–${inicioBloque + 11}`;
+
+  function subirNivel() {
+    setModo((m) => (m === "dias" ? "meses" : m === "meses" ? "anios" : "anios"));
+  }
+
+  const navBtn =
+    "grid h-9 w-9 place-items-center rounded-[var(--r-pill)] text-[var(--c-ink-muted)] transition-colors hover:bg-[var(--c-surface-2)] hover:text-[var(--c-brand)] active:scale-95";
+  const celdaBtn =
+    "grid place-items-center rounded-[var(--r-md)] text-[length:var(--t-small)] font-semibold transition-colors";
 
   return (
     <div className={cn("relative", className)}>
@@ -120,40 +208,59 @@ export function DateInput({
         {...props}
       />
 
-      <button
-        type="button"
-        ref={botonRef}
-        disabled={disabled}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={fecha ? `fecha: ${fmtDDMM(fecha)}` : "elegir fecha"}
-        onClick={alternar}
+      <div
         className={cn(
-          "flex min-h-[var(--tap)] w-full items-center justify-between gap-3 rounded-[var(--r-md)] border bg-[var(--c-surface)] px-4 text-left",
-          "font-mono text-[length:var(--t-body)] transition-[border-color,box-shadow] duration-150 focus:outline-none",
-          "disabled:cursor-not-allowed disabled:bg-[var(--c-surface-2)] disabled:text-[var(--c-ink-subtle)]",
+          "flex min-h-[var(--tap)] w-full items-center gap-1 rounded-[var(--r-md)] border bg-[var(--c-surface)] pl-4 pr-1 transition-[border-color,box-shadow] duration-150",
+          disabled && "cursor-not-allowed bg-[var(--c-surface-2)]",
           invalid
             ? "border-[var(--c-danger)] shadow-[shadow:var(--ring-error)]"
             : open
               ? "border-[var(--c-brand-300)] shadow-[shadow:var(--ring-focus)]"
-              : "border-[var(--c-border-strong)] focus-visible:border-[var(--c-brand-300)] focus-visible:shadow-[shadow:var(--ring-focus)]"
+              : "border-[var(--c-border-strong)] focus-within:border-[var(--c-brand-300)] focus-within:shadow-[shadow:var(--ring-focus)]",
         )}
       >
-        <span className={fecha ? "text-[var(--c-ink)]" : "text-[var(--c-ink-subtle)]"}>
-          {fecha ? fmtDDMM(fecha) : (placeholder ?? "DD/MM/AAAA")}
-        </span>
-        <svg
-          viewBox="0 0 20 20"
-          aria-hidden
-          className="h-4 w-4 shrink-0 text-[var(--c-ink-subtle)]"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.6}
+        <input
+          ref={textoRef}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          disabled={disabled}
+          value={texto}
+          placeholder={placeholder ?? "DD/MM/AAAA"}
+          aria-label="Fecha (DD/MM/AAAA)"
+          onFocus={() => setEnfocado(true)}
+          onBlur={() => setEnfocado(false)}
+          onChange={(e) => alTipear(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              alternar();
+            }
+          }}
+          className="min-w-0 flex-1 bg-transparent py-0 font-mono text-[length:var(--t-body)] text-[var(--c-ink)] placeholder:text-[var(--c-ink-subtle)] focus:outline-none disabled:cursor-not-allowed disabled:text-[var(--c-ink-subtle)]"
+        />
+        <button
+          type="button"
+          disabled={disabled}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-label="elegir fecha en el calendario"
+          onClick={alternar}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--r-sm)] text-[var(--c-ink-subtle)] transition-colors hover:bg-[var(--c-surface-2)] hover:text-[var(--c-brand)] disabled:cursor-not-allowed"
         >
-          <rect x={3} y={4.5} width={14} height={12} rx={2} />
-          <path d="M3 8.5h14M7 2.5v4M13 2.5v4" strokeLinecap="round" />
-        </svg>
-      </button>
+          <svg
+            viewBox="0 0 20 20"
+            aria-hidden
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.6}
+          >
+            <rect x={3} y={4.5} width={14} height={12} rx={2} />
+            <path d="M3 8.5h14M7 2.5v4M13 2.5v4" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
 
       {open && (
         <>
@@ -171,66 +278,125 @@ export function DateInput({
             onKeyDown={(e) => {
               if (e.key === "Escape") {
                 setOpen(false);
-                botonRef.current?.focus();
+                textoRef.current?.focus();
               }
             }}
           >
             <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => moverMes(-1)}
-                aria-label="mes anterior"
-                className="grid h-9 w-9 place-items-center rounded-[var(--r-pill)] text-[var(--c-ink-muted)] transition-colors hover:bg-[var(--c-surface-2)] hover:text-[var(--c-brand)] active:scale-95"
-              >
+              <button type="button" onClick={anterior} aria-label="anterior" className={navBtn}>
                 ←
               </button>
-              <p className="font-display text-[length:var(--t-small)] font-bold text-[var(--c-ink)]">
-                {MESES[vista.m]} {vista.y}
-              </p>
               <button
                 type="button"
-                onClick={() => moverMes(1)}
-                aria-label="mes siguiente"
-                className="grid h-9 w-9 place-items-center rounded-[var(--r-pill)] text-[var(--c-ink-muted)] transition-colors hover:bg-[var(--c-surface-2)] hover:text-[var(--c-brand)] active:scale-95"
+                onClick={subirNivel}
+                disabled={modo === "anios"}
+                aria-label="cambiar de vista"
+                className="rounded-[var(--r-pill)] px-3 py-1 font-display text-[length:var(--t-small)] font-bold text-[var(--c-ink)] transition-colors hover:bg-[var(--c-surface-2)] disabled:hover:bg-transparent"
               >
+                {tituloCabecera}
+              </button>
+              <button type="button" onClick={siguiente} aria-label="siguiente" className={navBtn}>
                 →
               </button>
             </div>
 
-            <div className="mt-3 grid grid-cols-7 text-center">
-              {DOW.map((d, i) => (
-                <span
-                  key={`${d}${i}`}
-                  className="pb-2 text-[length:var(--t-label)] font-bold uppercase text-[var(--c-ink-subtle)]"
-                >
-                  {d}
-                </span>
-              ))}
-              {Array.from({ length: offset }).map((_, i) => (
-                <span key={`pad${i}`} />
-              ))}
-              {Array.from({ length: totalDias }, (_, i) => i + 1).map((dia) => {
-                const elegido = esDia(fecha, dia);
-                const esHoy = esDia(hoy, dia);
-                return (
-                  <button
-                    key={dia}
-                    type="button"
-                    onClick={() => elegir(dia)}
-                    className={cn(
-                      "relative mx-auto my-0.5 grid h-9 w-9 place-items-center rounded-[var(--r-pill)] text-[length:var(--t-small)] font-semibold transition-colors",
-                      elegido
-                        ? "bg-[var(--c-brand)] text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-brand)]"
-                        : esHoy
-                          ? "border border-[var(--c-brand-300)] text-[var(--c-brand)] hover:bg-[var(--c-brand-50)]"
-                          : "text-[var(--c-ink-muted)] hover:bg-[var(--c-surface-2)]"
-                    )}
+            {modo === "dias" && (
+              <div className="mt-3 grid grid-cols-7 text-center">
+                {DOW.map((d, i) => (
+                  <span
+                    key={`${d}${i}`}
+                    className="pb-2 text-[length:var(--t-label)] font-bold uppercase text-[var(--c-ink-subtle)]"
                   >
-                    {dia}
-                  </button>
-                );
-              })}
-            </div>
+                    {d}
+                  </span>
+                ))}
+                {Array.from({ length: offset }).map((_, i) => (
+                  <span key={`pad${i}`} />
+                ))}
+                {Array.from({ length: totalDias }, (_, i) => i + 1).map((dia) => {
+                  const elegido = esDia(fecha, dia);
+                  const esHoy = esDia(hoy, dia);
+                  return (
+                    <button
+                      key={dia}
+                      type="button"
+                      onClick={() => elegirDia(dia)}
+                      className={cn(
+                        celdaBtn,
+                        "mx-auto my-0.5 h-9 w-9 rounded-[var(--r-pill)]",
+                        elegido
+                          ? "bg-[var(--c-brand)] text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-brand)]"
+                          : esHoy
+                            ? "border border-[var(--c-brand-300)] text-[var(--c-brand)] hover:bg-[var(--c-brand-50)]"
+                            : "text-[var(--c-ink-muted)] hover:bg-[var(--c-surface-2)]",
+                      )}
+                    >
+                      {dia}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {modo === "meses" && (
+              <div className="mt-3 grid grid-cols-3 gap-1.5">
+                {MESES_CORTO.map((mes, i) => {
+                  const elegido = !!fecha && fecha.getFullYear() === vista.y && fecha.getMonth() === i;
+                  const esActual = hoy.getFullYear() === vista.y && hoy.getMonth() === i;
+                  return (
+                    <button
+                      key={mes}
+                      type="button"
+                      onClick={() => {
+                        setVista(({ y }) => ({ y, m: i }));
+                        setModo("dias");
+                      }}
+                      className={cn(
+                        celdaBtn,
+                        "h-11",
+                        elegido
+                          ? "bg-[var(--c-brand)] text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-brand)]"
+                          : esActual
+                            ? "border border-[var(--c-brand-300)] text-[var(--c-brand)] hover:bg-[var(--c-brand-50)]"
+                            : "text-[var(--c-ink-muted)] hover:bg-[var(--c-surface-2)]",
+                      )}
+                    >
+                      {mes}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {modo === "anios" && (
+              <div className="mt-3 grid grid-cols-3 gap-1.5">
+                {Array.from({ length: 12 }, (_, i) => inicioBloque + i).map((anio) => {
+                  const elegido = !!fecha && fecha.getFullYear() === anio;
+                  const esActual = hoy.getFullYear() === anio;
+                  return (
+                    <button
+                      key={anio}
+                      type="button"
+                      onClick={() => {
+                        setVista(({ m }) => ({ y: anio, m }));
+                        setModo("meses");
+                      }}
+                      className={cn(
+                        celdaBtn,
+                        "h-11",
+                        elegido
+                          ? "bg-[var(--c-brand)] text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-brand)]"
+                          : esActual
+                            ? "border border-[var(--c-brand-300)] text-[var(--c-brand)] hover:bg-[var(--c-brand-50)]"
+                            : "text-[var(--c-ink-muted)] hover:bg-[var(--c-surface-2)]",
+                      )}
+                    >
+                      {anio}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </>
       )}
