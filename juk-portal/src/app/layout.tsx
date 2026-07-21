@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Plus_Jakarta_Sans, Space_Mono } from "next/font/google";
+import { SwRegister } from "@/components/pwa/sw-register";
 import "@/styles/globals.css";
 
 // Dirección visual STUDIO: las familias se inyectan como CSS vars que
@@ -32,10 +33,16 @@ export const metadata: Metadata = {
     title: "JUK Portal",
     statusBarStyle: "default",
   },
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: "#1f6f63",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -45,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         className={`v-studio ${display.variable} ${body.variable} ${mono.variable}`}
       >
         {children}
+        <SwRegister />
       </body>
     </html>
   );

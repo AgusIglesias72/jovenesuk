@@ -86,6 +86,11 @@ export function proxy(request: NextRequest) {
     path === "/sitemap.xml" ||
     path === "/manifest.webmanifest" ||
     path === "/manifest.json" ||
+    // PWA: el service worker y la página offline deben servirse sin auth
+    // (el SW cachea /offline en el install; si rebotara a login, cachearía
+    // la página equivocada y no se registraría).
+    path === "/sw.js" ||
+    path === "/offline" ||
     path === "/globe-loader.html";
 
   // Always allow these
