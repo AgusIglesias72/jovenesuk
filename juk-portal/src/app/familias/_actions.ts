@@ -63,6 +63,10 @@ async function pasoConOwnership(
     return { ok: false, error: "No tenés acceso a este paso." };
   }
 
+  if (paso.estado === "na") {
+    return { ok: false, error: "Este trámite no aplica para tu viaje." };
+  }
+
   return { ok: true, session, paso };
 }
 
@@ -212,7 +216,7 @@ export async function confirmarPasoFamiliaAction(input: {
   if (!owned.ok) return owned;
   const { session, paso } = owned;
 
-  if (paso.codigo !== "d1" && paso.codigo !== "d2") {
+  if (paso.codigo !== "d1") {
     return { ok: false, error: "Este paso no se confirma desde el portal." };
   }
 

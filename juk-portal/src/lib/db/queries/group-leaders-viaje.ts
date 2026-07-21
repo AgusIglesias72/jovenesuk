@@ -61,27 +61,27 @@ export async function quitarGroupLeaderDeViaje(
 }
 
 // Marca un GL como principal del viaje y limpia el flag del resto: solo un
-// principal por viaje. En transacción para que el estado quede consistente.
+// principal por viaje. El driver neon-http no soporta transacciones (ver
+// asignar-alumno.ts), así que lo hacemos en dos updates secuenciales: primero
+// limpiamos el flag de todos y después seteamos el elegido.
 export async function marcarPrincipal(
   viajeId: string,
   groupLeaderId: string
 ): Promise<GroupLeaderViaje | null> {
-  return db.transaction(async (tx) => {
-    await tx
-      .update(groupLeadersViaje)
-      .set({ esPrincipal: false })
-      .where(eq(groupLeadersViaje.viajeId, viajeId));
+  await db
+    .update(groupLeadersViaje)
+    .set({ esPrincipal: false })
+    .where(eq(groupLeadersViaje.viajeId, viajeId));
 
-    const rows = await tx
-      .update(groupLeadersViaje)
-      .set({ esPrincipal: true })
-      .where(
-        and(
-          eq(groupLeadersViaje.viajeId, viajeId),
-          eq(groupLeadersViaje.groupLeaderId, groupLeaderId)
-        )
+  const rows = await db
+    .update(groupLeadersViaje)
+    .set({ esPrincipal: true })
+    .where(
+      and(
+        eq(groupLeadersViaje.viajeId, viajeId),
+        eq(groupLeadersViaje.groupLeaderId, groupLeaderId)
       )
-      .returning();
-    return rows[0] ?? null;
-  });
+    )
+    .returning();
+  return rows[0] ?? null;
 }

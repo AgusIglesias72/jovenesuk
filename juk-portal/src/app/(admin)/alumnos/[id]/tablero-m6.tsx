@@ -143,7 +143,7 @@ function PasoCard({
       const r = await actualizarSubEstadoPasoAction({
         pasoId: paso.id,
         subEstado,
-        ...(numero?.trim() ? { numeroAutorizacion: numero.trim() } : {}),
+        ...(numero !== undefined ? { numeroAutorizacion: numero.trim() } : {}),
       });
       if (r.ok) {
         toast.success("Trámite actualizado");

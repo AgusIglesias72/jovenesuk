@@ -142,16 +142,18 @@ export async function actualizarSubEstadoPasoAction(
     return { ok: false, error: "Este paso no maneja sub-estados." };
   }
 
+  const nuevoMetadata: Record<string, unknown> = { ...paso.metadata, subEstado };
+  if (numeroAutorizacion !== undefined) {
+    if (numeroAutorizacion) nuevoMetadata.numeroAutorizacion = numeroAutorizacion;
+    else delete nuevoMetadata.numeroAutorizacion;
+  }
+
   try {
     await db
       .update(pasosAlumno)
       .set({
         estado: nuevoEstado,
-        metadata: {
-          ...paso.metadata,
-          subEstado,
-          ...(numeroAutorizacion ? { numeroAutorizacion } : {}),
-        },
+        metadata: nuevoMetadata,
         fechaCompletado: nuevoEstado === "completado" ? new Date() : null,
         updatedAt: new Date(),
         updatedBy: session.user.id,

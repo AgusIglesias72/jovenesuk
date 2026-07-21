@@ -93,6 +93,7 @@ export async function getAlertas(hoy = new Date()): Promise<Alerta[]> {
       asignacionId: asignaciones.id,
       viajeId: asignaciones.viajeId,
       alumnoId: alumnos.id,
+      dni: alumnos.dni,
       nombre: alumnos.nombre,
       apellido: alumnos.apellido,
       vencimientoPasaporte: alumnos.fechaVencimientoPasaporte,
@@ -110,8 +111,8 @@ export async function getAlertas(hoy = new Date()): Promise<Alerta[]> {
       alertas.push({
         severidad: "critica",
         titulo: `Pasaporte ${vencido ? "vencido" : "por vencer"} · ${a.apellido}, ${a.nombre}`,
-        detalle: `Vence el ${a.vencimientoPasaporte.toLocaleDateString("es-AR")} y ${viaje.codigo} sale el ${viaje.fechaInicio.toLocaleDateString("es-AR")}.`,
-        href: `/alumnos/${a.alumnoId}`,
+        detalle: `Vence el ${formatFecha(a.vencimientoPasaporte)} y ${viaje.codigo} sale el ${formatFecha(viaje.fechaInicio)}.`,
+        href: `/alumnos/${a.dni}`,
       });
     }
   }
@@ -133,8 +134,8 @@ export async function getAlertas(hoy = new Date()): Promise<Alerta[]> {
       alertas.push({
         severidad: dias > 7 ? "critica" : "alta",
         titulo: `Cuota ${c.numero} en mora · ${a.apellido}, ${a.nombre}`,
-        detalle: `${dias} día${dias === 1 ? "" : "s"} de atraso (vencía el ${c.fechaVencimiento.toLocaleDateString("es-AR")}).`,
-        href: `/alumnos/${a.alumnoId}`,
+        detalle: `${dias} día${dias === 1 ? "" : "s"} de atraso (vencía el ${formatFecha(c.fechaVencimiento)}).`,
+        href: `/alumnos/${a.dni}`,
       });
     }
 
@@ -156,7 +157,7 @@ export async function getAlertas(hoy = new Date()): Promise<Alerta[]> {
         severidad: esEtaRechazado ? "critica" : "alta",
         titulo: `${esEtaRechazado ? "ETA rechazado" : `${PASO_LABELS[p.codigo as PasoCodigo]} bloqueado`} · ${a.apellido}, ${a.nombre}`,
         detalle: p.notas ?? "Requiere intervención del equipo.",
-        href: `/alumnos/${a.alumnoId}`,
+        href: `/alumnos/${a.dni}`,
       });
     }
   }
@@ -181,7 +182,7 @@ export async function getAlertas(hoy = new Date()): Promise<Alerta[]> {
         severidad: "critica",
         titulo: `Police check vencido · ${gl.apellido}, ${gl.nombre}`,
         detalle: `GL de ${viaje.codigo}; sin check vigente no puede acompañar al grupo.`,
-        href: `/viajes/${viaje.id}`,
+        href: `/viajes/${viaje.codigo}`,
       });
     }
   }

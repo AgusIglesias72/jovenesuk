@@ -124,13 +124,22 @@ export async function guardarMetadataPasoViajeAction(
     return { ok: false, error: "Hay datos inválidos en el formulario." };
   }
 
-  await listOrInitPasosViaje(viajeId);
+  const pasos = await listOrInitPasosViaje(viajeId);
+  const pasoActual = pasos.find((p) => p.tipo === tipo);
 
   try {
+    // Merge sobre la metadata existente: los schemas de proveedor/costo no
+    // incluyen `porAlumno` (cobertura por alumno), y updateMetadataPasoViaje
+    // reemplaza toda la columna. Sin el merge, "Guardar datos" borraría la
+    // cobertura marcada por alumno.
+    const metadataMerged = {
+      ...(pasoActual?.metadata ?? {}),
+      ...(parsed.data as Record<string, unknown>),
+    };
     const row = await updateMetadataPasoViaje(
       viajeId,
       tipo,
-      parsed.data as Record<string, unknown>,
+      metadataMerged,
       session.user.id
     );
     await safeAudit({

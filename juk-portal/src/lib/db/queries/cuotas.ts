@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { cuotas, type Cuota } from "@/lib/db/schema/cuotas";
@@ -177,9 +177,7 @@ export async function sincronizarPasosPago(
       and(
         eq(pasosAlumno.asignacionId, asignacionId),
         eq(pasosAlumno.codigo, "b2"),
-        b2
-          ? eq(pasosAlumno.estado, "pendiente")
-          : eq(pasosAlumno.estado, "completado")
+        ne(pasosAlumno.estado, "na")
       )
     );
 }

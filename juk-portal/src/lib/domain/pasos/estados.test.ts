@@ -30,8 +30,14 @@ describe("puedeTransicionarPasoAlumno", () => {
   });
 
   it("completado se puede reabrir pero no bloquear directo", () => {
-    expect(puedeTransicionarPasoAlumno("b1", "completado", "en_progreso")).toBe(true);
-    expect(puedeTransicionarPasoAlumno("b1", "completado", "bloqueado")).toBe(false);
+    expect(puedeTransicionarPasoAlumno("c3", "completado", "en_progreso")).toBe(true);
+    expect(puedeTransicionarPasoAlumno("c3", "completado", "bloqueado")).toBe(false);
+  });
+
+  it("B1/B2 son solo lectura: su estado lo deriva el plan de cuotas", () => {
+    expect(puedeTransicionarPasoAlumno("b1", "completado", "en_progreso")).toBe(false);
+    expect(puedeTransicionarPasoAlumno("b2", "pendiente", "completado")).toBe(false);
+    expect(transicionesPasoAlumno("b1", "pendiente")).toEqual(["pendiente"]);
   });
 });
 

@@ -17,8 +17,12 @@ export async function cargarAlumnoFamilia(dni: string) {
   return { session, alumno };
 }
 
-/** Asignaciones activas (los viajes "vigentes" del alumno). */
+/**
+ * Asignaciones vigentes (los viajes "reales" del alumno): todo lo que no está
+ * cancelado. Incluye `viajando` y `finalizada` para que el portal no se vacíe
+ * cuando el viaje arrancó o terminó.
+ */
 export async function asignacionesActivas(alumnoId: string) {
   const todas = await listAsignacionesByAlumno(alumnoId);
-  return todas.filter((a) => a.estado === "activa");
+  return todas.filter((a) => a.estado !== "cancelada");
 }

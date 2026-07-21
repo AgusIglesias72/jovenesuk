@@ -140,12 +140,12 @@ export default async function DashboardPage() {
                 <span className="text-sm text-[var(--c-ink-muted)]">
                   {v.inscriptos}/{v.capacidadMaxima} inscriptos
                 </span>
-                {v.inscriptos < 5 && (
+                {v.inscriptos < v.capacidadMinima && (
                   <span className="rounded-[var(--r-pill)] border border-[var(--c-warning)] bg-[var(--c-warning-bg)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-warning)]">
                     Mínimo no alcanzado
                   </span>
                 )}
-                {v.inscriptos >= 0.8 * v.capacidadMaxima && (
+                {v.capacidadMaxima > 0 && v.inscriptos >= 0.8 * v.capacidadMaxima && (
                   <span className="rounded-[var(--r-pill)] border border-[var(--c-info)] bg-[var(--c-info-bg)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-info)]">
                     Alta demanda
                   </span>

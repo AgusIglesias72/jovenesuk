@@ -46,11 +46,21 @@ export const planCuotasSchema = z.object({
 
 export type PlanCuotasData = z.output<typeof planCuotasSchema>;
 
-/** Vencimientos mensuales: mismo día de cada mes a partir del primero. */
+/**
+ * Vencimientos mensuales: mismo día de cada mes a partir del primero. Si el mes
+ * destino no tiene ese día (ej. 31-ene + 1 mes), se usa el último día del mes
+ * para no "desbordar" al mes siguiente (31-ene → 28/29-feb, no 3-mar).
+ */
 export function generarVencimientos(primerVencimiento: Date, cantidad: number): Date[] {
+  const dia = primerVencimiento.getUTCDate();
+  const anioBase = primerVencimiento.getUTCFullYear();
+  const mesBase = primerVencimiento.getUTCMonth();
   return Array.from({ length: cantidad }, (_, i) => {
+    const anio = anioBase + Math.floor((mesBase + i) / 12);
+    const mes = (mesBase + i) % 12;
+    const ultimoDiaDelMes = new Date(Date.UTC(anio, mes + 1, 0)).getUTCDate();
     const d = new Date(primerVencimiento);
-    d.setUTCMonth(d.getUTCMonth() + i);
+    d.setUTCFullYear(anio, mes, Math.min(dia, ultimoDiaDelMes));
     return d;
   });
 }

@@ -108,6 +108,7 @@ export type ViajeProximoAnio = {
   colegioDestinoNombre: string | null;
   inscriptos: number;
   capacidadMaxima: number;
+  capacidadMinima: number;
 };
 
 /**
@@ -150,5 +151,6 @@ export async function getViajesProximoAnio(hoy = new Date()): Promise<ViajeProxi
     colegioDestinoNombre: r.colegioDestinoNombre,
     inscriptos: inscriptosPorViaje.get(r.viaje.id) ?? 0,
     capacidadMaxima: r.viaje.capacidadMaxima,
+    capacidadMinima: r.viaje.capacidadMinima,
   }));
 }

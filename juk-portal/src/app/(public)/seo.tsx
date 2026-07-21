@@ -34,43 +34,6 @@ export const ORGANIZATION_SCHEMA = {
   },
   areaServed: { "@type": "Country", name: "Argentina" },
   knowsLanguage: ["es", "en"],
-  aggregateRating: {
-    "@type": "AggregateRating",
-    ratingValue: "4.9",
-    bestRating: "5",
-    // TODO: confirmar ratingCount real con el equipo.
-    ratingCount: "120",
-  },
-  review: [
-    {
-      "@type": "Review",
-      author: { "@type": "Person", name: "Camila O'Toole" },
-      reviewBody:
-        "¡Gracias JUK por organizarme absolutamente todo! Me gustaron mucho las clases. Me voy muy contenta y ahora voy a seguir hablando Inglés con los amigos que hice de todas las nacionalidades",
-      reviewRating: { "@type": "Rating", ratingValue: "5", bestRating: "5" },
-    },
-    {
-      "@type": "Review",
-      author: { "@type": "Person", name: "Mariano Ordoñez" },
-      reviewBody:
-        "¡Sin dudas fue una de las mejores experiencias de mi vida! Realmente no me alcanzan las palabras para agradecer todo lo que hicieron. Ojalá otros también vivan esta increíble experiencia.",
-      reviewRating: { "@type": "Rating", ratingValue: "5", bestRating: "5" },
-    },
-    {
-      "@type": "Review",
-      author: { "@type": "Person", name: "Nicolás Ianniccillo" },
-      reviewBody:
-        "Experiencia super recomendable. Estando tan lejos de casa el apoyo de JUK fue indispensable en todo momento. Sin dudas lo volvería a repetir!",
-      reviewRating: { "@type": "Rating", ratingValue: "5", bestRating: "5" },
-    },
-    {
-      "@type": "Review",
-      author: { "@type": "Person", name: "Clara Michelini" },
-      reviewBody:
-        "Fue una de las experiencias más enriquecedoras que he vivido! Decidí hacer este intercambio porque quería mejorar mi inglés y, además, noté un crecimiento personal impresionante ¡Si tienen la oportunidad, hagan este viaje!",
-      reviewRating: { "@type": "Rating", ratingValue: "5", bestRating: "5" },
-    },
-  ],
   sameAs: [
     "https://www.instagram.com/jovenesenuk",
     "https://www.facebook.com/jovenesenuk",

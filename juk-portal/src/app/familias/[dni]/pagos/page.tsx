@@ -31,7 +31,7 @@ export default async function PagosPage({ params }: { params: Promise<{ dni: str
   );
 
   const hoy = new Date();
-  const hayVencidas = viajes.some((v) => v.cuotas.some((c) => estaVencida(c, hoy)));
+  const cantVencidas = viajes.reduce((acc, v) => acc + v.cuotas.filter((c) => estaVencida(c, hoy)).length, 0);
 
   return (
     <div className="space-y-6">
@@ -40,12 +40,14 @@ export default async function PagosPage({ params }: { params: Promise<{ dni: str
         subtitle="Estado de cada cuota de tu plan. Los pagos los registra JUK; este panel es informativo (no se paga desde acá)."
       />
 
-      {hayVencidas && (
+      {cantVencidas > 0 && (
         <div
           role="status"
           className="rounded-[var(--r-lg)] border border-[var(--c-danger)] bg-[var(--c-danger-bg)] px-4 py-3 text-[length:var(--t-small)] font-medium text-[var(--c-danger)]"
         >
-          Tenés una cuota vencida. Regularizá tu situación para asegurar el viaje.
+          {cantVencidas === 1
+            ? "Tenés una cuota vencida. Regularizá tu situación para asegurar el viaje."
+            : `Tenés ${cantVencidas} cuotas vencidas. Regularizá tu situación para asegurar el viaje.`}
         </div>
       )}
 

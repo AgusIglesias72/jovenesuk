@@ -111,4 +111,14 @@ describe("generarVencimientos", () => {
       "2026-09-10",
     ]);
   });
+
+  it("día 31 a fin de mes no desborda al mes siguiente", () => {
+    const v = generarVencimientos(new Date("2027-01-31"), 4);
+    expect(v.map((d) => d.toISOString().slice(0, 10))).toEqual([
+      "2027-01-31",
+      "2027-02-28",
+      "2027-03-31",
+      "2027-04-30",
+    ]);
+  });
 });

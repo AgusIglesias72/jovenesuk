@@ -35,16 +35,25 @@ export function estadoPasoDesdeEta(subEstado: EtaSubEstado): PasoEstado {
   }
 }
 
-export const PC_SUBESTADOS = ["enviado", "firmado", "recibido"] as const;
+export const PC_SUBESTADOS = ["pendiente", "enviado", "firmado", "recibido"] as const;
 
 export type PcSubEstado = (typeof PC_SUBESTADOS)[number];
 
 export const PC_SUBESTADO_LABELS: Record<PcSubEstado, string> = {
+  pendiente: "Pendiente",
   enviado: "Enviado",
   firmado: "Firmado",
   recibido: "Recibido",
 };
 
 export function estadoPasoDesdePc(subEstado: PcSubEstado): PasoEstado {
-  return subEstado === "recibido" ? "completado" : "en_progreso";
+  switch (subEstado) {
+    case "pendiente":
+      return "pendiente";
+    case "enviado":
+    case "firmado":
+      return "en_progreso";
+    case "recibido":
+      return "completado";
+  }
 }

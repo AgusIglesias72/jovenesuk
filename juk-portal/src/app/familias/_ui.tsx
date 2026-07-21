@@ -1,4 +1,5 @@
 import { type PasoAlumno } from "@/lib/db/schema/pasos-alumno";
+import { cuentaParaCompletitud } from "@/lib/domain/pasos";
 import { formatFecha } from "@/lib/utils/date";
 
 /**
@@ -7,7 +8,9 @@ import { formatFecha } from "@/lib/utils/date";
  */
 
 export function completitud(pasos: PasoAlumno[]): { listos: number; total: number } {
-  const aplican = pasos.filter((p) => p.estado !== "na");
+  const aplican = pasos.filter((p) =>
+    cuentaParaCompletitud(p.estado, (p.metadata as { opcional?: boolean }).opcional === true)
+  );
   return { listos: aplican.filter((p) => p.estado === "completado").length, total: aplican.length };
 }
 

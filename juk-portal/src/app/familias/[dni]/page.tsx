@@ -13,7 +13,7 @@ import {
   ViajeHeader,
 } from "../_ui";
 
-export const metadata = { title: "Mi viaje · JUK" };
+export const metadata = { title: "Resumen · JUK" };
 
 export default async function ResumenPage({ params }: { params: Promise<{ dni: string }> }) {
   const { dni } = await params;
@@ -42,7 +42,7 @@ export default async function ResumenPage({ params }: { params: Promise<{ dni: s
       ]);
       const doc = completitud(pasos);
       const docAccion = pasos.filter(
-        (p) => p.estado === "bloqueado" || p.estado === "vencido"
+        (p) => p.estado === "vencido"
       ).length;
       const cuotasVencidas = cuotas.filter((c) => estaVencida(c, hoy)).length;
       const moneda = (cuotas[0]?.moneda ?? "USD") as Moneda;
@@ -121,9 +121,9 @@ export default async function ResumenPage({ params }: { params: Promise<{ dni: s
             <ResumenCard
               href={`${base}/documentacion`}
               titulo="Documentación"
-              valor={`${doc.listos} de ${doc.total}`}
+              valor={doc.total > 0 ? `${doc.listos} de ${doc.total}` : "Sin trámites por ahora"}
               sub="trámites listos"
-              progreso={{ valor: doc.listos, total: doc.total }}
+              progreso={doc.total > 0 ? { valor: doc.listos, total: doc.total } : undefined}
             />
             <ResumenCard
               href={`${base}/pagos`}
@@ -180,7 +180,7 @@ function ResumenCard({
           <ProgresoBarra
             valor={progreso.valor}
             total={progreso.total}
-            tone={progreso.valor === progreso.total ? "success" : "brand"}
+            tone={progreso.total > 0 && progreso.valor === progreso.total ? "success" : "brand"}
           />
         </div>
       )}

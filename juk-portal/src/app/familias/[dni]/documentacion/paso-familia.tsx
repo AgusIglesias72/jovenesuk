@@ -38,7 +38,7 @@ const ESTADO_FAMILIA: Record<PasoEstado, { label: string; tone: Tone; atenuado?:
   completado: { label: "Listo", tone: "success" },
   en_progreso: { label: "En curso", tone: "info" },
   pendiente: { label: "Pendiente", tone: "neutral" },
-  bloqueado: { label: "Requiere acción", tone: "danger" },
+  bloqueado: { label: "En preparación", tone: "info" },
   vencido: { label: "Requiere acción", tone: "danger" },
   na: { label: "No aplica", tone: "neutral", atenuado: true },
 };
@@ -49,7 +49,9 @@ const CARD =
   "rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] px-4 py-3 shadow-[shadow:var(--shadow-1)]";
 
 function listosDe(pasos: PasoAlumno[]): { listos: number; total: number } {
-  const aplican = pasos.filter((p) => p.estado !== "na");
+  const aplican = pasos.filter(
+    (p) => p.estado !== "na" && (p.metadata as Record<string, unknown>)?.opcional !== true
+  );
   return {
     listos: aplican.filter((p) => p.estado === "completado").length,
     total: aplican.length,
@@ -65,7 +67,7 @@ export function DocumentacionPasos({
 }) {
   const { listos, total } = listosDe(pasos);
   const pendientes = pasos.filter(
-    (p) => p.estado === "bloqueado" || p.estado === "vencido"
+    (p) => p.estado === "vencido"
   ).length;
   return (
     <section className="space-y-3">
@@ -73,11 +75,11 @@ export function DocumentacionPasos({
         <div className="flex items-baseline justify-between gap-3">
           <h3 className="font-display text-base font-bold text-[var(--c-ink)]">{titulo}</h3>
           <span className="text-[length:var(--t-small)] font-semibold text-[var(--c-ink-muted)]">
-            {listos} de {total} listos
+            {total > 0 ? `${listos} de ${total} listos` : "Sin trámites por ahora"}
           </span>
         </div>
         <div className="mt-3">
-          <ProgresoBarra valor={listos} total={total} tone={listos === total ? "success" : "brand"} />
+          <ProgresoBarra valor={listos} total={total} tone={total > 0 && listos === total ? "success" : "brand"} />
         </div>
         {pendientes > 0 && (
           <p className="mt-2 text-[length:var(--t-small)] font-medium text-[var(--c-danger)]">
@@ -121,6 +123,7 @@ export function PasoFamilia({ paso }: { paso: PasoAlumno }) {
 }
 
 function Accionable({ paso }: { paso: PasoAlumno }) {
+  if (paso.estado === "na") return null;
   const codigo = paso.codigo as PasoCodigo;
 
   if (SUBIBLES.has(codigo)) return <SubirArchivo paso={paso} />;
