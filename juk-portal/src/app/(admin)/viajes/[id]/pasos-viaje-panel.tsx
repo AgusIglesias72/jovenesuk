@@ -186,7 +186,7 @@ function PasoEditor({
     <div className="rounded-lg border border-gray-200 bg-white p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-base font-semibold text-juk-navy-950">{PASO_VIAJE_LABELS[paso.tipo]}</h3>
-        <div className="w-56">
+        <div className="w-full sm:w-56">
           <Select
             value={paso.estado}
             disabled={isPending}
@@ -393,7 +393,7 @@ function PasajesForm({ metadata, disabled, onSave }: FormProps) {
   );
 }
 
-type ExcursionRow = { nombre: string; fecha: string; proveedor: string; costoGbp: string; estado: string };
+type ExcursionRow = { id: string; nombre: string; fecha: string; proveedor: string; costoGbp: string; estado: string };
 
 function ExcursionesForm({ metadata, disabled, onSave }: FormProps) {
   const inicial = Array.isArray(metadata.excursiones) ? (metadata.excursiones as unknown[]) : [];
@@ -401,6 +401,7 @@ function ExcursionesForm({ metadata, disabled, onSave }: FormProps) {
     inicial.map((e) => {
       const o = (e ?? {}) as Record<string, unknown>;
       return {
+        id: crypto.randomUUID(),
         nombre: str(o, "nombre"),
         fecha: str(o, "fecha"),
         proveedor: str(o, "proveedor"),
@@ -414,14 +415,14 @@ function ExcursionesForm({ metadata, disabled, onSave }: FormProps) {
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   const remove = (i: number) => setRows((rs) => rs.filter((_, idx) => idx !== i));
   const add = () =>
-    setRows((rs) => [...rs, { nombre: "", fecha: "", proveedor: "", costoGbp: "", estado: "" }]);
+    setRows((rs) => [...rs, { id: crypto.randomUUID(), nombre: "", fecha: "", proveedor: "", costoGbp: "", estado: "" }]);
 
   return (
     <div className="flex flex-col gap-4">
       {rows.length === 0 && <p className="text-sm text-gray-500">Todavía no hay excursiones cargadas.</p>}
 
       {rows.map((r, i) => (
-        <div key={i} className="grid gap-3 rounded-md border border-gray-200 p-3 sm:grid-cols-12">
+        <div key={r.id} className="grid gap-3 rounded-md border border-gray-200 p-3 sm:grid-cols-12">
           <Field label="Nombre" className="sm:col-span-4">
             <Input value={r.nombre} onChange={(e) => update(i, { nombre: e.target.value })} disabled={disabled} />
           </Field>

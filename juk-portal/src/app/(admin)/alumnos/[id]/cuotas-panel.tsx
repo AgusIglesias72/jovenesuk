@@ -178,7 +178,7 @@ export function CuotasPanel({
             Sin plan de pagos todavía. Definí las cuotas mensuales acordadas
             {b2Aplica ? " — la última se cobra presencial en JUK (B2)." : " — todas van vía agencia."}
           </p>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             <Field label="Cuotas" required error={fe("cantidadCuotas")}>
               <Input
                 type="number"
@@ -228,7 +228,7 @@ export function CuotasPanel({
         </form>
       ) : (
         <>
-          <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <ResumenCard
               label="Total del plan"
               valor={formatMonto(totalPlan(cuotas), moneda)}
@@ -269,8 +269,8 @@ export function CuotasPanel({
             </div>
           )}
 
-          <div className="overflow-hidden rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] shadow-[shadow:var(--shadow-soft)]">
-            <table className="w-full text-left text-[length:var(--t-small)]">
+          <div className="overflow-x-auto rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] shadow-[shadow:var(--shadow-soft)]">
+            <table className="w-full min-w-[560px] text-left text-[length:var(--t-small)]">
               <thead>
                 <tr className="bg-[var(--c-surface-2)] text-[length:var(--t-label)] uppercase tracking-[var(--ls-label)] text-[var(--c-ink-muted)]">
                   <th className="px-4 py-2.5 font-bold">N°</th>

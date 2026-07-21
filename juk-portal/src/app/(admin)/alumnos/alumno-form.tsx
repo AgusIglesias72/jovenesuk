@@ -218,7 +218,7 @@ export function AlumnoForm({
       <Section title="Contacto del alumno">
         <TextField label="Teléfono" value={values.telefonoAlumno} onChange={(v) => set("telefonoAlumno", v)} />
         <TextField label="Email" type="email" value={values.emailAlumno} error={fe("emailAlumno")} onChange={(v) => set("emailAlumno", v)} />
-        <Field label="Alergias / salud" help="Información confidencial" className="col-span-2">
+        <Field label="Alergias / salud" help="Información confidencial" className="col-span-1 sm:col-span-2">
           <Textarea value={values.alergiasSalud} onChange={(e) => set("alergiasSalud", e.target.value)} />
         </Field>
       </Section>
@@ -226,13 +226,13 @@ export function AlumnoForm({
       <Section title="Tutor 1">
         <TextField label="Nombre" required value={values.tutor1Nombre} error={fe("tutor1Nombre")} onChange={(v) => set("tutor1Nombre", v)} />
         <TextField label="Celular" required value={values.tutor1Celular} error={fe("tutor1Celular")} onChange={(v) => set("tutor1Celular", v)} />
-        <TextField label="Email" required type="email" value={values.tutor1Email} error={fe("tutor1Email")} onChange={(v) => set("tutor1Email", v)} className="col-span-2" />
+        <TextField label="Email" required type="email" value={values.tutor1Email} error={fe("tutor1Email")} onChange={(v) => set("tutor1Email", v)} className="col-span-1 sm:col-span-2" />
       </Section>
 
       <Section title="Tutor 2 (opcional)">
         <TextField label="Nombre" value={values.tutor2Nombre} onChange={(v) => set("tutor2Nombre", v)} />
         <TextField label="Celular" value={values.tutor2Celular} onChange={(v) => set("tutor2Celular", v)} />
-        <TextField label="Email" type="email" value={values.tutor2Email} error={fe("tutor2Email")} onChange={(v) => set("tutor2Email", v)} className="col-span-2" />
+        <TextField label="Email" type="email" value={values.tutor2Email} error={fe("tutor2Email")} onChange={(v) => set("tutor2Email", v)} className="col-span-1 sm:col-span-2" />
       </Section>
 
       <Section title="Facturación (opcional)">
@@ -259,20 +259,20 @@ export function AlumnoForm({
         {mode === "edit" && (
           <Field label="Estado">
             <Select value={values.estado} onChange={(e) => set("estado", e.target.value as FormValues["estado"])}>
-              {ALUMNO_ESTADOS.filter((e) => e !== "baja").map((e) => (
-                <option key={e} value={e}>
+              {ALUMNO_ESTADOS.filter((e) => e !== "baja" || values.estado === "baja").map((e) => (
+                <option key={e} value={e} disabled={e === "baja"}>
                   {ALUMNO_ESTADO_LABELS[e]}
                 </option>
               ))}
             </Select>
           </Field>
         )}
-        <Field label="Notas internas" className="col-span-2">
+        <Field label="Notas internas" className="col-span-1 sm:col-span-2">
           <Textarea value={values.notasInternas} onChange={(e) => set("notasInternas", e.target.value)} />
         </Field>
       </Section>
 
-      <div className="mt-6 flex items-center justify-between gap-3">
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           {mode === "edit" && initial && initial.estado !== "baja" && (
             <Button type="button" variant="danger" disabled={isPending} onClick={darDeBaja}>
@@ -304,7 +304,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
         {title}
       </h2>
-      <div className="grid grid-cols-2 gap-4">{children}</div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
     </section>
   );
 }

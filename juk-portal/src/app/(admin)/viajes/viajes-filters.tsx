@@ -33,7 +33,7 @@ export function ViajesFilters() {
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <div className="min-w-[220px] flex-1">
+      <div className="w-full sm:min-w-[220px] sm:flex-1">
         <Input
           type="search"
           placeholder="Buscar por código o nombre…"
@@ -42,7 +42,7 @@ export function ViajesFilters() {
         />
       </div>
 
-      <div className="w-48">
+      <div className="w-full sm:w-48">
         <Select
           value={sp.get("estado") ?? ""}
           onChange={(e) => pushParam("estado", e.target.value || null)}
@@ -56,7 +56,7 @@ export function ViajesFilters() {
         </Select>
       </div>
 
-      <div className="w-52">
+      <div className="w-full sm:w-52">
         <Select
           value={sp.get("origen") ?? ""}
           onChange={(e) => pushParam("origen", e.target.value || null)}
@@ -70,7 +70,7 @@ export function ViajesFilters() {
         </Select>
       </div>
 
-      <div className="w-40">
+      <div className="w-full sm:w-40">
         <Select
           value={sp.get("tipo") ?? ""}
           onChange={(e) => pushParam("tipo", e.target.value || null)}

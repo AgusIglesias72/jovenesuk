@@ -251,7 +251,7 @@ export function ColegioForm({
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl">
       <Section title="Datos generales">
-        <Field label="Nombre" required error={fe("nombre")} className="col-span-2">
+        <Field label="Nombre" required error={fe("nombre")} className="sm:col-span-2">
           <Input
             value={values.nombre}
             invalid={!!fe("nombre")}
@@ -286,7 +286,7 @@ export function ColegioForm({
           </Select>
         </Field>
 
-        <Field label="Ciudad" required error={fe("ciudad")} className="col-span-2">
+        <Field label="Ciudad" required error={fe("ciudad")} className="sm:col-span-2">
           <Input
             value={values.ciudad}
             invalid={!!fe("ciudad")}
@@ -329,7 +329,7 @@ export function ColegioForm({
         <Field
           label="Cursos disponibles"
           help="Separados por coma"
-          className="col-span-2"
+          className="sm:col-span-2"
         >
           <Input
             value={values.cursosDisponibles}
@@ -338,7 +338,7 @@ export function ColegioForm({
           />
         </Field>
 
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-gray-700">
             Tipos de alojamiento
           </span>
@@ -356,7 +356,7 @@ export function ColegioForm({
       </Section>
 
       <Section title="Documentos del programa">
-        <p className="col-span-2 -mt-1 text-sm text-gray-600">
+        <p className="-mt-1 text-sm text-gray-600 sm:col-span-2">
           Qué exige este colegio. Define los pasos del tablero del alumno al
           asignarlo a un viaje (los cambios aplican solo a asignaciones nuevas).
           “Opcional” activa el paso pero no cuenta para la completitud ni las alertas.
@@ -420,7 +420,7 @@ export function ColegioForm({
           />
         </Field>
 
-        <Field label="Notas" className="col-span-2">
+        <Field label="Notas" className="sm:col-span-2">
           <Textarea
             value={values.notas}
             onChange={(e) => set("notas", e.target.value)}
@@ -429,7 +429,7 @@ export function ColegioForm({
         </Field>
       </Section>
 
-      <div className="mt-6 flex items-center justify-between gap-3">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           {mode === "edit" && initial && (
             <Button
@@ -468,7 +468,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
         {title}
       </h2>
-      <div className="grid grid-cols-2 gap-4">{children}</div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
     </section>
   );
 }
@@ -487,12 +487,12 @@ function ContactoFields({
   onChange: (field: keyof ContactoValues, value: string) => void;
 }) {
   return (
-    <fieldset className="col-span-2 rounded-md border border-gray-200 p-4">
+    <fieldset className="rounded-md border border-gray-200 p-4 sm:col-span-2">
       <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-700">
         {legend}
         {required && <span className="ml-0.5 text-juk-coral-600">*</span>}
       </legend>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Field label="Nombre" error={errors?.nombre}>
           <Input
             invalid={!!errors?.nombre}

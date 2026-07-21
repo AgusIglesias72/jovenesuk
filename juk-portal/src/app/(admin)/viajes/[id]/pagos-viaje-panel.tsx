@@ -47,7 +47,7 @@ export function PagosViajePanel({ rows }: { rows: PagoAlumnoRow[] }) {
             Estado del plan de cuotas de cada alumno. El plan se gestiona desde la ficha.
           </p>
         </div>
-        <div className="w-52">
+        <div className="w-full sm:w-52">
           <Select value={orden} onChange={(e) => setOrden(e.target.value as OrdenResumen)}>
             {ORDEN_RESUMEN.map((o) => (
               <option key={o} value={o}>

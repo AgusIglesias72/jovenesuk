@@ -114,7 +114,7 @@ export function GroupLeaderForm({
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
           Datos
         </h2>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Nombre" required error={fe("nombre")}>
             <Input value={values.nombre} invalid={!!fe("nombre")} onChange={(e) => set("nombre", e.target.value)} />
           </Field>
@@ -137,7 +137,7 @@ export function GroupLeaderForm({
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
           Police check
         </h2>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Estado" required>
             <Select
               value={values.policeCheckEstado}
@@ -150,7 +150,7 @@ export function GroupLeaderForm({
               ))}
             </Select>
           </Field>
-          <div />
+          <div className="hidden sm:block" />
           <Field label="Fecha de emisión" error={fe("policeCheckFechaEmision")}>
             <DateInput value={values.policeCheckFechaEmision} onChange={(e) => set("policeCheckFechaEmision", e.target.value)} />
           </Field>

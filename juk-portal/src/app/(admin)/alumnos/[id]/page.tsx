@@ -84,7 +84,7 @@ export default async function AlumnoDetailPage({
       />
 
       <section className="rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] p-5 shadow-[shadow:var(--shadow-1)]">
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-4">
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-4">
           <Dato label="Nacimiento" value={formatFecha(alumno.fechaNacimiento)} />
           <Dato
             label="Pasaporte"

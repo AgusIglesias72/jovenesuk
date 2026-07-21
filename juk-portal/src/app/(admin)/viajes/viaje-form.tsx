@@ -526,7 +526,7 @@ export function ViajeForm({
         </Field>
       </Section>
 
-      <div className="mt-6 flex items-center justify-between gap-3">
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           {mode === "edit" && initial && initial.estado !== "cancelado" && (
             <Button
@@ -534,21 +534,23 @@ export function ViajeForm({
               variant="danger"
               disabled={isPending}
               onClick={cancelarViaje}
+              className="w-full sm:w-auto"
             >
               Cancelar viaje
             </Button>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Button
             type="button"
             variant="secondary"
             disabled={isPending}
             onClick={volver}
+            className="w-full sm:w-auto"
           >
             Volver
           </Button>
-          <Button type="submit" disabled={isPending}>
+          <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
             {isPending ? "Guardando…" : "Guardar"}
           </Button>
         </div>
@@ -563,7 +565,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
         {title}
       </h2>
-      <div className="grid grid-cols-2 gap-4">{children}</div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
     </section>
   );
 }

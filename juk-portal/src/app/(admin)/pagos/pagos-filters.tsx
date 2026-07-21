@@ -23,8 +23,8 @@ export function PagosFilters({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <div className="w-52">
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="w-full sm:w-52">
         <Select
           value={sp.get("estado") ?? ""}
           onChange={(e) => pushParam("estado", e.target.value || null)}
@@ -35,7 +35,7 @@ export function PagosFilters({
           <option value="pagada">Pagadas</option>
         </Select>
       </div>
-      <div className="w-72">
+      <div className="w-full sm:w-72">
         <Select
           searchable
           value={sp.get("viaje") ?? ""}
@@ -49,7 +49,7 @@ export function PagosFilters({
           ))}
         </Select>
       </div>
-      <div className="w-44">
+      <div className="w-full sm:w-44">
         <Select
           value={sp.get("moneda") ?? ""}
           onChange={(e) => pushParam("moneda", e.target.value || null)}

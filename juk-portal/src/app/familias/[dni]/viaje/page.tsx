@@ -92,7 +92,7 @@ function Dato({ label, valor }: { label: string; valor: string }) {
       <dt className="text-[length:var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-subtle)]">
         {label}
       </dt>
-      <dd className="mt-0.5 text-[length:var(--t-body)] text-[var(--c-ink)]">{valor}</dd>
+      <dd className="mt-0.5 break-words text-[length:var(--t-body)] text-[var(--c-ink)]">{valor}</dd>
     </div>
   );
 }

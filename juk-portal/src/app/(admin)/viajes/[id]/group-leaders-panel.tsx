@@ -118,8 +118,8 @@ export function GroupLeadersPanel({
           El viaje está cancelado: no se pueden asignar Group Leaders.
         </p>
       ) : (
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <div className="w-72">
+        <div className="mb-4 flex flex-col flex-wrap gap-3 sm:flex-row sm:items-center">
+          <div className="w-full sm:w-72">
             <Select searchable value={sel} onChange={(e) => setSel(e.target.value)} disabled={isPending}>
               <option value="">
                 {elegibles.length === 0
@@ -133,7 +133,7 @@ export function GroupLeadersPanel({
               ))}
             </Select>
           </div>
-          <Button type="button" onClick={asignar} disabled={isPending || !sel}>
+          <Button type="button" onClick={asignar} disabled={isPending || !sel} className="w-full sm:w-auto">
             Asignar
           </Button>
         </div>

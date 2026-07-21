@@ -25,8 +25,8 @@ export function AlumnosFilters() {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <div className="min-w-[220px] flex-1">
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="w-full sm:min-w-[220px] sm:flex-1">
         <Input
           type="search"
           placeholder="Buscar por nombre, apellido, DNI o pasaporte…"
@@ -34,7 +34,7 @@ export function AlumnosFilters() {
           onChange={(e) => onSearch(e.target.value)}
         />
       </div>
-      <div className="w-52">
+      <div className="w-full sm:w-52">
         <Select
           value={sp.get("estado") ?? ""}
           onChange={(e) => pushParam("estado", e.target.value || null)}
@@ -47,7 +47,7 @@ export function AlumnosFilters() {
           ))}
         </Select>
       </div>
-      <div className="w-64">
+      <div className="w-full sm:w-64">
         <Select
           value={sp.get("alerta") ?? ""}
           onChange={(e) => pushParam("alerta", e.target.value || null)}

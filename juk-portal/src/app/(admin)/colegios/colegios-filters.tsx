@@ -31,7 +31,7 @@ export function ColegiosFilters() {
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <div className="min-w-[220px] flex-1">
+      <div className="w-full flex-1 sm:min-w-[220px]">
         <Input
           type="search"
           placeholder="Buscar por nombre o ciudad…"
@@ -40,7 +40,7 @@ export function ColegiosFilters() {
         />
       </div>
 
-      <div className="w-44">
+      <div className="w-full sm:w-44">
         <Select
           value={sp.get("tipo") ?? ""}
           onChange={(e) => pushParam("tipo", e.target.value || null)}
@@ -54,7 +54,7 @@ export function ColegiosFilters() {
         </Select>
       </div>
 
-      <div className="w-44">
+      <div className="w-full sm:w-44">
         <Select
           value={sp.get("pais") ?? ""}
           onChange={(e) => pushParam("pais", e.target.value || null)}

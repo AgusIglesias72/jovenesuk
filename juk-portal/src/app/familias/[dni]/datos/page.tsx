@@ -90,7 +90,7 @@ function Dato({
         {label}
       </dt>
       <dd
-        className={`mt-0.5 text-[length:var(--t-body)] ${mono ? "font-mono" : ""} ${
+        className={`mt-0.5 break-words text-[length:var(--t-body)] ${mono ? "font-mono" : ""} ${
           alerta ? "text-[var(--c-danger)]" : "text-[var(--c-ink)]"
         }`}
       >

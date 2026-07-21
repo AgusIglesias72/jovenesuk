@@ -28,8 +28,8 @@ export function GroupLeadersFilters() {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <div className="min-w-[220px] flex-1">
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="min-w-0 sm:min-w-[220px] sm:flex-1">
         <Input
           type="search"
           placeholder="Buscar por nombre, apellido o email…"
@@ -37,7 +37,7 @@ export function GroupLeadersFilters() {
           onChange={(e) => onSearch(e.target.value)}
         />
       </div>
-      <div className="w-52">
+      <div className="w-full sm:w-52">
         <Select
           value={sp.get("policeCheckEstado") ?? ""}
           onChange={(e) => pushParam("policeCheckEstado", e.target.value || null)}

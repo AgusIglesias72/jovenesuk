@@ -80,7 +80,7 @@ export default async function ViajeDetailPage({
       />
 
       <section className="mb-8 rounded-lg border border-gray-200 bg-white p-5">
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm md:grid-cols-4">
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-2 md:grid-cols-4">
           <Dato label="Estado">
             <TripBadge state={viaje.estado} />
           </Dato>

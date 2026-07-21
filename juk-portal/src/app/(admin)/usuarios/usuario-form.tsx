@@ -97,8 +97,8 @@ export function UsuarioForm() {
 
   return (
     <form onSubmit={handleSubmit} className="max-w-xl">
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Nombre" required error={fe("name")} className="col-span-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field label="Nombre" required error={fe("name")} className="sm:col-span-2">
           <Input
             value={name}
             invalid={!!fe("name")}
@@ -108,7 +108,7 @@ export function UsuarioForm() {
             }}
           />
         </Field>
-        <Field label="Email" required error={fe("email")} className="col-span-2">
+        <Field label="Email" required error={fe("email")} className="sm:col-span-2">
           <Input
             type="email"
             value={email}

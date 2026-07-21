@@ -26,8 +26,8 @@ export function ConsultasFilters() {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <div className="min-w-[220px] flex-1">
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="min-w-0 sm:min-w-[220px] sm:flex-1">
         <Input
           type="search"
           placeholder="Buscar por nombre o email…"
@@ -36,7 +36,7 @@ export function ConsultasFilters() {
         />
       </div>
 
-      <div className="w-48">
+      <div className="w-full sm:w-48">
         <Select
           value={sp.get("estado") ?? ""}
           onChange={(e) => pushParam("estado", e.target.value || null)}

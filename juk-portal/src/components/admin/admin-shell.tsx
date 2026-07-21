@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { ConfirmProvider, ToastProvider } from "@/components/ui";
 import { cn } from "@/lib/utils/cn";
 
@@ -30,7 +31,120 @@ interface AdminShellProps {
 
 export function AdminShell({ user, children }: AdminShellProps) {
   const pathname = usePathname();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
+  const cerrarDrawer = () => setDrawerOpen(false);
+  // El drawer se cierra al tocar un item de nav (onNavigate → cerrarDrawer),
+  // igual que el shell de familias; no hace falta un effect sobre pathname.
+
+  // Escape cierra el drawer + bloqueo de scroll del body mientras está abierto.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDrawerOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [drawerOpen]);
+
+  return (
+    <div className="min-h-screen bg-[var(--c-page)] text-[var(--c-ink)] lg:grid lg:h-screen lg:grid-cols-[264px_1fr] lg:overflow-hidden">
+      {/* ---------- Sidebar fija (desktop) ---------- */}
+      <aside className="hidden bg-[image:var(--grad-brand)] p-4 text-[var(--c-ink-onbrand)] lg:flex lg:h-screen lg:flex-col">
+        <SidebarBody user={user} pathname={pathname} />
+      </aside>
+
+      {/* ---------- Header sticky (mobile) ---------- */}
+      <div className="sticky top-0 z-30 lg:hidden">
+        <header className="flex items-center justify-between gap-3 bg-[image:var(--grad-brand)] px-4 py-3 text-[var(--c-ink-onbrand)]">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--r-md)] bg-[image:var(--grad-warm)] text-[var(--c-ink-onaccent)] shadow-[shadow:var(--shadow-accent)]"
+              aria-hidden
+            >
+              <span className="font-display text-base font-extrabold">J</span>
+            </span>
+            <div className="min-w-0 leading-tight">
+              <p className="font-display text-[length:var(--t-small)] font-bold text-[var(--c-ink-onbrand)]">
+                Jóvenes en UK
+              </p>
+              <p className="truncate text-[length:var(--t-label)] font-semibold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-onbrand-muted)]">
+                Portal Interno
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Abrir menú"
+            aria-expanded={drawerOpen}
+            aria-controls="admin-drawer"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--r-md)] bg-white/10 text-[var(--c-ink-onbrand)] transition-colors hover:bg-white/15"
+          >
+            <IconMenu />
+          </button>
+        </header>
+        <div className="border-b border-[var(--c-border)] bg-[var(--c-surface)] px-4 py-2.5">
+          <Breadcrumb items={buildBreadcrumb(pathname)} />
+        </div>
+      </div>
+
+      {/* ---------- Drawer de navegación (mobile) ---------- */}
+      {drawerOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            type="button"
+            aria-label="Cerrar menú"
+            onClick={cerrarDrawer}
+            className="absolute inset-0 bg-black/50"
+          />
+          <aside
+            id="admin-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navegación"
+            className="absolute inset-y-0 left-0 flex w-[min(84vw,300px)] flex-col bg-[image:var(--grad-brand)] p-4 text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-3)]"
+          >
+            <SidebarBody user={user} pathname={pathname} onNavigate={cerrarDrawer} />
+          </aside>
+        </div>
+      )}
+
+      {/* ---------- Contenido ---------- */}
+      <main className="lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
+        {/* Topbar (desktop) */}
+        <div className="hidden items-center gap-4 border-b border-[var(--c-border)] bg-[var(--c-surface)] px-6 py-3 lg:flex">
+          <Breadcrumb items={buildBreadcrumb(pathname)} />
+        </div>
+        <div className="bg-[image:var(--grad-page)] p-4 sm:p-6 lg:flex-1 lg:overflow-auto">
+          <ConfirmProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </ConfirmProvider>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+/* ============================================================
+   Sidebar body — reutilizado por la sidebar fija (desktop) y
+   el drawer (mobile). Logo + secciones + chip del usuario.
+   ============================================================ */
+
+function SidebarBody({
+  user,
+  pathname,
+  onNavigate,
+}: {
+  user: AdminShellProps["user"];
+  pathname: string;
+  onNavigate?: () => void;
+}) {
   const initials = user.name
     .split(" ")
     .map((p) => p[0])
@@ -46,71 +160,75 @@ export function AdminShell({ user, children }: AdminShellProps) {
       : user.role;
 
   return (
-    <div className="grid h-screen grid-cols-[264px_1fr] overflow-hidden bg-[var(--c-page)]">
-      {/* Sidebar fijo: alto = pantalla; la nav scrollea adentro y el chip del
-          usuario queda siempre visible abajo. */}
-      <aside className="flex h-screen flex-col bg-[image:var(--grad-brand)] p-4 text-[var(--c-ink-onbrand)]">
-        {/* Logo */}
-        <div className="mb-7 flex items-center gap-3 px-2 pt-1">
-          <span
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--r-md)] bg-[image:var(--grad-warm)] text-[var(--c-ink-onaccent)] shadow-[shadow:var(--shadow-accent)]"
-            aria-hidden
-          >
-            <span className="font-display text-lg font-extrabold">J</span>
-          </span>
-          <div className="leading-tight">
-            <p className="font-display text-[15px] font-bold text-[var(--c-ink-onbrand)]">
-              Jóvenes en UK
-            </p>
-            <p className="mt-0.5 text-[length:var(--t-label)] font-semibold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-onbrand-muted)]">
-              Portal Interno
-            </p>
-          </div>
+    <>
+      {/* Logo */}
+      <div className="mb-7 flex items-center gap-3 px-2 pt-1">
+        <span
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--r-md)] bg-[image:var(--grad-warm)] text-[var(--c-ink-onaccent)] shadow-[shadow:var(--shadow-accent)]"
+          aria-hidden
+        >
+          <span className="font-display text-lg font-extrabold">J</span>
+        </span>
+        <div className="leading-tight">
+          <p className="font-display text-[15px] font-bold text-[var(--c-ink-onbrand)]">
+            Jóvenes en UK
+          </p>
+          <p className="mt-0.5 text-[length:var(--t-label)] font-semibold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-onbrand-muted)]">
+            Portal Interno
+          </p>
         </div>
+      </div>
 
-        <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto">
         <SidebarSection title="Operación">
           <SidebarItem
             icon={<IconGrid />}
             label="Dashboard"
             href="/dashboard"
             active={pathname === "/dashboard"}
+            onNavigate={onNavigate}
           />
           <SidebarItem
             icon={<IconUser />}
             label="Alumnos"
             href="/alumnos"
             active={pathname.startsWith("/alumnos")}
+            onNavigate={onNavigate}
           />
           <SidebarItem
             icon={<IconPlane />}
             label="Viajes"
             href="/viajes"
             active={pathname.startsWith("/viajes")}
+            onNavigate={onNavigate}
           />
           <SidebarItem
             icon={<IconSchool />}
             label="Colegios"
             href="/colegios"
             active={pathname.startsWith("/colegios")}
+            onNavigate={onNavigate}
           />
           <SidebarItem
             icon={<IconUsers />}
             label="Group Leaders"
             href="/group-leaders"
             active={pathname.startsWith("/group-leaders")}
+            onNavigate={onNavigate}
           />
           <SidebarItem
             icon={<IconCard />}
             label="Pagos"
             href="/pagos"
             active={pathname.startsWith("/pagos")}
+            onNavigate={onNavigate}
           />
           <SidebarItem
             icon={<IconInbox />}
             label="Consultas"
             href="/consultas"
             active={pathname.startsWith("/consultas")}
+            onNavigate={onNavigate}
           />
         </SidebarSection>
 
@@ -121,55 +239,45 @@ export function AdminShell({ user, children }: AdminShellProps) {
               label="Usuarios"
               href="/usuarios"
               active={pathname.startsWith("/usuarios")}
+              onNavigate={onNavigate}
             />
             <SidebarItem
               icon={<IconGear />}
               label="Configuración"
               href="/configuracion"
               active={pathname.startsWith("/configuracion")}
+              onNavigate={onNavigate}
             />
             <SidebarItem
               icon={<IconFlask />}
               label="Tests"
               href="/tests"
               active={pathname.startsWith("/tests")}
+              onNavigate={onNavigate}
             />
           </SidebarSection>
         )}
-        </div>
+      </div>
 
-        {/* User chip — fuera del área scrolleable: siempre visible */}
-        <div className="mt-3 flex items-center gap-3 rounded-[var(--r-lg)] bg-white/10 p-3">
-          <span
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--r-pill)] bg-[image:var(--grad-warm)] text-[11px] font-extrabold text-[var(--c-ink-onaccent)]"
-            aria-hidden
-          >
-            {initials || "U"}
-          </span>
-          <div className="min-w-0 flex-1 leading-tight">
-            <p className="truncate text-[length:var(--t-small)] font-bold text-[var(--c-ink-onbrand)]">
-              {user.name}
-            </p>
-            <p className="mt-0.5 truncate text-[length:var(--t-label)] text-[var(--c-ink-onbrand-muted)]">
-              {roleLabel}
-            </p>
-          </div>
-          <LogoutButton />
+      {/* User chip — fuera del área scrolleable: siempre visible */}
+      <div className="mt-3 flex items-center gap-3 rounded-[var(--r-lg)] bg-white/10 p-3">
+        <span
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--r-pill)] bg-[image:var(--grad-warm)] text-[11px] font-extrabold text-[var(--c-ink-onaccent)]"
+          aria-hidden
+        >
+          {initials || "U"}
+        </span>
+        <div className="min-w-0 flex-1 leading-tight">
+          <p className="truncate text-[length:var(--t-small)] font-bold text-[var(--c-ink-onbrand)]">
+            {user.name}
+          </p>
+          <p className="mt-0.5 truncate text-[length:var(--t-label)] text-[var(--c-ink-onbrand-muted)]">
+            {roleLabel}
+          </p>
         </div>
-      </aside>
-
-      <main className="flex h-screen flex-col overflow-hidden">
-        {/* Topbar */}
-        <div className="flex items-center gap-4 border-b border-[var(--c-border)] bg-[var(--c-surface)] px-6 py-3">
-          <Breadcrumb items={buildBreadcrumb(pathname)} />
-        </div>
-        <div className="flex-1 overflow-auto bg-[image:var(--grad-page)] p-6">
-          <ConfirmProvider>
-            <ToastProvider>{children}</ToastProvider>
-          </ConfirmProvider>
-        </div>
-      </main>
-    </div>
+        <LogoutButton />
+      </div>
+    </>
   );
 }
 
@@ -200,9 +308,10 @@ interface SidebarItemProps {
   href?: string;
   active?: boolean;
   soon?: boolean;
+  onNavigate?: () => void;
 }
 
-function SidebarItem({ icon, label, href, active, soon }: SidebarItemProps) {
+function SidebarItem({ icon, label, href, active, soon, onNavigate }: SidebarItemProps) {
   if (soon) {
     return (
       <div
@@ -221,6 +330,7 @@ function SidebarItem({ icon, label, href, active, soon }: SidebarItemProps) {
   return (
     <Link
       href={href ?? "/dashboard"}
+      onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
         "flex min-h-[42px] w-full items-center gap-3 rounded-[var(--r-pill)] px-4 text-[length:var(--t-small)] transition-colors duration-150",
@@ -319,6 +429,21 @@ function buildBreadcrumb(pathname: string): { label: string; href?: string }[] {
    Inline icons (minimal — replace with lucide-react if preferred)
    ============================================================ */
 
+function IconMenu() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      className="h-5 w-5"
+      aria-hidden
+    >
+      <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
+    </svg>
+  );
+}
 function IconGrid() {
   return (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6}>
