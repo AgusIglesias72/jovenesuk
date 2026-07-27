@@ -7,6 +7,7 @@ import {
   colegios,
   consultas,
   groupLeaders,
+  prospectos,
   suscriptores,
   users,
   viajes,
@@ -35,7 +36,11 @@ export async function cleanupE2EData() {
     like(alumnos.tutor1Email, "tutora.%@e2e.jovenesenuk.com"),
     like(alumnos.dni, "E2E-%")
   );
-  const e2eColegio = like(colegios.nombre, "Colegio E2E %");
+  // Incluye los colegios que nacen al "convertir" un prospecto (heredan su nombre).
+  const e2eColegio = or(
+    like(colegios.nombre, "Colegio E2E %"),
+    like(colegios.nombre, "Prospecto E2E %")
+  );
   const e2eGl = like(groupLeaders.email, "gl-%@example.com");
 
   const vids = (await db.select({ id: viajes.id }).from(viajes).where(e2eViaje)).map((r) => r.id);
@@ -51,7 +56,14 @@ export async function cleanupE2EData() {
   if (vids.length) await db.delete(viajes).where(inArray(viajes.id, vids));
   if (gids.length) await db.delete(groupLeaders).where(inArray(groupLeaders.id, gids));
 
-  // alumnos (ya sin asignaciones) y colegios (ya sin viajes; cascadea su config documental).
+  // Prospectos de CRM ANTES de colegios: prospectos.colegioId → colegios (RESTRICT).
+  // Borrar el prospecto cascadea sus prospecto_comunicaciones.
+  const pdel = await db
+    .delete(prospectos)
+    .where(like(prospectos.nombre, "Prospecto E2E %"))
+    .returning({ id: prospectos.id });
+
+  // alumnos (ya sin asignaciones) y colegios (ya sin viajes ni prospectos; cascadea su config documental).
   if (aids.length) await db.delete(alumnos).where(inArray(alumnos.id, aids));
   if (cids.length) await db.delete(colegios).where(inArray(colegios.id, cids));
 
@@ -72,7 +84,13 @@ export async function cleanupE2EData() {
   await db.delete(consultas).where(like(consultas.email, "%@e2e.example.com"));
   await db.delete(suscriptores).where(like(suscriptores.email, "%@e2e.example.com"));
 
-  return { viajes: vids.length, alumnos: aids.length, colegios: cids.length, groupLeaders: gids.length };
+  return {
+    viajes: vids.length,
+    alumnos: aids.length,
+    colegios: cids.length,
+    groupLeaders: gids.length,
+    prospectos: pdel.length,
+  };
 }
 
 // Ejecución directa: `tsx tests/e2e/cleanup.ts` (con .env.local sourceado).

@@ -13,6 +13,7 @@ const PORTAL_PREFIXES = [
   "/alumnos",
   "/viajes",
   "/colegios",
+  "/prospectos",
   "/group-leaders",
   "/usuarios",
   "/pagos",
@@ -91,7 +92,10 @@ export function proxy(request: NextRequest) {
     // la página equivocada y no se registraría).
     path === "/sw.js" ||
     path === "/offline" ||
-    path === "/globe-loader.html";
+    path === "/globe-loader.html" ||
+    // Baja de comunicaciones (unsubscribe): se accede desde el link del email
+    // con ?token=..., sin sesión. La página valida el token server-side.
+    path === "/baja";
 
   // Always allow these
   if (isLandingPath || isApiAuthPath || isWebhookPath || isPublicAsset || isDesignPath) {

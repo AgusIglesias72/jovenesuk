@@ -18,6 +18,8 @@ function defaultsConEnv(): MailSettings {
       process.env.EMAIL_FROM_ADDRESS ?? MAIL_SETTINGS_DEFAULT.remitenteAutomaticos,
     remitenteComunicaciones:
       process.env.EMAIL_FROM_COMUNICACIONES ?? MAIL_SETTINGS_DEFAULT.remitenteComunicaciones,
+    remitenteMarketing:
+      process.env.EMAIL_FROM_OUTREACH ?? MAIL_SETTINGS_DEFAULT.remitenteMarketing,
     replyTo: process.env.EMAIL_REPLY_TO ?? MAIL_SETTINGS_DEFAULT.replyTo,
   };
 }

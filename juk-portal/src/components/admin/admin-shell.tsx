@@ -210,6 +210,13 @@ function SidebarBody({
             onNavigate={onNavigate}
           />
           <SidebarItem
+            icon={<IconTarget />}
+            label="Prospectos"
+            href="/prospectos"
+            active={pathname.startsWith("/prospectos")}
+            onNavigate={onNavigate}
+          />
+          <SidebarItem
             icon={<IconUsers />}
             label="Group Leaders"
             href="/group-leaders"
@@ -409,6 +416,7 @@ function buildBreadcrumb(pathname: string): { label: string; href?: string }[] {
     alumnos: "Alumnos",
     viajes: "Viajes",
     colegios: "Colegios",
+    prospectos: "Prospectos",
     pagos: "Pagos",
     consultas: "Consultas",
     usuarios: "Usuarios",
@@ -475,6 +483,15 @@ function IconSchool() {
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6}>
       <path d="M3 4l5-2 5 2v8l-5 2-5-2V4z" />
       <path d="M3 4l5 2 5-2M8 6v8" />
+    </svg>
+  );
+}
+function IconTarget() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6}>
+      <circle cx={8} cy={8} r={6} />
+      <circle cx={8} cy={8} r={3} />
+      <circle cx={8} cy={8} r={0.6} fill="currentColor" />
     </svg>
   );
 }

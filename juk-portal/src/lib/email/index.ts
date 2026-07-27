@@ -16,6 +16,7 @@ export const resend = new Resend(process.env.RESEND_API_KEY);
  * El remitente se resuelve desde la configuración del portal (MIN-09):
  * - tipo "automatico"   → noreply@ (recordatorios, reset, avisos sin respuesta)
  * - tipo "comunicacion" → info@ (credenciales, cancelaciones — respuesta esperada)
+ * - tipo "marketing"    → hola@mkt.* (outreach comercial en frío)
  */
 export async function sendEmail(opts: {
   to: string | string[];
@@ -23,6 +24,7 @@ export async function sendEmail(opts: {
   react: React.ReactElement;
   tipo?: TipoEmail;
   replyTo?: string;
+  headers?: Record<string, string>;
 }) {
   const settings = await getMailSettings();
   const { data, error } = await resend.emails.send({
@@ -31,6 +33,7 @@ export async function sendEmail(opts: {
     subject: opts.subject,
     react: opts.react,
     replyTo: opts.replyTo ?? settings.replyTo,
+    headers: opts.headers,
   });
 
   if (error) {

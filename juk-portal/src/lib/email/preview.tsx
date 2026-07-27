@@ -1,5 +1,6 @@
 import { render } from "@react-email/render";
 
+import { OutreachColegioEmail } from "./templates/outreach-colegio";
 import { PasswordChangedEmail } from "./templates/password-changed-email";
 import { RecordatorioEmail } from "./templates/recordatorio-email";
 import { ResetPasswordEmail } from "./templates/reset-password-email";
@@ -54,6 +55,22 @@ export function construirTemplatePrueba(
             alumnoNombre="Alumno Ejemplo"
             viajeNombre="Londres en Julio"
             viajeCodigo="UK-2026-JUL-LONDON"
+          />
+        ),
+      };
+    case "outreach-colegio":
+      return {
+        subject: "Viajes de estudio a UK para Colegio Ejemplo",
+        react: (
+          <OutreachColegioEmail
+            nombreColegio="Colegio Ejemplo"
+            nombreContacto="Prof. Laura"
+            cuerpo={[
+              "Cada año viajan con nosotros grupos de secundaria de todo el país, con acompañamiento de coordinadores argentinos y familias anfitrionas seleccionadas.",
+              "Nos ocupamos de la logística completa: vuelos, alojamiento, curso, excursiones y seguro, para que el colegio se concentre solo en la experiencia educativa.",
+            ]}
+            ctaUrl={`${appUrl}`}
+            unsubscribeUrl={`${appUrl}/baja?token=ejemplo`}
           />
         ),
       };

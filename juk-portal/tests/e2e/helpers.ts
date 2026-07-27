@@ -96,6 +96,34 @@ export async function crearColegio(page: Page, opts?: { nombre?: string }): Prom
   return { nombre };
 }
 
+/**
+ * Crea un prospecto de CRM y vuelve al pipeline (`/prospectos`). El nombre lleva
+ * el prefijo "Prospecto E2E " para que el teardown lo limpie (y el colegio que
+ * genere al convertirlo, que hereda ese nombre). Devuelve el nombre.
+ */
+export async function crearProspecto(
+  page: Page,
+  opts?: { nombre?: string; email?: string }
+): Promise<{ nombre: string }> {
+  const nombre = opts?.nombre ?? `Prospecto E2E ${rand(100000)}`;
+
+  await page.goto("/prospectos/nuevo");
+  await page.getByLabel("Nombre*", { exact: true }).fill(nombre);
+  await page.getByLabel("Ciudad").fill("Londres");
+  await page.getByPlaceholder("contacto@colegio.com").fill(opts?.email ?? `prospecto-${rand()}@example.com`);
+  await page.getByRole("button", { name: "Guardar" }).click();
+
+  await expect(page).toHaveURL(/\/prospectos$/);
+  return { nombre };
+}
+
+/** Abre el detalle del prospecto clickeando su tarjeta/fila por nombre. */
+export async function abrirProspecto(page: Page, nombre: string) {
+  await page.goto("/prospectos");
+  await page.getByText(nombre, { exact: true }).click();
+  await page.waitForURL(/\/prospectos\/[0-9a-f-]{36}$/);
+}
+
 export async function crearGroupLeader(
   page: Page,
   opts?: { nombre?: string; apellido?: string }
