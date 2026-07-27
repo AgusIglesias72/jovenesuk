@@ -36,8 +36,13 @@ test("al asignar un alumno se crea su tablero M6 y se pueden transicionar pasos"
   const c2 = page.locator('[data-paso="c2"]');
   await expect(c2.locator("span").filter({ hasText: "Bloqueado" }).first()).toBeVisible();
 
-  // Transicionar B1 de pendiente a en progreso desde su card
+  // B1 es solo lectura: su estado lo deriva el plan de cuotas, así que su card
+  // no tiene selector de transición.
   const b1 = page.locator('[data-paso="b1"]');
-  await b1.locator("select").selectOption("en_progreso");
-  await expect(b1.locator("span").filter({ hasText: "En progreso" }).first()).toBeVisible();
+  await expect(b1.locator("select")).toHaveCount(0);
+
+  // Un paso editable sí se transiciona desde su card (A1: pendiente → en progreso).
+  const a1 = page.locator('[data-paso="a1"]');
+  await a1.locator("select").selectOption("en_progreso");
+  await expect(a1.locator("span").filter({ hasText: "En progreso" }).first()).toBeVisible();
 });

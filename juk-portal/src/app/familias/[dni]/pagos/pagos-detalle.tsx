@@ -54,7 +54,14 @@ const CANAL_LABEL: Record<Cuota["canal"], string> = {
 };
 
 export function PagosDetalle({ viajes }: { viajes: ViajePlan[] }) {
-  const [activo, setActivo] = useState(0);
+  // Arrancar en el primer viaje que tenga plan de cuotas: si el alumno tiene
+  // varios viajes y el primero todavía no tiene plan, igual mostramos uno con
+  // cuotas en vez del estado vacío.
+  const inicial = Math.max(
+    viajes.findIndex((v) => v.cuotas.length > 0),
+    0
+  );
+  const [activo, setActivo] = useState(inicial);
   const viaje = viajes[activo] ?? viajes[0]!;
 
   return (
