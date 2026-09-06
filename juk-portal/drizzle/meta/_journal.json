@@ -120,6 +120,13 @@
       "when": 1785123907169,
       "tag": "0016_wet_smiling_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1788725586251,
+      "tag": "0017_better_auth_1_7_account_columns",
+      "breakpoints": true
     }
   ]
 }

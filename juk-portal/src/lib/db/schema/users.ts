@@ -76,6 +76,14 @@ export const accounts = pgTable("accounts", {
   providerId: text("provider_id").notNull(),
   accountId: text("account_id").notNull(),
   password: text("password"),
+  // Columnas OAuth del core schema de Better-Auth (>= 1.7 las exige aunque
+  // no haya providers sociales). Quedan siempre null con email+password.
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at"),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+  scope: text("scope"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

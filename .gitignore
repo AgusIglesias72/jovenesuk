@@ -34,3 +34,6 @@ Thumbs.db
 
 # Claude Code — config personal (los settings/skills/agents/hooks SÍ se versionan)
 .claude/settings.local.json
+
+# Capturas de sesiones de revisión visual (locales, no se versionan)
+assets/screenshots/
