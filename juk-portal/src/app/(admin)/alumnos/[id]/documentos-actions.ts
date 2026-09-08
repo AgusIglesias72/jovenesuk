@@ -2,15 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import type { ActionResult } from "@/lib/actions/result";
+import { safeAudit } from "@/lib/actions/safe-audit";
 import { requireAdminJuk } from "@/lib/auth/helpers";
 import { alumnoIdDeAsignacion } from "@/lib/db/queries/asignaciones";
-import { db } from "@/lib/db";
-import { registrarAuditoria } from "@/lib/db/queries/auditoria";
-import { documentos } from "@/lib/db/schema/documentos";
-import { pasosAlumno } from "@/lib/db/schema/pasos-alumno";
+import { insertDocumento } from "@/lib/db/queries/documentos";
+import { getPasoAlumnoById, updatePasoAlumno } from "@/lib/db/queries/pasos-alumno";
+import type { NewDocumento } from "@/lib/db/schema/documentos";
 import {
   DocumentoInvalidoError,
   keyDocumento,
@@ -18,22 +18,9 @@ import {
 } from "@/lib/domain/documentos";
 import type { PasoCodigo } from "@/lib/domain/pasos";
 import { putDocumento } from "@/lib/storage";
-import type { NewAuditoriaEntry } from "@/lib/db/schema/auditoria";
-
-export type ActionResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string };
-
-async function safeAudit(entry: NewAuditoriaEntry) {
-  try {
-    await registrarAuditoria(entry);
-  } catch (err) {
-    Sentry.captureException(err);
-  }
-}
 
 /** Pasos del alumno que llevan documento adjunto y su categoría. */
-const CATEGORIA_POR_PASO: Partial<Record<PasoCodigo, (typeof documentos.$inferInsert)["categoria"]>> = {
+const CATEGORIA_POR_PASO: Partial<Record<PasoCodigo, NewDocumento["categoria"]>> = {
   a1: "application_form",
   a3: "parental_consent",
   c1: "eta_screenshot",
@@ -56,8 +43,7 @@ export async function subirDocumentoPasoAction(
   const file = formData.get("archivo");
   if (!(file instanceof File)) return { ok: false, error: "Adjuntá un archivo." };
 
-  const rows = await db.select().from(pasosAlumno).where(eq(pasosAlumno.id, ids.data.pasoId)).limit(1);
-  const paso = rows[0];
+  const paso = await getPasoAlumnoById(ids.data.pasoId);
   if (!paso) return { ok: false, error: "El paso no existe." };
 
   // El dueño se deriva del paso (nunca del cliente).
@@ -80,7 +66,7 @@ export async function subirDocumentoPasoAction(
     const buffer = Buffer.from(await file.arrayBuffer());
     const { url } = await putDocumento(key, buffer, mime);
 
-    await db.insert(documentos).values({
+    await insertDocumento({
       entidadTipo: "paso_alumno",
       entidadId: paso.id,
       categoria,
@@ -91,14 +77,11 @@ export async function subirDocumentoPasoAction(
       uploadedBy: session.user.id,
     });
 
-    await db
-      .update(pasosAlumno)
-      .set({
-        metadata: { ...(paso.metadata as Record<string, unknown>), archivoUrl: url },
-        updatedAt: new Date(),
-        updatedBy: session.user.id,
-      })
-      .where(eq(pasosAlumno.id, paso.id));
+    await updatePasoAlumno(
+      paso.id,
+      { metadata: { ...paso.metadata, archivoUrl: url } },
+      session.user.id
+    );
 
     await safeAudit({
       accion: "subir_documento",

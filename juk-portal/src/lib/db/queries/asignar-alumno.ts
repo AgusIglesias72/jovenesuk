@@ -1,13 +1,15 @@
-import { db } from "@/lib/db";
 import { eq } from "drizzle-orm";
+
+import { db } from "@/lib/db";
+import { alumnos, type Alumno } from "@/lib/db/schema/alumnos";
+import { viajes, type Viaje } from "@/lib/db/schema/viajes";
+import { ViajeNoInscribibleError } from "@/lib/domain/asignaciones";
+import { edadAlInicioDelViaje, pasosIniciales } from "@/lib/domain/pasos";
 
 import { countAsignacionesActivas, createAsignacion } from "./asignaciones";
 import { getColegioById, getConfigDocumental } from "./colegios";
 import { crearPasosParaAsignacion } from "./pasos-alumno";
 import { setViajeEstado } from "./viajes";
-import { alumnos, type Alumno } from "@/lib/db/schema/alumnos";
-import { viajes, type Viaje } from "@/lib/db/schema/viajes";
-import { edadAlInicioDelViaje, pasosIniciales } from "@/lib/domain/pasos";
 
 /**
  * Núcleo del trigger de asignación (PRD §6.2), compartido por la server action
@@ -17,13 +19,6 @@ import { edadAlInicioDelViaje, pasosIniciales } from "@/lib/domain/pasos";
  * Las VALIDACIONES (estado del viaje, pasaporte, cupo) son responsabilidad
  * del llamador: acá solo se ejecuta el efecto.
  */
-export class ViajeNoInscribibleError extends Error {
-  constructor(estado: string) {
-    super(`El viaje ya no admite inscripciones (estado: ${estado}).`);
-    this.name = "ViajeNoInscribibleError";
-  }
-}
-
 export async function asignarConTablero(opts: {
   viaje: Viaje;
   alumno: Alumno;

@@ -3,8 +3,23 @@ import { Resend } from "resend";
 import { getMailSettings } from "@/lib/db/queries/configuracion";
 import { remitenteDe, type TipoEmail } from "@/lib/domain/configuracion";
 
+export class EmailConfigError extends Error {
+  constructor(variable: string) {
+    super(`${variable} no está definida.`);
+    this.name = "EmailConfigError";
+  }
+}
+
+/** Resend rechazó el envío (dominio sin verificar, API key inválida, etc.). */
+export class EmailEnvioError extends Error {
+  constructor(public readonly detalle: string) {
+    super(`Resend error: ${detalle}`);
+    this.name = "EmailEnvioError";
+  }
+}
+
 if (!process.env.RESEND_API_KEY) {
-  throw new Error("RESEND_API_KEY is not defined");
+  throw new EmailConfigError("RESEND_API_KEY");
 }
 
 export const resend = new Resend(process.env.RESEND_API_KEY);
@@ -38,7 +53,7 @@ export async function sendEmail(opts: {
 
   if (error) {
     console.error("[email] send failed", error);
-    throw new Error(`Resend error: ${error.message}`);
+    throw new EmailEnvioError(error.message);
   }
 
   return data;

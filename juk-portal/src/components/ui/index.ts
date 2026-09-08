@@ -27,34 +27,8 @@ export {
 export { StatCard, Alert } from "./stat-card";
 export { TripCard } from "./trip-card";
 
-// Step tracking
-export { StepStrip, StepLegend, STEP_LABELS, type Step } from "./step-strip";
-
 // Tables
-export {
-  TableWrap,
-  Table,
-  THead,
-  TBody,
-  TR,
-  TH,
-  TD,
-  StudentCell,
-  CodeCell,
-  DateCell,
-  MoneyCell,
-} from "./data-table";
-
-// App Shell
-export {
-  AppShell,
-  SidebarLogo,
-  SidebarNavSection,
-  SidebarNavItem,
-  SidebarUserChip,
-  Breadcrumb,
-  TopbarSearch,
-} from "./app-shell";
+export { TableWrap, Table, THead, TBody, TR, TH, TD, CodeCell, DateCell } from "./data-table";
 
 // Page header
 export { PageHeader } from "./page-header";

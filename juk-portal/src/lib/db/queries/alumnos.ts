@@ -6,6 +6,8 @@ import { asignaciones } from "@/lib/db/schema/asignaciones";
 import { pasosAlumno } from "@/lib/db/schema/pasos-alumno";
 import { AlumnoNotFoundError, type AlumnoFilters } from "@/lib/domain/alumnos";
 
+import { unicaFila } from "./errors";
+
 export async function listAlumnos(filters: AlumnoFilters = {}): Promise<Alumno[]> {
   const conditions: SQL[] = [];
 
@@ -55,7 +57,7 @@ export async function getAlumnoByDni(dni: string): Promise<Alumno | null> {
 
 export async function createAlumno(data: NewAlumno): Promise<Alumno> {
   const rows = await db.insert(alumnos).values(data).returning();
-  return rows[0]!;
+  return unicaFila(rows, "alumnos");
 }
 
 export async function updateAlumno(

@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 
+import type { ActionResult } from "@/lib/actions/result";
+import { safeAudit } from "@/lib/actions/safe-audit";
 import { requireAdminJuk } from "@/lib/auth/helpers";
-import { registrarAuditoria } from "@/lib/db/queries/auditoria";
+import { esViolacionUnique } from "@/lib/db/queries/errors";
 import {
   createViaje,
   getViajeById,
@@ -25,29 +27,7 @@ import {
 } from "@/lib/domain/viajes";
 import type { ViajeCreateData } from "@/lib/domain/viajes";
 import type { Viaje } from "@/lib/db/schema/viajes";
-import type { NewAuditoriaEntry } from "@/lib/db/schema/auditoria";
 import { fieldErrorsFromZod } from "@/lib/utils/zod";
-
-export type ActionResult<T> =
-  | { ok: true; data: T }
-  | {
-      ok: false;
-      error: string;
-      fieldErrors?: Record<string, string[] | undefined>;
-      requiereConfirmacion?: boolean;
-    };
-
-async function safeAudit(entry: NewAuditoriaEntry) {
-  try {
-    await registrarAuditoria(entry);
-  } catch (err) {
-    Sentry.captureException(err);
-  }
-}
-
-function isCodigoDuplicado(err: unknown): boolean {
-  return typeof err === "object" && err !== null && "code" in err && (err as { code?: string }).code === "23505";
-}
 
 // Normaliza los campos de comisiones según el origen (N/A donde no aplican) y
 // adapta el fee al tipo string que espera la columna numeric de Drizzle.
@@ -94,7 +74,7 @@ export async function createViajeAction(
     revalidatePath("/viajes");
     return { ok: true, data: viaje };
   } catch (err) {
-    if (isCodigoDuplicado(err)) {
+    if (esViolacionUnique(err)) {
       return {
         ok: false,
         error: "Ya existe un viaje con ese código.",
@@ -197,7 +177,7 @@ export async function updateViajeAction(
     if (err instanceof ViajeNotFoundError) {
       return { ok: false, error: "El viaje no existe." };
     }
-    if (isCodigoDuplicado(err)) {
+    if (esViolacionUnique(err)) {
       return {
         ok: false,
         error: "Ya existe un viaje con ese código.",

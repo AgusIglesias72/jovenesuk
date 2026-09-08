@@ -9,12 +9,9 @@
  * gradiente (con un velo de marca encima para que el logo y el texto sigan
  * legibles). Con `null`, queda sólo el gradiente. Cambiá la constante para
  * validar distintas fotos / volver al gradiente.
- *
- * NOTA: la imagen vive en `public/design/trips/` (assets del design lab). Si esa
- * carpeta no se versiona, mové la foto a un path propio (p. ej. `public/auth/`).
  */
 
-const FONDO_LOGIN: string | null = "/design/trips/london-bigben.jpg";
+const FONDO_LOGIN: string | null = "/landing/trips/london-bigben.jpg";
 
 export function JukBrandPanel() {
   const conImagen = FONDO_LOGIN !== null;

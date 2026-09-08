@@ -4,17 +4,17 @@
  */
 import * as Sentry from "@sentry/nextjs";
 
-// DSN del proyecto (público). Override opcional con NEXT_PUBLIC_SENTRY_DSN.
-const dsn =
-  process.env.NEXT_PUBLIC_SENTRY_DSN ??
-  "https://082d04772ca67da25bae205c4ebc403f@o4511566913994752.ingest.us.sentry.io/4511566926053376";
+const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
 if (dsn) {
   Sentry.init({
     dsn,
     enabled: process.env.NODE_ENV === "production",
+    sendDefaultPii: false,
     tracesSampleRate: 0.1,
   });
+} else if (process.env.NODE_ENV === "production") {
+  console.error("NEXT_PUBLIC_SENTRY_DSN no está configurado: Sentry queda desactivado.");
 }
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

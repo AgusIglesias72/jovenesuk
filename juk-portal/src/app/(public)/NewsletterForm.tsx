@@ -16,7 +16,7 @@ export function NewsletterForm() {
     return (
       <p className="mt-5 inline-flex items-center gap-2 rounded-[var(--r-pill)] bg-white/10 px-4 py-2.5 text-[length:var(--t-small)] font-semibold text-[var(--c-ink-onbrand)]">
         <span className="text-[var(--c-honey)]">✓</span>
-        {state.message}
+        {state.data.mensaje}
       </p>
     );
   }
@@ -55,7 +55,7 @@ export function NewsletterForm() {
       </div>
       {state && !state.ok && (
         <p className="mt-2 text-[length:var(--t-small)] text-[var(--c-honey)]">
-          {state.fieldErrors?.email ?? state.error}
+          {state.fieldErrors?.email?.[0] ?? state.error}
         </p>
       )}
     </form>

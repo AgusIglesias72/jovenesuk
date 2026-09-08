@@ -9,6 +9,8 @@ import {
 } from "@/lib/db/schema/leads";
 import type { EstadoConsulta } from "@/lib/domain/leads";
 
+import { unicaFila } from "./errors";
+
 /** Suscripción idempotente: re-suscribir el mismo email no duplica ni falla. */
 export async function suscribir(email: string, origen = "hero"): Promise<void> {
   await db
@@ -19,7 +21,7 @@ export async function suscribir(email: string, origen = "hero"): Promise<void> {
 
 export async function crearConsulta(data: NewConsulta): Promise<Consulta> {
   const rows = await db.insert(consultas).values(data).returning();
-  return rows[0]!;
+  return unicaFila(rows, "consultas");
 }
 
 export async function getConsultaById(id: string): Promise<Consulta | null> {

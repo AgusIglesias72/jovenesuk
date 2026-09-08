@@ -1,0 +1,16 @@
+# Normaliza finales de línea: el índice siempre en LF (evita CRLF fantasma en Windows).
+* text=auto eol=lf
+
+# Binarios: sin normalización ni diff textual.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.pdf binary
+*.mp4 binary

@@ -35,7 +35,11 @@ export const PUBLIC_PAGES = [
 /** Prefijos públicos adicionales (contenido SEO). */
 export const PUBLIC_PREFIXES = ["/notas"] as const;
 
-/** Rutas sueltas que se sirven sin sesión (páginas utilitarias). */
+/**
+ * Rutas sueltas que se sirven sin sesión (páginas utilitarias). `/offline` la
+ * cachea el service worker en el install; `/baja` se abre desde el link del
+ * email con `?token=` y valida server-side.
+ */
 export const STANDALONE_PUBLIC_PATHS = ["/baja", "/offline"] as const;
 
 export const HOME_BY_ROLE = {
@@ -62,6 +66,10 @@ export function esPaginaPublica(path: string): boolean {
   return (
     (PUBLIC_PAGES as readonly string[]).includes(path) || empiezaCon(path, PUBLIC_PREFIXES)
   );
+}
+
+export function esRutaStandalone(path: string): boolean {
+  return (STANDALONE_PUBLIC_PATHS as readonly string[]).includes(path);
 }
 
 /** Rutas que robots.txt debe excluir de la indexación. */

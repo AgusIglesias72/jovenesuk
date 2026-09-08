@@ -1,9 +1,11 @@
-import { and, desc, eq, ilike, or, type SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { colegios } from "@/lib/db/schema/colegios";
 import { viajes, type NewViaje, type Viaje } from "@/lib/db/schema/viajes";
 import { ViajeNotFoundError, type ViajeFilters } from "@/lib/domain/viajes";
+
+import { unicaFila } from "./errors";
 
 export type ViajeListItem = Viaje & { colegioDestinoNombre: string | null };
 
@@ -29,6 +31,11 @@ export async function listViajes(filters: ViajeFilters = {}): Promise<ViajeListI
   return rows.map((r) => ({ ...r.viaje, colegioDestinoNombre: r.colegioDestinoNombre }));
 }
 
+export async function listViajesPorEstado(estados: Viaje["estado"][]): Promise<Viaje[]> {
+  if (estados.length === 0) return [];
+  return db.select().from(viajes).where(inArray(viajes.estado, estados));
+}
+
 export async function getViajeById(id: string): Promise<Viaje | null> {
   const rows = await db.select().from(viajes).where(eq(viajes.id, id)).limit(1);
   return rows[0] ?? null;
@@ -41,7 +48,7 @@ export async function getViajeByCodigo(codigo: string): Promise<Viaje | null> {
 
 export async function createViaje(data: NewViaje): Promise<Viaje> {
   const rows = await db.insert(viajes).values(data).returning();
-  return rows[0]!;
+  return unicaFila(rows, "viajes");
 }
 
 export async function updateViaje(

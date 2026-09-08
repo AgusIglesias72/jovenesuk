@@ -5,9 +5,10 @@ import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 
+import type { ActionResult } from "@/lib/actions/result";
+import { safeAudit } from "@/lib/actions/safe-audit";
 import { auth } from "@/lib/auth";
 import { requireRole } from "@/lib/auth/helpers";
-import { registrarAuditoria } from "@/lib/db/queries/auditoria";
 import {
   finalizarAltaUsuario,
   setUsuarioActivo,
@@ -18,20 +19,7 @@ import {
   usuarioCreateSchema,
   usuarioRoleEnum,
 } from "@/lib/domain/usuarios";
-import type { NewAuditoriaEntry } from "@/lib/db/schema/auditoria";
 import { fieldErrorsFromZod } from "@/lib/utils/zod";
-
-export type ActionResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string; fieldErrors?: Record<string, string[] | undefined> };
-
-async function safeAudit(entry: NewAuditoriaEntry) {
-  try {
-    await registrarAuditoria(entry);
-  } catch (err) {
-    Sentry.captureException(err);
-  }
-}
 
 type UsuarioCreado = { email: string; name: string; tempPassword: string };
 

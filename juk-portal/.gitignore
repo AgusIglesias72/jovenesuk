@@ -1,22 +1,6 @@
-node_modules/
-.next/
-out/
-build/
-.vercel/
-.env
-.env.local
+# Lo genérico (node_modules, .next, env, logs, Playwright, .vercel, .trigger…)
+# lo cubre el .gitignore de la raíz del workspace. Acá solo lo propio de la app.
 .env.local*
-.env.*.local
-*.log
-.DS_Store
-coverage/
-.turbo/
-.trigger/
-
-# Playwright
-test-results/
-playwright-report/
-.playwright-mcp/
 
 # Storage local de documentos (fallback dev sin R2)
 .uploads/

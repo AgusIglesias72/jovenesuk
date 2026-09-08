@@ -1,10 +1,7 @@
-/* Fuentes de los design labs viejos (editorial/autor/etc.) — la app real usa
-   next/font (Bricolage/Jakarta/Space Mono) desde el root layout. */
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700&display=swap");
-
-/* Dirección visual STUDIO — fuente de verdad de los tokens (la edita el lab). */
-@import "../app/design/studio/tokens.css";
-@import "../app/design/shared/animations.css";
+/* Dirección visual STUDIO — fuente de verdad de los tokens. Las fuentes las
+   carga next/font desde el root layout (nada de @import externo acá). */
+@import "./tokens.css";
+@import "./animations.css";
 
 @tailwind base;
 @tailwind components;

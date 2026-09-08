@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
 
+import type { ActionResult } from "@/lib/actions/result";
+import { safeAudit } from "@/lib/actions/safe-audit";
 import { requireAdminJuk } from "@/lib/auth/helpers";
-import { registrarAuditoria } from "@/lib/db/queries/auditoria";
+import { esViolacionUnique } from "@/lib/db/queries/errors";
 import {
   createGroupLeader,
   updateGroupLeader,
@@ -15,24 +17,7 @@ import {
   groupLeaderUpdateSchema,
 } from "@/lib/domain/group-leaders";
 import type { GroupLeader } from "@/lib/db/schema/grupos-leaders";
-import type { NewAuditoriaEntry } from "@/lib/db/schema/auditoria";
 import { fieldErrorsFromZod } from "@/lib/utils/zod";
-
-export type ActionResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string; fieldErrors?: Record<string, string[] | undefined> };
-
-async function safeAudit(entry: NewAuditoriaEntry) {
-  try {
-    await registrarAuditoria(entry);
-  } catch (err) {
-    Sentry.captureException(err);
-  }
-}
-
-function isEmailDuplicado(err: unknown): boolean {
-  return typeof err === "object" && err !== null && "code" in err && (err as { code?: string }).code === "23505";
-}
 
 export async function createGroupLeaderAction(
   input: unknown
@@ -59,7 +44,7 @@ export async function createGroupLeaderAction(
     revalidatePath("/group-leaders");
     return { ok: true, data: gl };
   } catch (err) {
-    if (isEmailDuplicado(err)) {
+    if (esViolacionUnique(err)) {
       return {
         ok: false,
         error: "Ya existe un Group Leader con ese email.",
@@ -101,7 +86,7 @@ export async function updateGroupLeaderAction(
     if (err instanceof GroupLeaderNotFoundError) {
       return { ok: false, error: "El Group Leader no existe." };
     }
-    if (isEmailDuplicado(err)) {
+    if (esViolacionUnique(err)) {
       return {
         ok: false,
         error: "Ya existe un Group Leader con ese email.",

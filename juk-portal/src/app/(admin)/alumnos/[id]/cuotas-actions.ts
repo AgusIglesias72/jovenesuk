@@ -4,51 +4,24 @@ import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 
+import type { ActionResult } from "@/lib/actions/result";
+import { safeAudit } from "@/lib/actions/safe-audit";
 import { requireAdminJuk } from "@/lib/auth/helpers";
-import { registrarAuditoria } from "@/lib/db/queries/auditoria";
-import { alumnoIdDeAsignacion } from "@/lib/db/queries/asignaciones";
+import { alumnoIdDeAsignacion, origenDeAsignacion } from "@/lib/db/queries/asignaciones";
 import {
-  PlanConPagosError,
   advertenciaPagoFueraDeOrden,
   crearPlanCuotas,
   listCuotasByAsignacion,
   registrarPagoCuota,
   sincronizarPasosPago,
 } from "@/lib/db/queries/cuotas";
-import { db } from "@/lib/db";
-import { asignaciones } from "@/lib/db/schema/asignaciones";
-import { viajes } from "@/lib/db/schema/viajes";
-import { planCuotasSchema, registrarPagoSchema } from "@/lib/domain/cuotas";
-import type { NewAuditoriaEntry } from "@/lib/db/schema/auditoria";
-import { eq } from "drizzle-orm";
+import {
+  CuotaNotFoundError,
+  PlanConPagosError,
+  planCuotasSchema,
+  registrarPagoSchema,
+} from "@/lib/domain/cuotas";
 import { fieldErrorsFromZod } from "@/lib/utils/zod";
-
-export type ActionResult<T> =
-  | { ok: true; data: T }
-  | {
-      ok: false;
-      error: string;
-      fieldErrors?: Record<string, string[] | undefined>;
-      requiereConfirmacion?: boolean;
-    };
-
-async function safeAudit(entry: NewAuditoriaEntry) {
-  try {
-    await registrarAuditoria(entry);
-  } catch (err) {
-    Sentry.captureException(err);
-  }
-}
-
-async function origenDeAsignacion(asignacionId: string) {
-  const rows = await db
-    .select({ origen: viajes.origen, alumnoId: asignaciones.alumnoId })
-    .from(asignaciones)
-    .innerJoin(viajes, eq(asignaciones.viajeId, viajes.id))
-    .where(eq(asignaciones.id, asignacionId))
-    .limit(1);
-  return rows[0] ?? null;
-}
 
 export async function crearPlanCuotasAction(
   input: unknown
@@ -129,6 +102,9 @@ export async function registrarPagoCuotaAction(
     if (alumnoId) revalidatePath("/alumnos/[id]", "page");
     return { ok: true, data: { id: cuota.id } };
   } catch (err) {
+    if (err instanceof CuotaNotFoundError) {
+      return { ok: false, error: "La cuota no existe." };
+    }
     Sentry.captureException(err);
     return { ok: false, error: "No pudimos registrar el pago." };
   }
@@ -173,6 +149,9 @@ export async function confirmarUltimoPagoPresencialAction(
     revalidatePath("/alumnos/[id]", "page");
     return { ok: true, data: { id: cuota.id } };
   } catch (err) {
+    if (err instanceof CuotaNotFoundError) {
+      return { ok: false, error: "La cuota no existe." };
+    }
     Sentry.captureException(err);
     return { ok: false, error: "No pudimos confirmar el pago presencial." };
   }

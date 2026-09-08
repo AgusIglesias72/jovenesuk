@@ -2,12 +2,15 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    // `id` fijo: cambiarlo haría que los dispositivos ya instalados vean otra app.
     id: "/",
     name: "Jóvenes en UK",
     short_name: "Jóvenes en UK",
     description:
       "Viajes de estudio y cursos de inglés en el exterior. Salidas grupales, individuales y para colegios.",
-    start_url: "/",
+    // La PWA es el portal, no la landing: sin sesión el proxy manda a
+    // /login?returnTo=/dashboard y con rol familia requireAdminJuk redirige a /familias.
+    start_url: "/dashboard",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

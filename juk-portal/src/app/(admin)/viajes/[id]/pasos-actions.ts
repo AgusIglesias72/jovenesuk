@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 
+import type { ActionResult } from "@/lib/actions/result";
+import { safeAudit } from "@/lib/actions/safe-audit";
 import { requireAdminJuk } from "@/lib/auth/helpers";
 import { listAsignacionesByViaje } from "@/lib/db/queries/asignaciones";
-import { registrarAuditoria } from "@/lib/db/queries/auditoria";
 import {
   listOrInitPasosViaje,
   updateEstadoPasoViaje,
@@ -27,17 +28,6 @@ import {
   type PasoViajeEstado,
   type PasoViajeTipo,
 } from "@/lib/domain/pasos-viaje";
-import type { NewAuditoriaEntry } from "@/lib/db/schema/auditoria";
-
-export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
-
-async function safeAudit(entry: NewAuditoriaEntry) {
-  try {
-    await registrarAuditoria(entry);
-  } catch (err) {
-    Sentry.captureException(err);
-  }
-}
 
 function tipoValido(tipo: string): tipo is PasoViajeTipo {
   return (PASO_VIAJE_TIPOS as readonly string[]).includes(tipo);

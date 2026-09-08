@@ -4,27 +4,16 @@ import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 
+import type { ActionResult } from "@/lib/actions/result";
+import { safeAudit } from "@/lib/actions/safe-audit";
 import { requireAdminJuk } from "@/lib/auth/helpers";
-import { registrarAuditoria } from "@/lib/db/queries/auditoria";
 import { alumnoIdDeAsignacion } from "@/lib/db/queries/asignaciones";
 import {
   advertenciaPagoFueraDeOrden,
   registrarPagoCuota,
   sincronizarPasosPago,
 } from "@/lib/db/queries/cuotas";
-import type { NewAuditoriaEntry } from "@/lib/db/schema/auditoria";
-
-export type ActionResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string; requiereConfirmacion?: boolean };
-
-async function safeAudit(entry: NewAuditoriaEntry) {
-  try {
-    await registrarAuditoria(entry);
-  } catch (err) {
-    Sentry.captureException(err);
-  }
-}
+import { CuotaNotFoundError } from "@/lib/domain/cuotas";
 
 /** Registrar pago desde el módulo Pagos (misma lógica que en la ficha del alumno). */
 export async function registrarPagoDesdePagosAction(
@@ -62,6 +51,9 @@ export async function registrarPagoDesdePagosAction(
     if (alumnoId) revalidatePath("/alumnos/[id]", "page");
     return { ok: true, data: { id: cuota.id } };
   } catch (err) {
+    if (err instanceof CuotaNotFoundError) {
+      return { ok: false, error: "La cuota no existe." };
+    }
     Sentry.captureException(err);
     return { ok: false, error: "No pudimos registrar el pago." };
   }

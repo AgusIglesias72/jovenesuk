@@ -4,7 +4,7 @@ import { SwRegister } from "@/components/pwa/sw-register";
 import "@/styles/globals.css";
 
 // Dirección visual STUDIO: las familias se inyectan como CSS vars que
-// consumen los tokens de design/studio/tokens.css (la fuente de verdad).
+// consumen los tokens de src/styles/tokens.css (la fuente de verdad).
 const display = Bricolage_Grotesque({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],

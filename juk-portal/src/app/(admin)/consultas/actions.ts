@@ -1,5 +1,6 @@
 "use server";
 
+import type { ActionResult } from "@/lib/actions/result";
 import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
 
@@ -8,10 +9,6 @@ import { updateEstadoConsulta } from "@/lib/db/queries/leads";
 import { cambiarEstadoConsultaSchema } from "@/lib/domain/leads";
 import type { Consulta } from "@/lib/db/schema/leads";
 import { fieldErrorsFromZod } from "@/lib/utils/zod";
-
-export type ActionResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string; fieldErrors?: Record<string, string[] | undefined> };
 
 export async function cambiarEstadoConsultaAction(
   input: unknown

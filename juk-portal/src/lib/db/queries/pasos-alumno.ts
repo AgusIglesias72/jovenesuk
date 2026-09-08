@@ -8,6 +8,41 @@ export async function listPasosByAsignacion(asignacionId: string): Promise<PasoA
   return db.select().from(pasosAlumno).where(eq(pasosAlumno.asignacionId, asignacionId));
 }
 
+export async function getPasoAlumnoById(id: string): Promise<PasoAlumno | null> {
+  const rows = await db.select().from(pasosAlumno).where(eq(pasosAlumno.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+
+export type PasoAlumnoPatch = {
+  estado?: PasoAlumno["estado"];
+  /** Reemplaza la columna completa: el llamador hace el merge con la metadata actual. */
+  metadata?: Record<string, unknown>;
+  notas?: string | null;
+  fechaCompletado?: Date | null;
+};
+
+/**
+ * Actualización parcial de un paso del tablero. Solo se tocan las claves
+ * presentes en el patch (undefined = no cambiar), más updatedAt/updatedBy.
+ */
+export async function updatePasoAlumno(
+  id: string,
+  patch: PasoAlumnoPatch,
+  updatedBy: string | null
+): Promise<void> {
+  await db
+    .update(pasosAlumno)
+    .set({
+      ...(patch.estado !== undefined ? { estado: patch.estado } : {}),
+      ...(patch.metadata !== undefined ? { metadata: patch.metadata } : {}),
+      ...(patch.notas !== undefined ? { notas: patch.notas } : {}),
+      ...(patch.fechaCompletado !== undefined ? { fechaCompletado: patch.fechaCompletado } : {}),
+      updatedAt: new Date(),
+      updatedBy,
+    })
+    .where(eq(pasosAlumno.id, id));
+}
+
 /**
  * Crea (o re-crea) el tablero de la asignación: borra lo existente e inserta
  * los 11 pasos. Cubre tanto el alta como la reactivación de una asignación

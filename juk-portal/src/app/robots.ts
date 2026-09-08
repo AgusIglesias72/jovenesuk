@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+import { ROBOTS_DISALLOW } from "@/lib/routes";
+
 import { SITE_URL } from "./(public)/seo";
 
 export default function robots(): MetadataRoute.Robots {
@@ -8,21 +10,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: [
-          "/dashboard",
-          "/alumnos",
-          "/viajes",
-          "/colegios",
-          "/group-leaders",
-          "/usuarios",
-          "/pagos",
-          "/configuracion",
-          "/familias",
-          "/login",
-          "/reset-password",
-          "/api/",
-          "/design",
-        ],
+        disallow: [...ROBOTS_DISALLOW],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

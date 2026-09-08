@@ -1,5 +1,6 @@
 "use server";
 
+import type { ActionResult } from "@/lib/actions/result";
 import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
@@ -13,10 +14,6 @@ import { mailSettingsSchema, type TipoEmail } from "@/lib/domain/configuracion";
 import { fieldErrorsFromZod } from "@/lib/utils/zod";
 
 import { MAIL_TEMPLATES, type MailTemplateKey } from "./mail-templates-meta";
-
-export type ActionResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string; fieldErrors?: Record<string, string[] | undefined> };
 
 export async function guardarMailsAction(
   input: unknown

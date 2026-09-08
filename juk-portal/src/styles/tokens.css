@@ -1,0 +1,171 @@
+/*
+ * JUK Portal — Dirección visual "STUDIO"
+ * ------------------------------------------------------------------
+ * Cálido · redondeado · amigable · listo para mobile (touch-first).
+ *
+ * ESTE es el único archivo que tenés que tocar para ajustar la dirección.
+ * Toda la app (portal, landing, familias) consume estas custom properties
+ * vía Tailwind arbitrary values (ej. bg-[var(--c-surface)] rounded-[var(--r-lg)]).
+ * Cambiá un valor acá y se restila TODA la app.
+ *
+ * Las familias tipográficas (--font-display / --font-body / --font-mono)
+ * las inyecta next/font desde src/app/layout.tsx; acá quedan los fallbacks.
+ */
+
+.v-studio {
+  /* ── Tipografías (next/font sobreescribe estas vars en el wrapper) ── */
+  --font-display: "Bricolage Grotesque", "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "Space Mono", "JetBrains Mono", ui-monospace, monospace;
+
+  /* ── Paleta · Marca (verde-azulado cálido + durazno) ── */
+  --c-brand: #1f6f63;        /* teal profundo y amistoso */
+  --c-brand-700: #2a8576;
+  --c-brand-600: #339a88;
+  --c-brand-500: #46b3a0;
+  --c-brand-300: #9fd9cf;
+  --c-brand-100: #dcf2ec;
+  --c-brand-50: #eef9f5;
+
+  /* ── Paleta · Acentos (durazno cálido + amarillo miel) ── */
+  --c-accent: #ff8a5b;       /* durazno coral, el alma de STUDIO */
+  --c-accent-600: #f5713e;
+  --c-accent-300: #ffc4a8;
+  --c-accent-soft: #ffe8dc;
+  --c-honey: #f7b955;        /* amarillo miel, segundo acento */
+  --c-honey-soft: #fdeccd;
+  --c-berry: #e0608e;        /* baya, toques puntuales */
+  --c-berry-soft: #fbe1ec;
+
+  /* ── Superficies ── */
+  --c-page: #fbf7f2;         /* crema cálido, base de la app */
+  --c-surface: #ffffff;      /* tarjeta / panel */
+  --c-surface-2: #f4ede4;    /* superficie hundida / header de tabla / chips */
+  --c-surface-3: #faf3ea;    /* fila alterna / inputs en reposo */
+  --c-surface-inverse: #173f3a; /* paneles oscuros (login, hero) — teal muy profundo */
+  --c-overlay: rgba(31, 111, 99, 0.05);
+
+  /* Gradientes gentiles (permitidos en STUDIO) */
+  --grad-brand: linear-gradient(135deg, #2a8576 0%, #1f6f63 60%, #173f3a 100%);
+  --grad-warm: linear-gradient(135deg, #ff8a5b 0%, #f7b955 100%);
+  --grad-page: radial-gradient(1200px 600px at 85% -10%, #fef0e6 0%, rgba(254, 240, 230, 0) 55%),
+               radial-gradient(900px 500px at -5% 110%, #e3f4ef 0%, rgba(227, 244, 239, 0) 50%);
+
+  /* ── Tinta (texto) ── */
+  --c-ink: #21302d;          /* texto principal, verde-grisáceo casi negro */
+  --c-ink-muted: #5e6b67;    /* secundario */
+  --c-ink-subtle: #94a09b;   /* terciario / placeholder */
+  --c-ink-onbrand: #f4faf7;  /* texto sobre superficies oscuras/marca */
+  --c-ink-onbrand-muted: #a9c8c0;
+  --c-ink-onaccent: #5a2410; /* texto sobre el durazno */
+
+  /* ── Bordes ── */
+  --c-border: #ece2d6;       /* hairline cálido */
+  --c-border-strong: #d9cbb9;
+  --c-border-brand: #9fd9cf;
+  --c-ring: rgba(31, 111, 99, 0.12);
+
+  /* ── Semánticos ── */
+  --c-success: #2f9e6f;
+  --c-success-bg: #e2f5ec;
+  --c-warning: #d08a16;
+  --c-warning-bg: #fbeecd;
+  --c-danger: #d65151;
+  --c-danger-bg: #fbe4e2;
+  --c-info: #2f7fb8;
+  --c-info-bg: #e2f0fa;
+  --c-neutral: #6c7873;
+  --c-neutral-bg: #eee7dd;
+
+  /* ── Badges · Estado de viaje ── */
+  --b-viaje-abierta: var(--c-info);
+  --b-viaje-abierta-bg: var(--c-info-bg);
+  --b-viaje-confirmado: var(--c-success);
+  --b-viaje-confirmado-bg: var(--c-success-bg);
+  --b-viaje-en_curso: var(--c-accent-600);
+  --b-viaje-en_curso-bg: var(--c-accent-soft);
+  --b-viaje-finalizado: var(--c-neutral);
+  --b-viaje-finalizado-bg: var(--c-neutral-bg);
+  --b-viaje-cancelado: var(--c-danger);
+  --b-viaje-cancelado-bg: var(--c-danger-bg);
+
+  /* ── Badges · Estado de paso (M6/M7) ── */
+  --b-paso-pendiente: var(--c-neutral);
+  --b-paso-pendiente-bg: var(--c-neutral-bg);
+  --b-paso-en_progreso: var(--c-info);
+  --b-paso-en_progreso-bg: var(--c-info-bg);
+  --b-paso-completado: var(--c-success);
+  --b-paso-completado-bg: var(--c-success-bg);
+  --b-paso-bloqueado: var(--c-danger);
+  --b-paso-bloqueado-bg: var(--c-danger-bg);
+  --b-paso-na: var(--c-ink-subtle);
+  --b-paso-na-bg: var(--c-overlay);
+  --b-paso-vencido: var(--c-berry);
+  --b-paso-vencido-bg: var(--c-berry-soft);
+
+  /* ── Badges · Police check ── */
+  --b-police-pendiente: var(--c-neutral);
+  --b-police-pendiente-bg: var(--c-neutral-bg);
+  --b-police-en_tramite: var(--c-warning);
+  --b-police-en_tramite-bg: var(--c-warning-bg);
+  --b-police-aprobado: var(--c-success);
+  --b-police-aprobado-bg: var(--c-success-bg);
+  --b-police-vencido: var(--c-danger);
+  --b-police-vencido-bg: var(--c-danger-bg);
+
+  /* ── Escala tipográfica (fluida) ── */
+  --t-display-1: clamp(2.5rem, 4.5vw, 3.75rem);
+  --t-display-2: clamp(1.9rem, 3vw, 2.6rem);
+  --t-h1: clamp(1.6rem, 2.4vw, 2.1rem);
+  --t-h2: 1.4rem;
+  --t-h3: 1.125rem;
+  --t-body: 0.975rem;
+  --t-small: 0.85rem;
+  --t-label: 0.74rem;
+  --t-mono: 0.8rem;
+
+  --lh-tight: 1.08;
+  --lh-snug: 1.3;
+  --lh-body: 1.6;
+
+  --ls-label: 0.04em;
+  --ls-tight: -0.02em;
+
+  /* ── Escala de espaciado ── */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+  --sp-8: 4rem;
+  --sp-9: 6rem;
+
+  /* ── Radios (GRANDES: el sello de STUDIO) ── */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-pill: 999px;
+
+  /* ── Sombras (difusas, suaves, teñidas de cálido) ── */
+  --shadow-soft: 0 2px 8px rgba(33, 48, 45, 0.05);
+  --shadow-1: 0 2px 10px rgba(33, 48, 45, 0.06), 0 1px 3px rgba(33, 48, 45, 0.04);
+  --shadow-2: 0 12px 30px rgba(33, 48, 45, 0.08), 0 3px 8px rgba(33, 48, 45, 0.05);
+  --shadow-3: 0 24px 60px rgba(23, 63, 58, 0.14), 0 8px 18px rgba(33, 48, 45, 0.06);
+  --shadow-accent: 0 10px 24px rgba(255, 138, 91, 0.32);
+  --shadow-brand: 0 12px 28px rgba(31, 111, 99, 0.28);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+
+  --ring-focus: 0 0 0 4px rgba(31, 111, 99, 0.18);
+  --ring-accent: 0 0 0 4px rgba(255, 138, 91, 0.22);
+  --ring-error: 0 0 0 4px rgba(214, 81, 81, 0.18);
+
+  /* ── Misc ── */
+  --hairline: 1px;
+  --tap: 44px; /* target de toque mínimo (touch-first) */
+}
+
+/* Las animaciones de overlays/toasts/carousel viven en ../shared/animations.css */

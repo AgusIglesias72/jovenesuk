@@ -2,14 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import type { ActionResult } from "@/lib/actions/result";
+import { safeAudit } from "@/lib/actions/safe-audit";
 import { requireAdminJuk } from "@/lib/auth/helpers";
-import { db } from "@/lib/db";
 import { alumnoIdDeAsignacion } from "@/lib/db/queries/asignaciones";
-import { registrarAuditoria } from "@/lib/db/queries/auditoria";
-import { pasosAlumno } from "@/lib/db/schema/pasos-alumno";
+import { getPasoAlumnoById, updatePasoAlumno } from "@/lib/db/queries/pasos-alumno";
 import {
   ETA_SUBESTADOS,
   PASO_CODIGOS,
@@ -23,19 +22,6 @@ import {
   type PasoEstado,
   type PcSubEstado,
 } from "@/lib/domain/pasos";
-import type { NewAuditoriaEntry } from "@/lib/db/schema/auditoria";
-
-export type ActionResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string };
-
-async function safeAudit(entry: NewAuditoriaEntry) {
-  try {
-    await registrarAuditoria(entry);
-  } catch (err) {
-    Sentry.captureException(err);
-  }
-}
 
 const transicionSchema = z.object({
   pasoId: z.string().uuid(),
@@ -52,8 +38,7 @@ export async function transicionarPasoAlumnoAction(
   if (!parsed.success) return { ok: false, error: "Datos inválidos." };
   const { pasoId, nuevoEstado, nota } = parsed.data;
 
-  const rows = await db.select().from(pasosAlumno).where(eq(pasosAlumno.id, pasoId)).limit(1);
-  const paso = rows[0];
+  const paso = await getPasoAlumnoById(pasoId);
   if (!paso) return { ok: false, error: "El paso no existe." };
 
   // El dueño se deriva del paso (nunca del cliente): revalida la página correcta.
@@ -75,16 +60,15 @@ export async function transicionarPasoAlumnoAction(
   }
 
   try {
-    await db
-      .update(pasosAlumno)
-      .set({
+    await updatePasoAlumno(
+      pasoId,
+      {
         estado: nuevoEstado,
         fechaCompletado: nuevoEstado === "completado" ? new Date() : null,
         ...(nota !== undefined ? { notas: nota || null } : {}),
-        updatedAt: new Date(),
-        updatedBy: session.user.id,
-      })
-      .where(eq(pasosAlumno.id, pasoId));
+      },
+      session.user.id
+    );
 
     await safeAudit({
       accion: "cambio_estado_paso",
@@ -118,8 +102,7 @@ export async function actualizarSubEstadoPasoAction(
   if (!parsed.success) return { ok: false, error: "Datos inválidos." };
   const { pasoId, subEstado, numeroAutorizacion } = parsed.data;
 
-  const rows = await db.select().from(pasosAlumno).where(eq(pasosAlumno.id, pasoId)).limit(1);
-  const paso = rows[0];
+  const paso = await getPasoAlumnoById(pasoId);
   if (!paso) return { ok: false, error: "El paso no existe." };
 
   const alumnoId = await alumnoIdDeAsignacion(paso.asignacionId);
@@ -149,16 +132,15 @@ export async function actualizarSubEstadoPasoAction(
   }
 
   try {
-    await db
-      .update(pasosAlumno)
-      .set({
+    await updatePasoAlumno(
+      pasoId,
+      {
         estado: nuevoEstado,
         metadata: nuevoMetadata,
         fechaCompletado: nuevoEstado === "completado" ? new Date() : null,
-        updatedAt: new Date(),
-        updatedBy: session.user.id,
-      })
-      .where(eq(pasosAlumno.id, pasoId));
+      },
+      session.user.id
+    );
 
     await safeAudit({
       accion: "cambio_estado_paso",

@@ -4,7 +4,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 /**
  * (admin) route group layout.
  *
- * Wraps all admin pages in the JUK AppShell (sidebar + topbar).
+ * Wraps all admin pages in the AdminShell (sidebar + topbar + drawer mobile).
  * Server-side auth check happens here — any page under (admin)/ requires
  * admin_juk or super_admin role, or redirects to /login.
  */

@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import type { ReactNode } from "react";
 
 import { Analytics } from "./Analytics";
-import { DesignTweaker } from "./DesignTweaker";
 import { Footer, TopNav } from "./sections";
 import { JsonLd, ORGANIZATION_SCHEMA, SITE_NAME, SITE_URL, WEBSITE_SCHEMA } from "./seo";
 import "./landing.css";
+
+// Herramienta interna de diseño: chunk aparte que solo se descarga si se
+// renderiza (en dev siempre; en prod solo con NEXT_PUBLIC_ENABLE_TWEAK=1).
+const DesignTweaker = dynamic(() => import("./DesignTweaker").then((m) => m.DesignTweaker));
+const TWEAK_ENABLED =
+  process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_ENABLE_TWEAK === "1";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -57,10 +63,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
       <TopNav />
       <main id="contenido">{children}</main>
       <Footer />
-      {/* Herramienta interna: en dev siempre; en prod solo si se habilita
-          explícitamente (ej. un deploy de staging). */}
-      {(process.env.NODE_ENV !== "production" ||
-        process.env.NEXT_PUBLIC_ENABLE_TWEAK === "1") && <DesignTweaker />}
+      {TWEAK_ENABLED && <DesignTweaker />}
     </div>
   );
 }

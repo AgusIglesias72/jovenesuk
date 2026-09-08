@@ -3,7 +3,7 @@ import type { Config } from "tailwindcss";
 /**
  * Tailwind config — dirección visual STUDIO.
  *
- * Fuente de verdad de los tokens: src/app/design/studio/tokens.css (.v-studio).
+ * Fuente de verdad de los tokens: src/styles/tokens.css (.v-studio).
  * Las paletas `juk-*` son el PUENTE de migración: las clases viejas
  * (text-juk-navy-950, etc.) quedan mapeadas a los valores STUDIO para que toda
  * la app adopte la dirección sin tocar cada archivo. El código nuevo debería

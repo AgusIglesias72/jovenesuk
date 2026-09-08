@@ -8,6 +8,8 @@ import {
 } from "@/lib/db/schema/grupos-leaders";
 import { GroupLeaderNotFoundError, type GroupLeaderFilters } from "@/lib/domain/group-leaders";
 
+import { unicaFila } from "./errors";
+
 export async function listGroupLeaders(
   filters: GroupLeaderFilters = {}
 ): Promise<GroupLeader[]> {
@@ -40,7 +42,7 @@ export async function getGroupLeaderById(id: string): Promise<GroupLeader | null
 
 export async function createGroupLeader(data: NewGroupLeader): Promise<GroupLeader> {
   const rows = await db.insert(groupLeaders).values(data).returning();
-  return rows[0]!;
+  return unicaFila(rows, "group_leaders");
 }
 
 export async function updateGroupLeader(

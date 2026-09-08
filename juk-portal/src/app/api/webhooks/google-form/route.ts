@@ -1,15 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import * as Sentry from "@sentry/nextjs";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { db } from "@/lib/db";
-import { registrarAuditoria } from "@/lib/db/queries/auditoria";
+import { safeAudit } from "@/lib/actions/safe-audit";
+import { createAlumno, getAlumnoByDni } from "@/lib/db/queries/alumnos";
 import { asignarConTablero } from "@/lib/db/queries/asignar-alumno";
 import { countAsignacionesActivas } from "@/lib/db/queries/asignaciones";
+import { esViolacionUnique } from "@/lib/db/queries/errors";
 import { asegurarCuentaFamilia } from "@/lib/db/queries/familias";
-import { alumnos } from "@/lib/db/schema/alumnos";
-import { viajes } from "@/lib/db/schema/viajes";
+import { getViajeByCodigo } from "@/lib/db/queries/viajes";
+import type { Alumno } from "@/lib/db/schema/alumnos";
+import { ViajeNoInscribibleError } from "@/lib/domain/asignaciones";
 
 /**
  * Webhook del Application Form JUK (Google Form) — US-15.
@@ -71,28 +72,34 @@ export async function POST(request: NextRequest) {
 
   try {
     // Idempotencia por DNI (reintentos del form / doble submit).
-    const existente = await db
-      .select({ id: alumnos.id })
-      .from(alumnos)
-      .where(eq(alumnos.dni, data.dni))
-      .limit(1);
-    if (existente.length > 0) {
-      return NextResponse.json({ ok: true, duplicado: true, alumnoId: existente[0]!.id });
+    const existente = await getAlumnoByDni(data.dni);
+    if (existente) {
+      return NextResponse.json({ ok: true, duplicado: true, alumnoId: existente.id });
     }
 
     const { codigoViaje, ...datosAlumno } = data;
-    const [alumno] = await db
-      .insert(alumnos)
-      .values({ ...datosAlumno, canalAlta: "webhook", estado: "pre_inscripto" })
-      .returning();
+    let alumno: Alumno;
+    try {
+      alumno = await createAlumno({ ...datosAlumno, canalAlta: "webhook", estado: "pre_inscripto" });
+    } catch (err) {
+      // Dos submits simultáneos con el mismo DNI: el segundo pierde la carrera
+      // contra el unique y se responde como duplicado.
+      if (esViolacionUnique(err)) {
+        const ganador = await getAlumnoByDni(data.dni);
+        if (ganador) {
+          return NextResponse.json({ ok: true, duplicado: true, alumnoId: ganador.id });
+        }
+      }
+      throw err;
+    }
 
     // US-19b: credenciales del Portal de Familias se generan al CREAR el alumno.
-    await asegurarCuentaFamilia(alumno!.id, data.tutor1Email, data.tutor1Nombre);
+    await asegurarCuentaFamilia(alumno.id, data.tutor1Email, data.tutor1Nombre);
 
-    await registrarAuditoria({
+    await safeAudit({
       accion: "create",
       entidadTipo: "alumno",
-      entidadId: alumno!.id,
+      entidadId: alumno.id,
       usuarioId: null,
       metadata: { origen: "webhook_google_form" },
     });
@@ -100,33 +107,34 @@ export async function POST(request: NextRequest) {
     // Auto-asignación si el link del form trae el código del viaje.
     let asignacion: { viajeId: string; asignacionId: string } | null = null;
     if (codigoViaje) {
-      const viajeRows = await db
-        .select()
-        .from(viajes)
-        .where(eq(viajes.codigo, codigoViaje))
-        .limit(1);
-      const viaje = viajeRows[0];
+      const viaje = await getViajeByCodigo(codigoViaje);
       const inscribible =
         viaje && (viaje.estado === "inscripcion_abierta" || viaje.estado === "confirmado");
       if (inscribible) {
         const activas = await countAsignacionesActivas(viaje.id);
         if (activas < viaje.capacidadMaxima) {
-          const r = await asignarConTablero({ viaje, alumno: alumno!, usuarioId: null });
-          asignacion = { viajeId: viaje.id, asignacionId: r.asignacionId };
-          await registrarAuditoria({
-            accion: "asignar_a_viaje",
-            entidadTipo: "asignacion",
-            entidadId: r.asignacionId,
-            usuarioId: null,
-            metadata: { origen: "webhook_google_form", codigoViaje },
-          });
+          try {
+            const r = await asignarConTablero({ viaje, alumno, usuarioId: null });
+            asignacion = { viajeId: viaje.id, asignacionId: r.asignacionId };
+            await safeAudit({
+              accion: "asignar_a_viaje",
+              entidadTipo: "asignacion",
+              entidadId: r.asignacionId,
+              usuarioId: null,
+              metadata: { origen: "webhook_google_form", codigoViaje },
+            });
+          } catch (err) {
+            // El viaje cambió de estado entre el chequeo y el insert: el alumno
+            // ya quedó pre-inscripto y el equipo lo asigna a mano.
+            if (!(err instanceof ViajeNoInscribibleError)) throw err;
+          }
         }
         // Sin cupo: el alumno queda pre-inscripto y el equipo decide (la
         // sobre-capacidad requiere confirmación humana, US-11).
       }
     }
 
-    return NextResponse.json({ ok: true, alumnoId: alumno!.id, asignacion });
+    return NextResponse.json({ ok: true, alumnoId: alumno.id, asignacion });
   } catch (err) {
     Sentry.captureException(err);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });

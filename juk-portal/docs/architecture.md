@@ -20,6 +20,40 @@ Decisiones técnicas del JUK Portal con su rationale. Para mantener este documen
 └──────────────────────────────────────────────────────────────────┘
 ```
 
+## ADR-000 · Seguridad, privacidad y observabilidad (mayo 2026)
+
+Lineamientos base migrados del PRD Módulo 8 (§8.6 y §8.7), que ya no existe como documento aparte.
+
+### Datos sensibles
+
+El sistema maneja PII de menores de edad: datos de pasaporte (nombre, número, fecha de nacimiento, vencimiento), DNI, datos de facturación (CUIL/CUIT), información médica (alergias, dietas) y datos de contacto (teléfonos, emails) de menores y sus tutores.
+
+**Medidas obligatorias:**
+- TLS en tránsito (Vercel + Cloudflare lo proveen automáticamente).
+- Encriptación en reposo en Neon (incluida en todos los planes).
+- Datos de facturación visibles sólo para `admin_juk` / `super_admin` (enforcement en `lib/domain`).
+- Audit log de todos los cambios sobre datos sensibles (tabla `auditoria`).
+- No exponer PII en logs (filtros de Sentry configurados).
+
+### Auth
+
+- Sesiones en cookies HTTP-only con `SameSite=Lax`.
+- Cookies prefijadas `juk.` para evitar colisiones si se comparte dominio con otras apps.
+- Rate limit de login: 5 intentos / 60s.
+- Password hashing: el default de Better-Auth.
+- Reset de password requiere acceso al email registrado; el link caduca a las 24h.
+- **Credenciales fuera del código:** ninguna contraseña (ni las de las cuentas `test.*` del seed demo) va como literal en el repo ni en docs. Se leen de `SEED_TEST_PASSWORD` / `E2E_PASSWORD` / `SEED_FAMILIA_PASSWORD` (`.env.local`, secrets de CI/Vercel). Las cuentas `test.*` y el dataset demo se borran antes del go-live.
+
+### Webhooks
+
+El webhook del Google Form (`/api/webhooks/google-form`) exige un shared secret (`GOOGLE_FORM_WEBHOOK_SECRET`) en headers para evitar inyección de alumnos falsos.
+
+### Observabilidad
+
+- **Errores:** Sentry instrumentado en Next.js (client + server + edge); sample rate 100% en development, 10% en producción; filtros para no enviar PII. El DSN se lee de `NEXT_PUBLIC_SENTRY_DSN`, nunca hardcodeado.
+- **Logs:** a stdout (capturados por Vercel), estructurados en JSON en producción; retención de 1 día en Vercel Hobby (los errores serios van a Sentry).
+- **Métricas operativas:** Vercel Analytics (Core Web Vitals), dashboard de Trigger.dev (jobs: éxitos, errores, latencias) y dashboard de Neon (queries lentas, uso de DB).
+
 ## ADR-001 · Single Next.js app, no monorepo (mayo 2026)
 
 **Decisión:** mantener todo en un único proyecto Next.js, separando por *route groups* del App Router.

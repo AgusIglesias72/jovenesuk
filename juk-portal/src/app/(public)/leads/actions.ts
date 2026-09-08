@@ -7,9 +7,14 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+import type { ActionResult } from "@/lib/actions/result";
 import { crearConsulta, suscribir } from "@/lib/db/queries/leads";
-import { leadSchema, newsletterSchema, type FormResult } from "@/lib/domain/leads";
+import { leadSchema, newsletterSchema } from "@/lib/domain/leads";
 import type { Consulta } from "@/lib/db/schema/leads";
+import { fieldErrorsFromZod } from "@/lib/utils/zod";
+
+/** Lo que ve el visitante del sitio público: un mensaje de confirmación. */
+type FormOk = { mensaje: string };
 
 const ERROR_GENERICO =
   "No pudimos procesar tu consulta, probá de nuevo o escribinos por WhatsApp.";
@@ -40,19 +45,10 @@ async function dispararAvisoConsulta(consulta: Consulta): Promise<void> {
   }
 }
 
-function fieldErrorsFrom(error: { issues: Array<{ path: PropertyKey[]; message: string }> }) {
-  const out: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const key = issue.path[0];
-    if (typeof key === "string" && !(key in out)) out[key] = issue.message;
-  }
-  return out;
-}
-
 export async function subscribeNewsletter(
-  _prev: FormResult | null,
+  _prev: ActionResult<FormOk> | null,
   formData: FormData,
-): Promise<FormResult> {
+): Promise<ActionResult<FormOk>> {
   const parsed = newsletterSchema.safeParse({
     email: formData.get("email"),
     website: formData.get("website") ?? undefined,
@@ -62,13 +58,13 @@ export async function subscribeNewsletter(
     return {
       ok: false,
       error: "Revisá el email ingresado.",
-      fieldErrors: fieldErrorsFrom(parsed.error),
+      fieldErrors: fieldErrorsFromZod(parsed.error),
     };
   }
 
   // Honeypot: si viene relleno, es un bot. Respondemos ok sin hacer nada.
   if (parsed.data.website) {
-    return { ok: true, message: "¡Listo! Ya estás suscripto." };
+    return { ok: true, data: { mensaje: "¡Listo! Ya estás suscripto." } };
   }
 
   try {
@@ -80,14 +76,14 @@ export async function subscribeNewsletter(
 
   return {
     ok: true,
-    message: "¡Listo! Te suscribiste. Pronto vas a recibir nuestras novedades.",
+    data: { mensaje: "¡Listo! Te suscribiste. Pronto vas a recibir nuestras novedades." },
   };
 }
 
 export async function submitLead(
-  _prev: FormResult | null,
+  _prev: ActionResult<FormOk> | null,
   formData: FormData,
-): Promise<FormResult> {
+): Promise<ActionResult<FormOk>> {
   const raw = {
     nombre: formData.get("nombre"),
     apellido: formData.get("apellido"),
@@ -109,13 +105,13 @@ export async function submitLead(
     return {
       ok: false,
       error: "Revisá los campos marcados.",
-      fieldErrors: fieldErrorsFrom(parsed.error),
+      fieldErrors: fieldErrorsFromZod(parsed.error),
     };
   }
 
   // Honeypot anti-spam.
   if (parsed.data.website) {
-    return { ok: true, message: "¡Gracias! Te vamos a contactar a la brevedad." };
+    return { ok: true, data: { mensaje: "¡Gracias! Te vamos a contactar a la brevedad." } };
   }
 
   const { website: _website, acepta: _acepta, ...datos } = parsed.data;
@@ -137,6 +133,6 @@ export async function submitLead(
 
   return {
     ok: true,
-    message: "¡Gracias! Recibimos tu consulta y te vamos a contactar muy pronto.",
+    data: { mensaje: "¡Gracias! Recibimos tu consulta y te vamos a contactar muy pronto." },
   };
 }

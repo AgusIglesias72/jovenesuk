@@ -1,7 +1,7 @@
 /*
  * Animaciones propias de la landing pública. Los keyframes generales del
- * design system viven en app/design/shared/animations.css (ya globales);
- * acá van solo los que la landing necesita y el lab no.
+ * design system viven en src/styles/animations.css (ya globales);
+ * acá van solo los que la landing necesita.
  */
 @keyframes landing-marquee {
   from { transform: translateX(0); }

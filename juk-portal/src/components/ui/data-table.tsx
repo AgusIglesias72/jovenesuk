@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils/cn";
  * Density rules:
  *  - Row padding 12px vertical (NOT 16-24px like generic SaaS)
  *  - Hover state highlights with var(--c-overlay)
- *  - Compound cells (StudentCell, MoneyCell, etc) reused everywhere
+ *  - Compound cells (CodeCell, DateCell) reused everywhere; money goes
+ *    through formatMonto (@/lib/domain/cuotas), not a cell component
  *
  * Monospace columns must use font-mono + tabular-nums for proper alignment.
  *
@@ -23,11 +24,11 @@ import { cn } from "@/lib/utils/cn";
  *         </TR>
  *       </THead>
  *       <TBody>
- *         <TR onClick={() => router.push(`/alumnos/${id}`)}>
- *           <TD><StudentCell name="Camila O'Toole" passport="AAB 562 419" /></TD>
+ *         <TR onClick={() => router.push(`/alumnos/${dni}`)}>
+ *           <TD>Camila O'Toole</TD>
  *           <TD><CodeCell code="UK-2026-JUL-LONDON" /></TD>
  *           <TD><DateCell date="03/2030" /></TD>
- *           <TD numeric><MoneyCell amount={1250} /></TD>
+ *           <TD numeric>{formatMonto(1250, "GBP")}</TD>
  *           <TD><Button variant="ghost" size="sm">Abrir</Button></TD>
  *         </TR>
  *       </TBody>
@@ -120,19 +121,6 @@ export function TD({ numeric, className, ...props }: TDProps) {
    COMPOUND CELLS — domain-specific
    ============================================================ */
 
-export function StudentCell({ name, passport }: { name: string; passport?: string }) {
-  return (
-    <>
-      <div className="font-semibold text-[var(--c-ink)]">{name}</div>
-      {passport && (
-        <div className="font-mono text-[length:var(--t-mono)] text-[var(--c-ink-subtle)] tabular-nums mt-px">
-          {passport}
-        </div>
-      )}
-    </>
-  );
-}
-
 export function CodeCell({ code }: { code: string }) {
   return (
     <span className="font-mono text-[length:var(--t-mono)] font-bold tracking-wide text-[var(--c-brand)]">
@@ -145,17 +133,6 @@ export function DateCell({ date }: { date: string }) {
   return (
     <span className="font-mono text-[length:var(--t-mono)] text-[var(--c-ink-muted)] tabular-nums">
       {date}
-    </span>
-  );
-}
-
-type Currency = "GBP" | "ARS" | "USD";
-
-export function MoneyCell({ amount, currency = "GBP" }: { amount: number; currency?: Currency }) {
-  const symbol = currency === "GBP" ? "£" : currency === "USD" ? "$" : "AR$";
-  return (
-    <span className="font-mono text-[length:var(--t-small)] tabular-nums text-[var(--c-ink)]">
-      {symbol} {amount.toLocaleString("es-AR")}
     </span>
   );
 }

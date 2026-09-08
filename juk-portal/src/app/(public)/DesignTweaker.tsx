@@ -11,7 +11,7 @@
  * - Tipografía: previsualiza fuentes display/body cargadas on-demand.
  * - Textos: edita en vivo los copys marcados con data-tweak-text en el DOM.
  *
- * "Copiar estilos" exporta el bloque CSS para studio/tokens.css; "Copiar
+ * "Copiar estilos" exporta el bloque CSS para src/styles/tokens.css; "Copiar
  * fuentes" exporta el snippet de next/font para src/app/layout.tsx.
  */
 

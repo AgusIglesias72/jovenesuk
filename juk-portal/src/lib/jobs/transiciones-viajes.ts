@@ -1,9 +1,5 @@
-import { inArray } from "drizzle-orm";
-
-import { db } from "@/lib/db";
 import { registrarAuditoria } from "@/lib/db/queries/auditoria";
-import { setViajeEstado } from "@/lib/db/queries/viajes";
-import { viajes } from "@/lib/db/schema/viajes";
+import { listViajesPorEstado, setViajeEstado } from "@/lib/db/queries/viajes";
 import { transicionAutomaticaPorFecha } from "@/lib/domain/viajes";
 
 /**
@@ -14,10 +10,7 @@ import { transicionAutomaticaPorFecha } from "@/lib/domain/viajes";
 export async function transicionarViajesPorFecha(
   hoy = new Date()
 ): Promise<{ enCurso: number; finalizados: number }> {
-  const candidatos = await db
-    .select()
-    .from(viajes)
-    .where(inArray(viajes.estado, ["confirmado", "en_curso"]));
+  const candidatos = await listViajesPorEstado(["confirmado", "en_curso"]);
 
   let enCurso = 0;
   let finalizados = 0;

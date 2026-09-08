@@ -1,28 +1,14 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+import { esPaginaPublica, esRutaAuth, esRutaPortal, esRutaStandalone } from "@/lib/routes";
+
 /**
  * Route protection at the edge.
  * Cheaper than checking the session inside every (admin)/ layout.
  *
  * Better-Auth cookies live at `juk.session_token`.
  */
-// Rutas de gestión (back-office) que viven en el subdominio del portal.
-const PORTAL_PREFIXES = [
-  "/dashboard",
-  "/alumnos",
-  "/viajes",
-  "/colegios",
-  "/prospectos",
-  "/group-leaders",
-  "/usuarios",
-  "/pagos",
-  "/configuracion",
-  "/familias",
-  "/login",
-  "/reset-password",
-];
-
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const search = request.nextUrl.search;
@@ -34,10 +20,7 @@ export function proxy(request: NextRequest) {
     request.cookies.get("juk.session_token") ??
     request.cookies.get("__Secure-juk.session_token");
 
-  // Sitio público de jovenesenuk.com (sin auth): landing, páginas
-  // institucionales y notas de contenido (SEO).
-  const PUBLIC_PAGES = ["/", "/quienes-somos", "/salidas", "/programas", "/contacto", "/consulta"];
-  const isLandingPath = PUBLIC_PAGES.includes(path) || path.startsWith("/notas");
+  const isLandingPath = esPaginaPublica(path);
 
   // ── Separación por subdominio ──────────────────────────────────────────
   // Gestión en portal.<dominio>; marketing en la raíz. Gateado por env vars:
@@ -60,12 +43,12 @@ export function proxy(request: NextRequest) {
     }
   } else if (!isLocalhost && PORTAL_URL) {
     // En el dominio público, las rutas de gestión van al subdominio del portal.
-    if (PORTAL_PREFIXES.some((p) => path.startsWith(p))) {
+    if (esRutaPortal(path) || esRutaAuth(path)) {
       return NextResponse.redirect(new URL(path + search, PORTAL_URL));
     }
   }
 
-  const isAuthPath = path.startsWith("/login") || path.startsWith("/reset-password");
+  const isAuthPath = esRutaAuth(path);
   const isApiAuthPath = path.startsWith("/api/auth");
 
   // El registro público de Better-Auth queda CERRADO: las cuentas se crean
@@ -75,41 +58,22 @@ export function proxy(request: NextRequest) {
     return NextResponse.json({ error: "Registro deshabilitado" }, { status: 404 });
   }
   const isWebhookPath = path.startsWith("/api/webhooks");
-  // Design Lab: concepts estáticos de UI (sin datos reales ni DB). Público para
-  // poder iterar el diseño sin login. NO exponer en prod tal cual si se deploya.
-  const isDesignPath = path.startsWith("/design");
-  const isPublicAsset =
-    path.startsWith("/_next") ||
-    path.startsWith("/landing/") ||
-    path.startsWith("/icon") ||
-    path === "/favicon.ico" ||
-    path === "/robots.txt" ||
-    path === "/sitemap.xml" ||
-    path === "/manifest.webmanifest" ||
-    path === "/manifest.json" ||
-    // PWA: el service worker y la página offline deben servirse sin auth
-    // (el SW cachea /offline en el install; si rebotara a login, cachearía
-    // la página equivocada y no se registraría).
-    path === "/sw.js" ||
-    path === "/offline" ||
-    path === "/globe-loader.html" ||
-    // Baja de comunicaciones (unsubscribe): se accede desde el link del email
-    // con ?token=..., sin sesión. La página valida el token server-side.
-    path === "/baja";
+  // Los assets con extensión (/landing/*, /icons/*, /fonts/*, sw.js,
+  // manifest.webmanifest, robots.txt, sitemap.xml, globe-loader.html) no
+  // llegan acá: los excluye el matcher. Solo quedan las rutas sin extensión
+  // que igual deben servirse sin sesión.
+  const isPublicAsset = path.startsWith("/_next") || esRutaStandalone(path);
 
-  // Always allow these
-  if (isLandingPath || isApiAuthPath || isWebhookPath || isPublicAsset || isDesignPath) {
+  if (isLandingPath || isApiAuthPath || isWebhookPath || isPublicAsset) {
     return NextResponse.next();
   }
 
-  // Not logged in + trying to access protected route → redirect to login
   if (!sessionToken && !isAuthPath) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("returnTo", path);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Logged in + on login page → redirect to dashboard
   if (sessionToken && isAuthPath) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
@@ -120,11 +84,11 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except:
-     * - api routes that should bypass (auth, webhooks)
-     * - _next static files
-     * - public assets
+     * Todo salvo _next/static, _next/image y los assets estáticos (por
+     * extensión). `/api/*` queda SIEMPRE dentro aunque termine en extensión:
+     * /api/uploads/<key>.jpg|pdf sirve documentación sensible y tiene que
+     * pasar por el chequeo de sesión (el route handler además exige admin).
      */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|(?!api/).*\\.(?:png|jpe?g|gif|svg|webp|avif|ico|ttf|otf|woff2?|js|css|txt|xml|webmanifest|html)$).*)",
   ],
 };

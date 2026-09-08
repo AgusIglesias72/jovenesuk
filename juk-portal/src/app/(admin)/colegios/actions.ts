@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 
+import type { ActionResult } from "@/lib/actions/result";
+import { safeAudit } from "@/lib/actions/safe-audit";
 import { requireAdminJuk } from "@/lib/auth/helpers";
-import { registrarAuditoria } from "@/lib/db/queries/auditoria";
 import {
   createColegio,
   setColegioEstado,
@@ -18,22 +19,7 @@ import {
   colegioUpdateSchema,
 } from "@/lib/domain/colegios";
 import type { Colegio } from "@/lib/db/schema/colegios";
-import type { NewAuditoriaEntry } from "@/lib/db/schema/auditoria";
 import { fieldErrorsFromZod } from "@/lib/utils/zod";
-
-export type ActionResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string; fieldErrors?: Record<string, string[] | undefined> };
-
-// La auditoría es best-effort: si falla, lo registramos en Sentry pero no
-// hacemos fallar la operación que el usuario ya vio como exitosa.
-async function safeAudit(entry: NewAuditoriaEntry) {
-  try {
-    await registrarAuditoria(entry);
-  } catch (err) {
-    Sentry.captureException(err);
-  }
-}
 
 export async function createColegioAction(
   input: unknown

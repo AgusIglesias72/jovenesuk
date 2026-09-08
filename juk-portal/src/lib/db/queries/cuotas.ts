@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { cuotas, type Cuota } from "@/lib/db/schema/cuotas";
 import { pasosAlumno } from "@/lib/db/schema/pasos-alumno";
 import {
+  CuotaNotFoundError,
+  PlanConPagosError,
   b2Completado,
   canalCuota,
   estadoPasoB1,
@@ -40,13 +42,6 @@ export async function advertenciaPagoFueraDeOrden(cuotaId: string): Promise<stri
   return `Atención: hay ${
     anteriores.length === 1 ? "una cuota anterior impaga" : "cuotas anteriores impagas"
   } (n° ${nums}). ¿Registrar este pago igual?`;
-}
-
-export class PlanConPagosError extends Error {
-  constructor() {
-    super("El plan ya tiene pagos registrados; no se puede regenerar.");
-    this.name = "PlanConPagosError";
-  }
 }
 
 /**
@@ -111,7 +106,7 @@ export async function registrarPagoCuota(opts: {
     .where(eq(cuotas.id, opts.cuotaId))
     .returning();
   const row = rows[0];
-  if (!row) throw new Error(`Cuota ${opts.cuotaId} inexistente`);
+  if (!row) throw new CuotaNotFoundError(opts.cuotaId);
   return row;
 }
 

@@ -17,6 +17,8 @@ import {
   type RequisitoDocumento,
 } from "@/lib/domain/colegios";
 
+import { unicaFila } from "./errors";
+
 export async function listColegios(filters: ColegioFilters = {}): Promise<Colegio[]> {
   const conditions: SQL[] = [];
 
@@ -47,7 +49,7 @@ export async function getColegioById(id: string): Promise<Colegio | null> {
 
 export async function createColegio(data: NewColegio): Promise<Colegio> {
   const rows = await db.insert(colegios).values(data).returning();
-  return rows[0]!;
+  return unicaFila(rows, "colegios");
 }
 
 export async function updateColegio(

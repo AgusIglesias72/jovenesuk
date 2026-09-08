@@ -1,8 +1,8 @@
 /*
  * Secciones de la landing pública de Jóvenes en UK.
- * Autocontenidas al estilo del Design Lab (dirección STUDIO): consumen los
- * tokens de design/studio/tokens.css vía custom properties, sin depender de
- * @/components/ui (que es del portal interno con AppShell).
+ * Autocontenidas (dirección STUDIO): consumen los tokens de
+ * src/styles/tokens.css vía custom properties, sin depender de
+ * @/components/ui (que es del portal interno).
  */
 import Image from "next/image";
 import Link from "next/link";

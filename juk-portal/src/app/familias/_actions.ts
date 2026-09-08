@@ -2,17 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import type { ActionResult } from "@/lib/actions/result";
+import { safeAudit } from "@/lib/actions/safe-audit";
 import { requireFamilia } from "@/lib/auth/helpers";
-import { db } from "@/lib/db";
 import { getAlumnoById, getAlumnoByDni } from "@/lib/db/queries/alumnos";
 import { alumnoIdDeAsignacion } from "@/lib/db/queries/asignaciones";
-import { registrarAuditoria } from "@/lib/db/queries/auditoria";
-import type { NewAuditoriaEntry } from "@/lib/db/schema/auditoria";
-import { documentos } from "@/lib/db/schema/documentos";
-import { pasosAlumno, type PasoAlumno } from "@/lib/db/schema/pasos-alumno";
+import { insertDocumento } from "@/lib/db/queries/documentos";
+import { getPasoAlumnoById, updatePasoAlumno } from "@/lib/db/queries/pasos-alumno";
+import type { documentos } from "@/lib/db/schema/documentos";
+import type { PasoAlumno } from "@/lib/db/schema/pasos-alumno";
 import {
   DocumentoInvalidoError,
   keyDocumento,
@@ -26,17 +26,10 @@ import {
 } from "@/lib/domain/pasos";
 import { putDocumento } from "@/lib/storage";
 
-export type FamiliaResult = { ok: true; url?: string } | { ok: false; error: string };
+/** Las acciones del portal de familias devuelven la URL del documento subido. */
+export type FamiliaResult = ActionResult<{ url?: string }>;
 
 type Sesion = Awaited<ReturnType<typeof requireFamilia>>;
-
-async function safeAudit(entry: NewAuditoriaEntry) {
-  try {
-    await registrarAuditoria(entry);
-  } catch (err) {
-    Sentry.captureException(err);
-  }
-}
 
 /**
  * Resuelve un paso por id y exige que el alumno dueño pertenezca a la familia
@@ -51,8 +44,7 @@ async function pasoConOwnership(
 > {
   const session = await requireFamilia();
 
-  const rows = await db.select().from(pasosAlumno).where(eq(pasosAlumno.id, pasoId)).limit(1);
-  const paso = rows[0];
+  const paso = await getPasoAlumnoById(pasoId);
   if (!paso) return { ok: false, error: "El paso no existe." };
 
   const alumnoId = await alumnoIdDeAsignacion(paso.asignacionId);
@@ -113,7 +105,7 @@ export async function subirDocumentoFamiliaAction(formData: FormData): Promise<F
     const buffer = Buffer.from(await file.arrayBuffer());
     const { url } = await putDocumento(key, buffer, mime);
 
-    await db.insert(documentos).values({
+    await insertDocumento({
       entidadTipo: "paso_alumno",
       entidadId: paso.id,
       categoria,
@@ -128,15 +120,14 @@ export async function subirDocumentoFamiliaAction(formData: FormData): Promise<F
     const debeAvanzar =
       paso.estado === "pendiente" || paso.estado === "vencido" || paso.estado === "bloqueado";
 
-    await db
-      .update(pasosAlumno)
-      .set({
+    await updatePasoAlumno(
+      paso.id,
+      {
         metadata: { ...(paso.metadata as Record<string, unknown>), archivoUrl: url },
         ...(debeAvanzar ? { estado: "en_progreso" as const } : {}),
-        updatedAt: new Date(),
-        updatedBy: session.user.id,
-      })
-      .where(eq(pasosAlumno.id, paso.id));
+      },
+      session.user.id
+    );
 
     await safeAudit({
       accion: "subir_documento",
@@ -147,7 +138,7 @@ export async function subirDocumentoFamiliaAction(formData: FormData): Promise<F
     });
 
     revalidarFamilia(true);
-    return { ok: true, url };
+    return { ok: true, data: { url } };
   } catch (err) {
     if (err instanceof DocumentoInvalidoError) {
       return { ok: false, error: err.message };
@@ -180,15 +171,14 @@ export async function reportarEtaFamiliaAction(input: {
   const subEstado: EtaSubEstado = parsed.data.subEstado;
 
   try {
-    await db
-      .update(pasosAlumno)
-      .set({
+    await updatePasoAlumno(
+      paso.id,
+      {
         estado: estadoPasoDesdeEta(subEstado),
         metadata: { ...(paso.metadata as Record<string, unknown>), subEstado },
-        updatedAt: new Date(),
-        updatedBy: session.user.id,
-      })
-      .where(eq(pasosAlumno.id, paso.id));
+      },
+      session.user.id
+    );
 
     await safeAudit({
       accion: "cambio_estado_paso",
@@ -199,7 +189,7 @@ export async function reportarEtaFamiliaAction(input: {
     });
 
     revalidarFamilia();
-    return { ok: true };
+    return { ok: true, data: {} };
   } catch (err) {
     Sentry.captureException(err);
     return { ok: false, error: "No pudimos actualizar el ETA. Probá de nuevo." };
@@ -221,15 +211,14 @@ export async function confirmarPasoFamiliaAction(input: {
   }
 
   try {
-    await db
-      .update(pasosAlumno)
-      .set({
+    await updatePasoAlumno(
+      paso.id,
+      {
         estado: "en_progreso",
         metadata: { ...(paso.metadata as Record<string, unknown>), confirmadoFamilia: true },
-        updatedAt: new Date(),
-        updatedBy: session.user.id,
-      })
-      .where(eq(pasosAlumno.id, paso.id));
+      },
+      session.user.id
+    );
 
     await safeAudit({
       accion: "cambio_estado_paso",
@@ -240,7 +229,7 @@ export async function confirmarPasoFamiliaAction(input: {
     });
 
     revalidarFamilia();
-    return { ok: true };
+    return { ok: true, data: {} };
   } catch (err) {
     Sentry.captureException(err);
     return { ok: false, error: "No pudimos confirmar el paso. Probá de nuevo." };
@@ -281,5 +270,5 @@ export async function reportarDatoFamiliaAction(input: {
   });
 
   revalidarFamilia();
-  return { ok: true };
+  return { ok: true, data: {} };
 }

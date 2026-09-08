@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 
+import type { ActionResult } from "@/lib/actions/result";
+import { safeAudit } from "@/lib/actions/safe-audit";
 import { requireAdminJuk } from "@/lib/auth/helpers";
-import { registrarAuditoria } from "@/lib/db/queries/auditoria";
+import { esViolacionUnique } from "@/lib/db/queries/errors";
 import { getGroupLeaderById } from "@/lib/db/queries/group-leaders";
 import {
   asignarGroupLeaderAViaje,
@@ -13,28 +15,6 @@ import {
   quitarGroupLeaderDeViaje,
 } from "@/lib/db/queries/group-leaders-viaje";
 import { getViajeById } from "@/lib/db/queries/viajes";
-import type { NewAuditoriaEntry } from "@/lib/db/schema/auditoria";
-
-export type ActionResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string; requiereConfirmacion?: boolean };
-
-async function safeAudit(entry: NewAuditoriaEntry) {
-  try {
-    await registrarAuditoria(entry);
-  } catch (err) {
-    Sentry.captureException(err);
-  }
-}
-
-function isYaAsignado(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code?: string }).code === "23505"
-  );
-}
 
 const idsSchema = z.object({
   viajeId: z.string().uuid(),
@@ -93,7 +73,7 @@ export async function asignarGroupLeaderAction(
     revalidatePath("/viajes/[id]", "page");
     return { ok: true, data: { id: rel.id } };
   } catch (err) {
-    if (isYaAsignado(err)) {
+    if (esViolacionUnique(err)) {
       return { ok: false, error: "El Group Leader ya está asignado a este viaje." };
     }
     Sentry.captureException(err);

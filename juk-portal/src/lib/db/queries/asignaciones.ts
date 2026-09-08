@@ -7,8 +7,10 @@ import {
   type Asignacion,
   type NewAsignacion,
 } from "@/lib/db/schema/asignaciones";
-import { viajes } from "@/lib/db/schema/viajes";
+import { viajes, type Viaje } from "@/lib/db/schema/viajes";
 import { AsignacionNotFoundError } from "@/lib/domain/asignaciones";
+
+import { unicaFila } from "./errors";
 
 export type AlumnoAsignado = {
   asignacionId: string;
@@ -73,11 +75,11 @@ export async function createAsignacion(data: NewAsignacion): Promise<Asignacion>
       })
       .where(eq(asignaciones.id, existente.id))
       .returning();
-    return reactivadas[0]!;
+    return unicaFila(reactivadas, "asignaciones");
   }
 
   const rows = await db.insert(asignaciones).values(data).returning();
-  return rows[0]!;
+  return unicaFila(rows, "asignaciones");
 }
 
 export async function cancelarAsignacion(
@@ -163,4 +165,17 @@ export async function alumnoIdDeAsignacion(asignacionId: string): Promise<string
     .where(eq(asignaciones.id, asignacionId))
     .limit(1);
   return rows[0]?.alumnoId ?? null;
+}
+
+/** Origen del viaje de la asignación (define el canal de las cuotas) y su alumno. */
+export async function origenDeAsignacion(
+  asignacionId: string
+): Promise<{ origen: Viaje["origen"]; alumnoId: string } | null> {
+  const rows = await db
+    .select({ origen: viajes.origen, alumnoId: asignaciones.alumnoId })
+    .from(asignaciones)
+    .innerJoin(viajes, eq(asignaciones.viajeId, viajes.id))
+    .where(eq(asignaciones.id, asignacionId))
+    .limit(1);
+  return rows[0] ?? null;
 }

@@ -7,7 +7,10 @@ import { test, expect } from "@playwright/test";
  */
 
 const EMAIL = process.env.E2E_FAMILIA_EMAIL ?? "tutor@demo.jovenesenuk.com";
-const PASSWORD = process.env.E2E_FAMILIA_PASSWORD ?? "Familia2026!";
+const PASSWORD = process.env.E2E_FAMILIA_PASSWORD ?? process.env.SEED_FAMILIA_PASSWORD ?? process.env.SEED_TEST_PASSWORD;
+if (!PASSWORD) {
+  throw new Error("Falta E2E_FAMILIA_PASSWORD, SEED_FAMILIA_PASSWORD o SEED_TEST_PASSWORD en el entorno (.env.local).");
+}
 const DNI = "DEMO-1";
 const NOMBRE = "Lola Demo Quince";
 // Alumno de OTRA familia (seed): la demo NO debe poder verlo.

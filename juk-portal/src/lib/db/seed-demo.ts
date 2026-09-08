@@ -2,10 +2,11 @@
  * Seed de CUENTAS TEST + DATASET DEMO.
  *
  * Crea (idempotente: borra lo [DEMO] y lo re-crea):
- *  - 2 cuentas de test con contraseña FIJA conocida (validación manual + E2E):
+ *  - 2 cuentas de test (validación manual + E2E):
  *      test.superadmin@jovenesenuk.com  → super_admin
  *      test.admin@jovenesenuk.com       → admin_juk
- *    Password: env SEED_TEST_PASSWORD o el default de abajo. SOLO para dev.
+ *    Password: env SEED_TEST_PASSWORD (obligatoria, sin default en el código).
+ *    Si la cuenta ya existe el seed NO cambia su contraseña.
  *  - Dataset demo que cubre todas las ramas del negocio: 4 colegios (configs
  *    documentales distintas, tipos de entrada eta/visa/ninguna), 3 GLs (police
  *    checks en 3 estados), 4 viajes (grupal/individual × 4 orígenes × estados),
@@ -35,7 +36,16 @@ import {
 } from "@/lib/db/queries/cuotas";
 import { edadAlInicioDelViaje, pasosIniciales } from "@/lib/domain/pasos";
 
-const TEST_PASSWORD = process.env.SEED_TEST_PASSWORD ?? "JukTest2026!";
+function envRequerida(nombre: string): string {
+  const valor = process.env[nombre];
+  if (!valor) {
+    console.error(`Falta ${nombre} en el entorno (.env.local). Es la contraseña de las cuentas test.*; no hay default.`);
+    process.exit(1);
+  }
+  return valor;
+}
+
+const TEST_PASSWORD = envRequerida("SEED_TEST_PASSWORD");
 
 const CUENTAS_TEST = [
   { email: "test.superadmin@jovenesenuk.com", name: "Test Súper", role: "super_admin" as const },

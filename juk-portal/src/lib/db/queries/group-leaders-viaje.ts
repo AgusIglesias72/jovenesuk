@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { groupLeaders, type GroupLeader } from "@/lib/db/schema/grupos-leaders";
 import { groupLeadersViaje, type GroupLeaderViaje } from "@/lib/db/schema/pasos-viaje";
 
+import { unicaFila } from "./errors";
+
 // Group Leaders que todavía NO están asignados a este viaje.
 export async function groupLeadersElegibles(viajeId: string): Promise<GroupLeader[]> {
   const yaAsignados = await db
@@ -40,7 +42,7 @@ export async function asignarGroupLeaderAViaje(
     .insert(groupLeadersViaje)
     .values({ viajeId, groupLeaderId })
     .returning();
-  return rows[0]!;
+  return unicaFila(rows, "group_leaders_viaje");
 }
 
 // Relación pura sin estado: se borra la fila (a diferencia del soft-cancel de alumnos).

@@ -1,20 +1,20 @@
 /*
  * Inicialización de Sentry (monitoreo de errores) en el servidor/edge.
- * Se activa SOLO si NEXT_PUBLIC_SENTRY_DSN está seteado, y reporta solo en
- * producción. Sin DSN es no-op, así que dev y los builds sin configurar no se
- * ven afectados. La carga de source maps (withSentryConfig) se puede sumar
- * después con SENTRY_AUTH_TOKEN.
+ * Se activa SOLO si NEXT_PUBLIC_SENTRY_DSN está seteado (nunca hardcodeado:
+ * un clon/fork no debe reportar al proyecto real), y reporta solo en
+ * producción. Los source maps los sube withSentryConfig en next.config.ts
+ * cuando hay SENTRY_AUTH_TOKEN/ORG/PROJECT.
  */
 import * as Sentry from "@sentry/nextjs";
 
-// DSN del proyecto de Sentry (es público: viaja en el bundle del cliente).
-// Se puede pisar con NEXT_PUBLIC_SENTRY_DSN en Vercel si se cambia de proyecto.
-const SENTRY_DSN =
-  "https://082d04772ca67da25bae205c4ebc403f@o4511566913994752.ingest.us.sentry.io/4511566926053376";
-
 export function register() {
-  const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN ?? SENTRY_DSN;
-  if (!dsn) return;
+  const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+  if (!dsn) {
+    if (process.env.NODE_ENV === "production") {
+      console.error("NEXT_PUBLIC_SENTRY_DSN no está configurado: Sentry queda desactivado.");
+    }
+    return;
+  }
 
   if (
     process.env.NEXT_RUNTIME === "nodejs" ||
@@ -23,6 +23,7 @@ export function register() {
     Sentry.init({
       dsn,
       enabled: process.env.NODE_ENV === "production",
+      sendDefaultPii: false,
       tracesSampleRate: 0.1,
     });
   }

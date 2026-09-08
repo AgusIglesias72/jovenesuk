@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 
+import type { ActionResult } from "@/lib/actions/result";
+import { safeAudit } from "@/lib/actions/safe-audit";
 import { requireAdminJuk } from "@/lib/auth/helpers";
 import { getAlumnoById } from "@/lib/db/queries/alumnos";
 import {
@@ -11,26 +13,13 @@ import {
   countAsignacionesActivas,
 } from "@/lib/db/queries/asignaciones";
 import { asignarConTablero } from "@/lib/db/queries/asignar-alumno";
-import { registrarAuditoria } from "@/lib/db/queries/auditoria";
+import { esViolacionUnique } from "@/lib/db/queries/errors";
 import { getViajeById } from "@/lib/db/queries/viajes";
-import { AsignacionNotFoundError, pasaporteVigenteParaViaje } from "@/lib/domain/asignaciones";
-import type { NewAuditoriaEntry } from "@/lib/db/schema/auditoria";
-
-export type ActionResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string; requiereConfirmacion?: boolean };
-
-async function safeAudit(entry: NewAuditoriaEntry) {
-  try {
-    await registrarAuditoria(entry);
-  } catch (err) {
-    Sentry.captureException(err);
-  }
-}
-
-function isYaAsignado(err: unknown): boolean {
-  return typeof err === "object" && err !== null && "code" in err && (err as { code?: string }).code === "23505";
-}
+import {
+  AsignacionNotFoundError,
+  ViajeNoInscribibleError,
+  pasaporteVigenteParaViaje,
+} from "@/lib/domain/asignaciones";
 
 export async function asignarAlumnoAction(
   viajeId: string,
@@ -102,8 +91,11 @@ export async function asignarAlumnoAction(
     revalidatePath("/viajes/[id]", "page");
     return { ok: true, data: { id: resultado.asignacionId } };
   } catch (err) {
-    if (isYaAsignado(err)) {
+    if (esViolacionUnique(err)) {
       return { ok: false, error: "El alumno ya está asignado a este viaje." };
+    }
+    if (err instanceof ViajeNoInscribibleError) {
+      return { ok: false, error: err.message };
     }
     Sentry.captureException(err);
     return { ok: false, error: "No pudimos asignar al alumno." };
