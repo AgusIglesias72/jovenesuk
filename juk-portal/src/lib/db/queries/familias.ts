@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { alumnos } from "@/lib/db/schema/alumnos";
 import { users } from "@/lib/db/schema/users";
+import { evaluarVinculoFamilia, type AlumnoVinculado } from "@/lib/domain/familias";
 
 /**
  * Cuentas del Portal de Familias (US-19b + MIN-07).
@@ -14,84 +15,163 @@ import { users } from "@/lib/db/schema/users";
  *   alumno queda como selector dentro del portal (cuando exista).
  * - 1 cuenta por grupo familiar: si dos alumnos comparten tutor1Email, ambos
  *   cuelgan del mismo user (rol "familia").
- * - Las credenciales se GENERAN al crear el alumno; el ENVÍO es acción manual
- *   del admin (resetea la password temporal en ese momento).
+ * - La cuenta nace con una password aleatoria que NO se comunica a nadie: la
+ *   familia entra con el link de creación de contraseña que manda el admin
+ *   ("Enviar acceso"), así que reenviarlo no invalida la clave vigente.
+ * - Vincular a una cuenta que ya tiene alumnos de otro apellido exige
+ *   confirmación explícita del admin (ver domain/familias/vinculo.ts).
  */
 
-function passwordTemporal(): string {
-  return randomBytes(9).toString("base64url");
+/** Password inicial de la cuenta: aleatoria y nunca comunicada. */
+function passwordPlaceholder(): string {
+  return randomBytes(24).toString("base64url");
 }
 
-/** Find-or-create de la cuenta de familia; vincula el alumno. Best-effort. */
+export type MotivoSinCuenta = "alumno_inexistente" | "email_del_equipo";
+
+export type ResultadoCuentaFamilia =
+  | { estado: "vinculada"; userId: string }
+  | { estado: "sin_cuenta"; motivo: MotivoSinCuenta }
+  | { estado: "requiere_confirmacion"; userId: string; alumnos: AlumnoVinculado[] };
+
+async function alumnosActivosDeCuenta(familiaUserId: string): Promise<AlumnoVinculado[]> {
+  return db
+    .select({
+      id: alumnos.id,
+      dni: alumnos.dni,
+      nombre: alumnos.nombre,
+      apellido: alumnos.apellido,
+    })
+    .from(alumnos)
+    .where(and(eq(alumnos.familiaUserId, familiaUserId), ne(alumnos.estado, "baja")));
+}
+
+async function vincularAlumno(alumnoId: string, userId: string): Promise<void> {
+  await db
+    .update(alumnos)
+    .set({ familiaUserId: userId, updatedAt: new Date() })
+    .where(eq(alumnos.id, alumnoId));
+}
+
+/**
+ * Find-or-create de la cuenta de familia y vínculo con el alumno.
+ * Con `confirmarVinculo` el admin acepta colgar el alumno de una cuenta que ya
+ * tiene alumnos de otro apellido.
+ */
 export async function asegurarCuentaFamilia(
   alumnoId: string,
   tutorEmail: string,
-  tutorNombre: string
-): Promise<string | null> {
+  tutorNombre: string,
+  opts: { confirmarVinculo?: boolean } = {}
+): Promise<ResultadoCuentaFamilia> {
   const email = tutorEmail.toLowerCase();
 
-  let userId: string | null = null;
-  const existing = await db
+  const alumnoRows = await db
+    .select({ id: alumnos.id, dni: alumnos.dni, apellido: alumnos.apellido })
+    .from(alumnos)
+    .where(eq(alumnos.id, alumnoId))
+    .limit(1);
+  const alumno = alumnoRows[0];
+  if (!alumno) return { estado: "sin_cuenta", motivo: "alumno_inexistente" };
+
+  const existentes = await db
     .select({ id: users.id, role: users.role })
     .from(users)
     .where(eq(users.email, email))
     .limit(1);
+  const usuario = existentes[0] ?? null;
 
-  if (existing.length > 0) {
-    // Si el email ya es de un admin/GL, NO lo tocamos: queda sin cuenta de
-    // familia (caso borde a resolver a mano).
-    userId = existing[0]!.role === "familia" ? existing[0]!.id : null;
-  } else {
-    await auth.api.signUpEmail({
-      body: { email, password: passwordTemporal(), name: tutorNombre },
-    });
-    await db
-      .update(users)
-      .set({ role: "familia", emailVerified: true })
-      .where(eq(users.email, email));
-    const row = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-    userId = row[0]?.id ?? null;
-  }
+  const decision = evaluarVinculoFamilia({
+    usuario,
+    alumnosDeLaCuenta: usuario ? await alumnosActivosDeCuenta(usuario.id) : [],
+    alumno,
+  });
 
-  if (userId) {
-    await db
-      .update(alumnos)
-      .set({ familiaUserId: userId, updatedAt: new Date() })
-      .where(eq(alumnos.id, alumnoId));
+  switch (decision.tipo) {
+    case "email_del_equipo":
+      return { estado: "sin_cuenta", motivo: "email_del_equipo" };
+
+    case "conflicto": {
+      if (!opts.confirmarVinculo) {
+        return {
+          estado: "requiere_confirmacion",
+          userId: decision.userId,
+          alumnos: decision.alumnos,
+        };
+      }
+      await vincularAlumno(alumnoId, decision.userId);
+      return { estado: "vinculada", userId: decision.userId };
+    }
+
+    case "vincular": {
+      await vincularAlumno(alumnoId, decision.userId);
+      return { estado: "vinculada", userId: decision.userId };
+    }
+
+    case "crear": {
+      await auth.api.signUpEmail({
+        body: { email, password: passwordPlaceholder(), name: tutorNombre },
+      });
+      await db
+        .update(users)
+        .set({ role: "familia", emailVerified: true })
+        .where(eq(users.email, email));
+      const row = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+      const userId = row[0]?.id;
+      if (!userId) return { estado: "sin_cuenta", motivo: "email_del_equipo" };
+      await vincularAlumno(alumnoId, userId);
+      return { estado: "vinculada", userId };
+    }
   }
-  return userId;
 }
 
+export type ResultadoEnvioAcceso =
+  | { estado: "listo"; userId: string; email: string; nombre: string }
+  | { estado: "sin_cuenta"; motivo: MotivoSinCuenta }
+  | { estado: "requiere_confirmacion"; alumnos: AlumnoVinculado[] };
+
 /**
- * Regenera la password temporal y marca el acceso como enviado.
- * Devuelve la password para el email (no se persiste en claro).
+ * Deja la cuenta lista para mandarle el link de creación de contraseña.
+ * NO toca la password vigente: reenviar el acceso no deja afuera a la familia.
  */
-export async function prepararEnvioAcceso(alumnoId: string): Promise<{
-  email: string;
-  nombre: string;
-  passwordTemporal: string;
-} | null> {
+export async function prepararEnvioAcceso(
+  alumnoId: string,
+  opts: { confirmarVinculo?: boolean } = {}
+): Promise<ResultadoEnvioAcceso> {
   const rows = await db.select().from(alumnos).where(eq(alumnos.id, alumnoId)).limit(1);
   const alumno = rows[0];
-  if (!alumno) return null;
+  if (!alumno) return { estado: "sin_cuenta", motivo: "alumno_inexistente" };
 
-  // Asegurar la cuenta (alumnos creados antes de esta feature no la tienen).
-  const userId =
-    alumno.familiaUserId ??
-    (await asegurarCuentaFamilia(alumnoId, alumno.tutor1Email, alumno.tutor1Nombre));
-  if (!userId) return null;
+  const datos = { email: alumno.tutor1Email, nombre: alumno.tutor1Nombre };
+  if (alumno.familiaUserId) {
+    return { estado: "listo", userId: alumno.familiaUserId, ...datos };
+  }
 
-  const nueva = passwordTemporal();
-  const ctx = await auth.$context;
-  const hash = await ctx.password.hash(nueva);
-  await ctx.internalAdapter.updatePassword(userId, hash);
+  const cuenta = await asegurarCuentaFamilia(
+    alumnoId,
+    alumno.tutor1Email,
+    alumno.tutor1Nombre,
+    opts
+  );
+  if (cuenta.estado === "vinculada") {
+    return { estado: "listo", userId: cuenta.userId, ...datos };
+  }
+  if (cuenta.estado === "requiere_confirmacion") {
+    return { estado: "requiere_confirmacion", alumnos: cuenta.alumnos };
+  }
+  return cuenta;
+}
 
+/** Marca el acceso como enviado (después de que el email salió). */
+export async function marcarAccesoEnviado(alumnoId: string): Promise<void> {
   await db
     .update(alumnos)
     .set({ accesoFamiliaEnviadoAt: new Date(), updatedAt: new Date() })
     .where(eq(alumnos.id, alumnoId));
-
-  return { email: alumno.tutor1Email, nombre: alumno.tutor1Nombre, passwordTemporal: nueva };
 }
 
 /**

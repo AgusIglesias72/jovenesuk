@@ -127,6 +127,13 @@
       "when": 1788725586251,
       "tag": "0017_better_auth_1_7_account_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1788911561252,
+      "tag": "0018_ola2_rol_default_y_rate_limit",
+      "breakpoints": true
     }
   ]
 }

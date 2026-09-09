@@ -31,7 +31,7 @@ test("sube un documento al paso A1 y queda linkeado", async ({ page }) => {
   });
 
   const link = a1.getByRole("link", { name: /Ver documento/ });
-  await expect(link).toBeVisible({ timeout: 15000 });
+  await expect(link).toBeVisible();
 
   // El documento se sirve (proxy autenticado o URL pública de R2)
   const href = await link.getAttribute("href");

@@ -19,7 +19,11 @@ import {
 import { USUARIO_ROLE_LABELS, USUARIO_ROLES } from "@/lib/domain/usuarios";
 import type { UsuarioListItem } from "@/lib/db/queries/usuarios";
 
-import { cambiarRolUsuarioAction, setActivoUsuarioAction } from "./actions";
+import {
+  cambiarRolUsuarioAction,
+  reenviarAccesoUsuarioAction,
+  setActivoUsuarioAction,
+} from "./actions";
 
 export function UsuariosTable({
   usuarios,
@@ -56,7 +60,7 @@ export function UsuariosTable({
               <TH>Usuario</TH>
               <TH>Rol</TH>
               <TH>Estado</TH>
-              <TH className="w-[120px]" />
+              <TH className="w-[240px]" />
             </TR>
           </THead>
           <TBody>
@@ -102,21 +106,38 @@ export function UsuariosTable({
                     </Badge>
                   </TD>
                   <TD>
-                    {!isSelf && (
-                      <Button
-                        variant={u.isActive ? "danger" : "secondary"}
-                        size="sm"
-                        disabled={isPending}
-                        onClick={() =>
-                          run(
-                            () => setActivoUsuarioAction(u.id, !u.isActive),
-                            u.isActive ? "Usuario desactivado" : "Usuario activado"
-                          )
-                        }
-                      >
-                        {u.isActive ? "Desactivar" : "Activar"}
-                      </Button>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {u.isActive && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={isPending}
+                          onClick={() =>
+                            run(
+                              () => reenviarAccesoUsuarioAction(u.id),
+                              "Le mandamos un link para crear la contraseña."
+                            )
+                          }
+                        >
+                          Reenviar acceso
+                        </Button>
+                      )}
+                      {!isSelf && (
+                        <Button
+                          variant={u.isActive ? "danger" : "secondary"}
+                          size="sm"
+                          disabled={isPending}
+                          onClick={() =>
+                            run(
+                              () => setActivoUsuarioAction(u.id, !u.isActive),
+                              u.isActive ? "Usuario desactivado" : "Usuario activado"
+                            )
+                          }
+                        >
+                          {u.isActive ? "Desactivar" : "Activar"}
+                        </Button>
+                      )}
+                    </div>
                   </TD>
                 </TR>
               );

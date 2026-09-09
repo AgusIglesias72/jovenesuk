@@ -93,6 +93,49 @@ export function FormPageSkeleton({ fields = 8 }: { fields?: number }) {
   );
 }
 
+/** /configuracion: header con acción, dos cards de formulario y dos cards de panel. */
+export function ConfigSkeleton() {
+  return (
+    <div role="status" aria-label="Cargando…">
+      <PageHeaderSkeleton />
+      <div className="flex flex-col gap-6">
+        <div className="grid gap-6 lg:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, card) => (
+            <CardShell key={card}>
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="mt-2 h-4 w-full max-w-sm" />
+              <div className="mt-5 space-y-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="space-y-1.5">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-11 w-full" />
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 flex justify-end">
+                <Skeleton className="h-10 w-32 rounded-[var(--r-pill)]" />
+              </div>
+            </CardShell>
+          ))}
+        </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, card) => (
+            <CardShell key={card}>
+              <Skeleton className="h-6 w-52" />
+              <Skeleton className="mt-2 h-4 w-full max-w-sm" />
+              <div className="mt-5 space-y-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            </CardShell>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function FichaAlumnoSkeleton() {
   return (
     <div role="status" aria-label="Cargando…">

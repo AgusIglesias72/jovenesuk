@@ -15,6 +15,13 @@ try {
   // sin .env.local (CI con env inyectado): seguir.
 }
 
+// Aislamiento opcional: con E2E_DATABASE_URL (branch Neon dedicada) la suite no
+// toca la DB de dev. Solo aplica al server que levanta Playwright y al proceso
+// de Playwright (cleanup/setup); si apuntás a un server ya corriendo con
+// PW_PORT, manda la DATABASE_URL con la que ESE server arrancó.
+const DATABASE_URL = process.env.E2E_DATABASE_URL ?? process.env.DATABASE_URL;
+if (DATABASE_URL) process.env.DATABASE_URL = DATABASE_URL;
+
 // Default 3001 (el 3000 es el dev del usuario). Con PW_PORT podés apuntar los
 // tests a un server ya levantado (ej: PW_PORT=3000) — Next 16 no permite dos
 // dev servers sobre el mismo proyecto.
@@ -26,10 +33,15 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 0,
-  reporter: [["list"]],
+  // Turbopack compila la ruta en la primera visita: 60s de aire por test (los
+  // specs que necesitan más lo suben con test.setTimeout).
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
+  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : [["list"]],
   use: {
     baseURL,
-    trace: "on-first-retry",
+    // Con retries 0, "on-first-retry" no captura nunca nada.
+    trace: "retain-on-failure",
   },
   projects: [
     // setup arma la sesión y, al terminar todo lo que depende de él, dispara
@@ -42,7 +54,8 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], storageState: "tests/e2e/.auth/admin.json" },
       dependencies: ["setup"],
     },
-    // Sitio público: sin auth ni DB, no depende del setup.
+    // Sitio público: sin sesión y sin depender del setup de auth. Los leads que
+    // crean sus formularios los limpia el propio spec (no lo alcanza el teardown).
     {
       name: "public",
       testMatch: /public\.spec\.ts/,
@@ -54,5 +67,11 @@ export default defineConfig({
     url: `${baseURL}/login`,
     reuseExistingServer: true,
     timeout: 120_000,
+    env: {
+      // Los E2E ejercitan formularios que disparan mails: en dry-run se
+      // renderizan y loguean, pero no salen a Resend.
+      EMAIL_DRY_RUN: "1",
+      ...(DATABASE_URL ? { DATABASE_URL } : {}),
+    },
   },
 });

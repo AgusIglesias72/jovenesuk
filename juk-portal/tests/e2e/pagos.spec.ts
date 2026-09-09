@@ -26,7 +26,7 @@ test("módulo Pagos: lista las cuotas, filtra por viaje y registra un pago", asy
   await panel.getByLabel("Monto por cuota").fill("700");
   await panel.getByLabel("Primer vencimiento").fill("2026-12-01");
   await panel.getByRole("button", { name: "Crear plan de cuotas" }).click();
-  await expect(panel.getByText("US$ 1.400,00")).toBeVisible({ timeout: 15000 });
+  await expect(panel.getByText("US$ 1.400,00")).toBeVisible();
 
   // El detalle del viaje muestra la sección Pagos (US-24) con el plan al día
   await abrirViaje(page, codigo);
@@ -49,7 +49,7 @@ test("módulo Pagos: lista las cuotas, filtra por viaje y registra un pago", asy
   const fila1 = page.locator("tbody tr").first();
   await fila1.getByRole("button", { name: "Registrar pago" }).click();
   await confirmarModal(page, "Registrar pago");
-  await expect(fila1.getByText("Pagada")).toBeVisible({ timeout: 15000 });
+  await expect(fila1.getByText("Pagada")).toBeVisible();
 
   // El filtro por estado deja solo la pendiente
   await page

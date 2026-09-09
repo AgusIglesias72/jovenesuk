@@ -1,0 +1,2969 @@
+{
+  "id": "d6931ea5-db6a-4f0e-9333-696cf1cbeaf6",
+  "prevId": "2725b439-24af-464f-9e16-746bbd748733",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.alertas": {
+      "name": "alertas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nivel": {
+          "name": "nivel",
+          "type": "alerta_nivel",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "alerta_tipo",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "titulo": {
+          "name": "titulo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "alumno_id": {
+          "name": "alumno_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "viaje_id": {
+          "name": "viaje_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "asignacion_id": {
+          "name": "asignacion_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "datos": {
+          "name": "datos",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::json"
+        },
+        "resuelta": {
+          "name": "resuelta",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "fecha_resolucion": {
+          "name": "fecha_resolucion",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resuelta_por": {
+          "name": "resuelta_por",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.alumnos": {
+      "name": "alumnos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "apellido": {
+          "name": "apellido",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha_nacimiento": {
+          "name": "fecha_nacimiento",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dni": {
+          "name": "dni",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "numero_pasaporte": {
+          "name": "numero_pasaporte",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha_vencimiento_pasaporte": {
+          "name": "fecha_vencimiento_pasaporte",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pasaporte_actualizado_at": {
+          "name": "pasaporte_actualizado_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telefono_alumno": {
+          "name": "telefono_alumno",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_alumno": {
+          "name": "email_alumno",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "alergias_salud": {
+          "name": "alergias_salud",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tutor1_nombre": {
+          "name": "tutor1_nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tutor1_celular": {
+          "name": "tutor1_celular",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tutor1_email": {
+          "name": "tutor1_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tutor2_nombre": {
+          "name": "tutor2_nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tutor2_celular": {
+          "name": "tutor2_celular",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tutor2_email": {
+          "name": "tutor2_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "facturacion": {
+          "name": "facturacion",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "preferencias_alojamiento": {
+          "name": "preferencias_alojamiento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nivel_ingles_autoevaluacion": {
+          "name": "nivel_ingles_autoevaluacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "alumno_estado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pre_inscripto'"
+        },
+        "canal_alta": {
+          "name": "canal_alta",
+          "type": "canal_alta",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'alta_manual'"
+        },
+        "fecha_alta": {
+          "name": "fecha_alta",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "procesado_por": {
+          "name": "procesado_por",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "familia_user_id": {
+          "name": "familia_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acceso_familia_enviado_at": {
+          "name": "acceso_familia_enviado_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notas_internas": {
+          "name": "notas_internas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fecha_baja": {
+          "name": "fecha_baja",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "motivo_baja": {
+          "name": "motivo_baja",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.asignaciones": {
+      "name": "asignaciones",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "alumno_id": {
+          "name": "alumno_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "viaje_id": {
+          "name": "viaje_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "asignacion_estado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'activa'"
+        },
+        "fecha_asignacion": {
+          "name": "fecha_asignacion",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "fecha_cancelacion": {
+          "name": "fecha_cancelacion",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "motivo_cancelacion": {
+          "name": "motivo_cancelacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "asignaciones_alumno_id_alumnos_id_fk": {
+          "name": "asignaciones_alumno_id_alumnos_id_fk",
+          "tableFrom": "asignaciones",
+          "tableTo": "alumnos",
+          "columnsFrom": [
+            "alumno_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "asignaciones_viaje_id_viajes_id_fk": {
+          "name": "asignaciones_viaje_id_viajes_id_fk",
+          "tableFrom": "asignaciones",
+          "tableTo": "viajes",
+          "columnsFrom": [
+            "viaje_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uniq_alumno_viaje": {
+          "name": "uniq_alumno_viaje",
+          "nullsNotDistinct": false,
+          "columns": [
+            "alumno_id",
+            "viaje_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.auditoria": {
+      "name": "auditoria",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "accion": {
+          "name": "accion",
+          "type": "audit_accion",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entidad_tipo": {
+          "name": "entidad_tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "entidad_id": {
+          "name": "entidad_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cambios": {
+          "name": "cambios",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::json"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.colegio_documento_config": {
+      "name": "colegio_documento_config",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "colegio_id": {
+          "name": "colegio_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "documento": {
+          "name": "documento",
+          "type": "documento_programa",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requisito": {
+          "name": "requisito",
+          "type": "requisito_documento",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "colegio_documento_config_colegio_id_colegios_id_fk": {
+          "name": "colegio_documento_config_colegio_id_colegios_id_fk",
+          "tableFrom": "colegio_documento_config",
+          "tableTo": "colegios",
+          "columnsFrom": [
+            "colegio_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uniq_colegio_documento": {
+          "name": "uniq_colegio_documento",
+          "nullsNotDistinct": false,
+          "columns": [
+            "colegio_id",
+            "documento"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.colegios": {
+      "name": "colegios",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "colegio_tipo",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pais": {
+          "name": "pais",
+          "type": "pais",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ciudad": {
+          "name": "ciudad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contacto_academico": {
+          "name": "contacto_academico",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contacto_administrativo": {
+          "name": "contacto_administrativo",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contacto_alojamientos": {
+          "name": "contacto_alojamientos",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contacto_juniors": {
+          "name": "contacto_juniors",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "application_form_url": {
+          "name": "application_form_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parental_consent_url": {
+          "name": "parental_consent_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parental_consent_year": {
+          "name": "parental_consent_year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parental_consent_updated_at": {
+          "name": "parental_consent_updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cursos_disponibles": {
+          "name": "cursos_disponibles",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::json"
+        },
+        "tipos_alojamiento": {
+          "name": "tipos_alojamiento",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::json"
+        },
+        "tipo_entrada_requerida": {
+          "name": "tipo_entrada_requerida",
+          "type": "tipo_entrada",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'eta'"
+        },
+        "comision_agencia_porcentaje": {
+          "name": "comision_agencia_porcentaje",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sitio_web": {
+          "name": "sitio_web",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notas": {
+          "name": "notas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "colegio_estado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'activo'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.configuracion": {
+      "name": "configuracion",
+      "schema": "",
+      "columns": {
+        "clave": {
+          "name": "clave",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "valor": {
+          "name": "valor",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cuotas": {
+      "name": "cuotas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "asignacion_id": {
+          "name": "asignacion_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "numero": {
+          "name": "numero",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "es_ultima_cuota": {
+          "name": "es_ultima_cuota",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "monto": {
+          "name": "monto",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "moneda": {
+          "name": "moneda",
+          "type": "moneda_cuota",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'USD'"
+        },
+        "cotizacion_aplicada": {
+          "name": "cotizacion_aplicada",
+          "type": "numeric(12, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fecha_vencimiento": {
+          "name": "fecha_vencimiento",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha_pago_efectivo": {
+          "name": "fecha_pago_efectivo",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "canal": {
+          "name": "canal",
+          "type": "canal_pago",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "cuota_estado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendiente'"
+        },
+        "observaciones": {
+          "name": "observaciones",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "registrado_por": {
+          "name": "registrado_por",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "cuotas_asignacion_id_asignaciones_id_fk": {
+          "name": "cuotas_asignacion_id_asignaciones_id_fk",
+          "tableFrom": "cuotas",
+          "tableTo": "asignaciones",
+          "columnsFrom": [
+            "asignacion_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.documentos": {
+      "name": "documentos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "entidad_tipo": {
+          "name": "entidad_tipo",
+          "type": "documento_entidad",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entidad_id": {
+          "name": "entidad_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "categoria": {
+          "name": "categoria",
+          "type": "documento_categoria",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre_original": {
+          "name": "nombre_original",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "r2_key": {
+          "name": "r2_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tamano_bytes": {
+          "name": "tamano_bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version_anio": {
+          "name": "version_anio",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uploaded_at": {
+          "name": "uploaded_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "uploaded_by": {
+          "name": "uploaded_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "documentos_r2_key_unique": {
+          "name": "documentos_r2_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "r2_key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.group_leaders": {
+      "name": "group_leaders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "apellido": {
+          "name": "apellido",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "telefono": {
+          "name": "telefono",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "documento": {
+          "name": "documento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "police_check_estado": {
+          "name": "police_check_estado",
+          "type": "police_check_estado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendiente'"
+        },
+        "police_check_url": {
+          "name": "police_check_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "police_check_fecha_emision": {
+          "name": "police_check_fecha_emision",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "police_check_fecha_vencimiento": {
+          "name": "police_check_fecha_vencimiento",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "group_leaders_email_unique": {
+          "name": "group_leaders_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.accounts": {
+      "name": "accounts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password": {
+          "name": "password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "access_token": {
+          "name": "access_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_token": {
+          "name": "refresh_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id_token": {
+          "name": "id_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "access_token_expires_at": {
+          "name": "access_token_expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_token_expires_at": {
+          "name": "refresh_token_expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "accounts_user_id_users_id_fk": {
+          "name": "accounts_user_id_users_id_fk",
+          "tableFrom": "accounts",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.rate_limits": {
+      "name": "rate_limits",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "count": {
+          "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_request": {
+          "name": "last_request",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "rate_limits_key_unique": {
+          "name": "rate_limits_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sessions": {
+      "name": "sessions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sessions_user_id_users_id_fk": {
+          "name": "sessions_user_id_users_id_fk",
+          "tableFrom": "sessions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "sessions_token_unique": {
+          "name": "sessions_token_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email_verified": {
+          "name": "email_verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "apellido": {
+          "name": "apellido",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image": {
+          "name": "image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "role": {
+          "name": "role",
+          "type": "user_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'familia'"
+        },
+        "sub_rol_admin": {
+          "name": "sub_rol_admin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.verifications": {
+      "name": "verifications",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "identifier": {
+          "name": "identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.viajes": {
+      "name": "viajes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "codigo": {
+          "name": "codigo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "viaje_tipo",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'grupal'"
+        },
+        "fecha_inicio": {
+          "name": "fecha_inicio",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha_fin": {
+          "name": "fecha_fin",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "origen": {
+          "name": "origen",
+          "type": "viaje_origen",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "colegio_cliente_id": {
+          "name": "colegio_cliente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pais_destino": {
+          "name": "pais_destino",
+          "type": "pais",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "colegio_destino_id": {
+          "name": "colegio_destino_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "curso": {
+          "name": "curso",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo_alojamiento_solicitado": {
+          "name": "tipo_alojamiento_solicitado",
+          "type": "tipo_alojamiento",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cantidad_group_leaders": {
+          "name": "cantidad_group_leaders",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "capacidad_maxima": {
+          "name": "capacidad_maxima",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "capacidad_minima": {
+          "name": "capacidad_minima",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 5
+        },
+        "estado": {
+          "name": "estado",
+          "type": "viaje_estado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'inscripcion_abierta'"
+        },
+        "comision_agencia_pct": {
+          "name": "comision_agencia_pct",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fee_representante": {
+          "name": "fee_representante",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fee_representante_es_porcentaje": {
+          "name": "fee_representante_es_porcentaje",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "notas_internas": {
+          "name": "notas_internas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "viajes_colegio_cliente_id_colegios_id_fk": {
+          "name": "viajes_colegio_cliente_id_colegios_id_fk",
+          "tableFrom": "viajes",
+          "tableTo": "colegios",
+          "columnsFrom": [
+            "colegio_cliente_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "viajes_colegio_destino_id_colegios_id_fk": {
+          "name": "viajes_colegio_destino_id_colegios_id_fk",
+          "tableFrom": "viajes",
+          "tableTo": "colegios",
+          "columnsFrom": [
+            "colegio_destino_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "viajes_codigo_unique": {
+          "name": "viajes_codigo_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "codigo"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pasos_alumno": {
+      "name": "pasos_alumno",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "asignacion_id": {
+          "name": "asignacion_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "codigo": {
+          "name": "codigo",
+          "type": "paso_codigo",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "paso_estado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendiente'"
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::json"
+        },
+        "fecha_limite": {
+          "name": "fecha_limite",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fecha_completado": {
+          "name": "fecha_completado",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notas": {
+          "name": "notas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "pasos_alumno_asignacion_id_asignaciones_id_fk": {
+          "name": "pasos_alumno_asignacion_id_asignaciones_id_fk",
+          "tableFrom": "pasos_alumno",
+          "tableTo": "asignaciones",
+          "columnsFrom": [
+            "asignacion_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uniq_asignacion_paso_codigo": {
+          "name": "uniq_asignacion_paso_codigo",
+          "nullsNotDistinct": false,
+          "columns": [
+            "asignacion_id",
+            "codigo"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.group_leaders_viaje": {
+      "name": "group_leaders_viaje",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "viaje_id": {
+          "name": "viaje_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "group_leader_id": {
+          "name": "group_leader_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "es_principal": {
+          "name": "es_principal",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "group_leaders_viaje_viaje_id_viajes_id_fk": {
+          "name": "group_leaders_viaje_viaje_id_viajes_id_fk",
+          "tableFrom": "group_leaders_viaje",
+          "tableTo": "viajes",
+          "columnsFrom": [
+            "viaje_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "group_leaders_viaje_group_leader_id_group_leaders_id_fk": {
+          "name": "group_leaders_viaje_group_leader_id_group_leaders_id_fk",
+          "tableFrom": "group_leaders_viaje",
+          "tableTo": "group_leaders",
+          "columnsFrom": [
+            "group_leader_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uniq_gl_viaje": {
+          "name": "uniq_gl_viaje",
+          "nullsNotDistinct": false,
+          "columns": [
+            "viaje_id",
+            "group_leader_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pasos_viaje": {
+      "name": "pasos_viaje",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "viaje_id": {
+          "name": "viaje_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "paso_viaje_tipo",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "paso_viaje_estado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendiente'"
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::json"
+        },
+        "notas": {
+          "name": "notas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "pasos_viaje_viaje_id_viajes_id_fk": {
+          "name": "pasos_viaje_viaje_id_viajes_id_fk",
+          "tableFrom": "pasos_viaje",
+          "tableTo": "viajes",
+          "columnsFrom": [
+            "viaje_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uniq_viaje_paso_tipo": {
+          "name": "uniq_viaje_paso_tipo",
+          "nullsNotDistinct": false,
+          "columns": [
+            "viaje_id",
+            "tipo"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.notificaciones_enviadas": {
+      "name": "notificaciones_enviadas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entidad_tipo": {
+          "name": "entidad_tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entidad_id": {
+          "name": "entidad_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "clave": {
+          "name": "clave",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "canal": {
+          "name": "canal",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'email'"
+        },
+        "destinatario": {
+          "name": "destinatario",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resend_message_id": {
+          "name": "resend_message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'sent'"
+        },
+        "enviado_at": {
+          "name": "enviado_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uniq_notificacion_ocurrencia": {
+          "name": "uniq_notificacion_ocurrencia",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tipo",
+            "entidad_id",
+            "clave"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.consultas": {
+      "name": "consultas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "apellido": {
+          "name": "apellido",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "telefono": {
+          "name": "telefono",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "para_quien": {
+          "name": "para_quien",
+          "type": "consulta_para_quien",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "institucion": {
+          "name": "institucion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "modalidad": {
+          "name": "modalidad",
+          "type": "consulta_modalidad",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "destino": {
+          "name": "destino",
+          "type": "consulta_destino",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cuando": {
+          "name": "cuando",
+          "type": "consulta_cuando",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mensaje": {
+          "name": "mensaje",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "consulta_estado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'nueva'"
+        },
+        "creado_el": {
+          "name": "creado_el",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.form_rate_limits": {
+      "name": "form_rate_limits",
+      "schema": "",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "count": {
+          "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "window_start": {
+          "name": "window_start",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.suscriptores": {
+      "name": "suscriptores",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "suscriptor_estado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'activo'"
+        },
+        "origen": {
+          "name": "origen",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'hero'"
+        },
+        "creado_el": {
+          "name": "creado_el",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "suscriptores_email_unique": {
+          "name": "suscriptores_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.prospecto_comunicaciones": {
+      "name": "prospecto_comunicaciones",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "prospecto_id": {
+          "name": "prospecto_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "prospecto_comunicacion_tipo",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "asunto": {
+          "name": "asunto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cuerpo": {
+          "name": "cuerpo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "prospecto_comunicacion_estado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "destinatario": {
+          "name": "destinatario",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resend_message_id": {
+          "name": "resend_message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "meta": {
+          "name": "meta",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_por": {
+          "name": "creado_por",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_prospecto_com_prospecto_id": {
+          "name": "idx_prospecto_com_prospecto_id",
+          "columns": [
+            {
+              "expression": "prospecto_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_prospecto_com_resend_message_id": {
+          "name": "idx_prospecto_com_resend_message_id",
+          "columns": [
+            {
+              "expression": "resend_message_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "prospecto_comunicaciones_prospecto_id_prospectos_id_fk": {
+          "name": "prospecto_comunicaciones_prospecto_id_prospectos_id_fk",
+          "tableFrom": "prospecto_comunicaciones",
+          "tableTo": "prospectos",
+          "columnsFrom": [
+            "prospecto_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.prospectos": {
+      "name": "prospectos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "prospecto_estado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'nuevo'"
+        },
+        "posicion": {
+          "name": "posicion",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "pais": {
+          "name": "pais",
+          "type": "pais",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ciudad": {
+          "name": "ciudad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sitio_web": {
+          "name": "sitio_web",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ubicacion_url": {
+          "name": "ubicacion_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "imagen_url": {
+          "name": "imagen_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "imagen_key": {
+          "name": "imagen_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "emails": {
+          "name": "emails",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::json"
+        },
+        "telefonos": {
+          "name": "telefonos",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::json"
+        },
+        "contacto_nombre": {
+          "name": "contacto_nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contacto_cargo": {
+          "name": "contacto_cargo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fuente": {
+          "name": "fuente",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notas": {
+          "name": "notas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "responsable_id": {
+          "name": "responsable_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "proxima_accion_at": {
+          "name": "proxima_accion_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "motivo_perdida": {
+          "name": "motivo_perdida",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "colegio_id": {
+          "name": "colegio_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "suscrito_outreach": {
+          "name": "suscrito_outreach",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "unsubscribe_token": {
+          "name": "unsubscribe_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "prospectos_colegio_id_colegios_id_fk": {
+          "name": "prospectos_colegio_id_colegios_id_fk",
+          "tableFrom": "prospectos",
+          "tableTo": "colegios",
+          "columnsFrom": [
+            "colegio_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uniq_prospecto_unsubscribe_token": {
+          "name": "uniq_prospecto_unsubscribe_token",
+          "nullsNotDistinct": false,
+          "columns": [
+            "unsubscribe_token"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.alerta_nivel": {
+      "name": "alerta_nivel",
+      "schema": "public",
+      "values": [
+        "critica",
+        "alta",
+        "media",
+        "info"
+      ]
+    },
+    "public.alerta_tipo": {
+      "name": "alerta_tipo",
+      "schema": "public",
+      "values": [
+        "eta_rechazado",
+        "pasaporte_vence_antes_viaje",
+        "pasaporte_vence_pronto",
+        "mora_cuota",
+        "mora_mayor_7_dias",
+        "viaje_proximo_paso_pendiente",
+        "viaje_proximo_paso_bloqueado",
+        "parental_consent_desactualizado",
+        "police_check_vencido",
+        "immigration_letter_tardia",
+        "viaje_sin_cupo_minimo",
+        "otro"
+      ]
+    },
+    "public.alumno_estado": {
+      "name": "alumno_estado",
+      "schema": "public",
+      "values": [
+        "pre_inscripto",
+        "inscripto",
+        "activo",
+        "viajando",
+        "finalizado",
+        "baja"
+      ]
+    },
+    "public.canal_alta": {
+      "name": "canal_alta",
+      "schema": "public",
+      "values": [
+        "webhook",
+        "alta_manual"
+      ]
+    },
+    "public.condicion_fiscal": {
+      "name": "condicion_fiscal",
+      "schema": "public",
+      "values": [
+        "consumidor_final",
+        "responsable_inscripto",
+        "monotributo",
+        "exento",
+        "otro"
+      ]
+    },
+    "public.asignacion_estado": {
+      "name": "asignacion_estado",
+      "schema": "public",
+      "values": [
+        "activa",
+        "viajando",
+        "finalizada",
+        "cancelada"
+      ]
+    },
+    "public.audit_accion": {
+      "name": "audit_accion",
+      "schema": "public",
+      "values": [
+        "login",
+        "logout",
+        "login_failed",
+        "create",
+        "update",
+        "delete",
+        "soft_delete",
+        "asignar_a_viaje",
+        "desasignar_de_viaje",
+        "cambio_estado_paso",
+        "cambio_estado_viaje",
+        "registrar_pago",
+        "subir_documento"
+      ]
+    },
+    "public.colegio_estado": {
+      "name": "colegio_estado",
+      "schema": "public",
+      "values": [
+        "activo",
+        "inactivo"
+      ]
+    },
+    "public.colegio_tipo": {
+      "name": "colegio_tipo",
+      "schema": "public",
+      "values": [
+        "destino",
+        "cliente"
+      ]
+    },
+    "public.documento_programa": {
+      "name": "documento_programa",
+      "schema": "public",
+      "values": [
+        "application_form",
+        "test_nivel",
+        "parental_consent",
+        "confirmation_letter",
+        "visa_immigration_letter"
+      ]
+    },
+    "public.pais": {
+      "name": "pais",
+      "schema": "public",
+      "values": [
+        "reino_unido",
+        "irlanda",
+        "canada",
+        "malta",
+        "australia",
+        "argentina",
+        "otro"
+      ]
+    },
+    "public.requisito_documento": {
+      "name": "requisito_documento",
+      "schema": "public",
+      "values": [
+        "requerido",
+        "opcional",
+        "na"
+      ]
+    },
+    "public.tipo_alojamiento": {
+      "name": "tipo_alojamiento",
+      "schema": "public",
+      "values": [
+        "familia_anfitriona",
+        "residencia",
+        "campus",
+        "otro"
+      ]
+    },
+    "public.tipo_entrada": {
+      "name": "tipo_entrada",
+      "schema": "public",
+      "values": [
+        "eta",
+        "visa",
+        "ninguna"
+      ]
+    },
+    "public.canal_pago": {
+      "name": "canal_pago",
+      "schema": "public",
+      "values": [
+        "agencia",
+        "presencial"
+      ]
+    },
+    "public.cuota_estado": {
+      "name": "cuota_estado",
+      "schema": "public",
+      "values": [
+        "pendiente",
+        "pagada",
+        "vencida"
+      ]
+    },
+    "public.moneda_cuota": {
+      "name": "moneda_cuota",
+      "schema": "public",
+      "values": [
+        "USD",
+        "GBP",
+        "ARS"
+      ]
+    },
+    "public.documento_categoria": {
+      "name": "documento_categoria",
+      "schema": "public",
+      "values": [
+        "application_form",
+        "immigration_letter",
+        "parental_consent",
+        "accommodation_letter",
+        "eta_screenshot",
+        "autorizacion_escribano",
+        "certificado_psicofisico",
+        "police_check",
+        "e_ticket",
+        "comprobante_pago",
+        "comprobante_transporte",
+        "otro"
+      ]
+    },
+    "public.documento_entidad": {
+      "name": "documento_entidad",
+      "schema": "public",
+      "values": [
+        "alumno",
+        "viaje",
+        "colegio",
+        "paso_alumno",
+        "paso_viaje",
+        "group_leader"
+      ]
+    },
+    "public.police_check_estado": {
+      "name": "police_check_estado",
+      "schema": "public",
+      "values": [
+        "pendiente",
+        "en_tramite",
+        "aprobado",
+        "vencido"
+      ]
+    },
+    "public.user_role": {
+      "name": "user_role",
+      "schema": "public",
+      "values": [
+        "admin_juk",
+        "super_admin",
+        "representante",
+        "familia"
+      ]
+    },
+    "public.viaje_estado": {
+      "name": "viaje_estado",
+      "schema": "public",
+      "values": [
+        "inscripcion_abierta",
+        "confirmado",
+        "en_curso",
+        "finalizado",
+        "cancelado"
+      ]
+    },
+    "public.viaje_origen": {
+      "name": "viaje_origen",
+      "schema": "public",
+      "values": [
+        "representante_independiente",
+        "instituto",
+        "colegio_cliente",
+        "juk_directo"
+      ]
+    },
+    "public.viaje_tipo": {
+      "name": "viaje_tipo",
+      "schema": "public",
+      "values": [
+        "grupal",
+        "individual"
+      ]
+    },
+    "public.paso_codigo": {
+      "name": "paso_codigo",
+      "schema": "public",
+      "values": [
+        "paso_0",
+        "a1",
+        "a2",
+        "a3",
+        "b1",
+        "b2",
+        "c1",
+        "c2",
+        "c3",
+        "d1",
+        "d2"
+      ]
+    },
+    "public.paso_estado": {
+      "name": "paso_estado",
+      "schema": "public",
+      "values": [
+        "pendiente",
+        "en_progreso",
+        "completado",
+        "bloqueado",
+        "na",
+        "vencido"
+      ]
+    },
+    "public.paso_viaje_estado": {
+      "name": "paso_viaje_estado",
+      "schema": "public",
+      "values": [
+        "pendiente",
+        "en_progreso",
+        "completado",
+        "bloqueado"
+      ]
+    },
+    "public.paso_viaje_tipo": {
+      "name": "paso_viaje_tipo",
+      "schema": "public",
+      "values": [
+        "pasajes",
+        "excursiones",
+        "transfers",
+        "tarjeta_transporte",
+        "police_checks"
+      ]
+    },
+    "public.consulta_cuando": {
+      "name": "consulta_cuando",
+      "schema": "public",
+      "values": [
+        "proximos_3_meses",
+        "este_ano",
+        "proximo_ano",
+        "solo_averiguando"
+      ]
+    },
+    "public.consulta_destino": {
+      "name": "consulta_destino",
+      "schema": "public",
+      "values": [
+        "reino_unido",
+        "irlanda",
+        "malta",
+        "canada",
+        "estados_unidos",
+        "australia",
+        "nueva_zelanda",
+        "sudafrica",
+        "no_se"
+      ]
+    },
+    "public.consulta_estado": {
+      "name": "consulta_estado",
+      "schema": "public",
+      "values": [
+        "nueva",
+        "contactada",
+        "descartada"
+      ]
+    },
+    "public.consulta_modalidad": {
+      "name": "consulta_modalidad",
+      "schema": "public",
+      "values": [
+        "asesoramiento",
+        "grupal",
+        "individual",
+        "study_work"
+      ]
+    },
+    "public.consulta_para_quien": {
+      "name": "consulta_para_quien",
+      "schema": "public",
+      "values": [
+        "para_mi",
+        "para_mi_hijo",
+        "colegio"
+      ]
+    },
+    "public.suscriptor_estado": {
+      "name": "suscriptor_estado",
+      "schema": "public",
+      "values": [
+        "activo",
+        "baja"
+      ]
+    },
+    "public.prospecto_comunicacion_estado": {
+      "name": "prospecto_comunicacion_estado",
+      "schema": "public",
+      "values": [
+        "pendiente",
+        "enviado",
+        "entregado",
+        "abierto",
+        "click",
+        "rebotado",
+        "spam",
+        "fallido"
+      ]
+    },
+    "public.prospecto_comunicacion_tipo": {
+      "name": "prospecto_comunicacion_tipo",
+      "schema": "public",
+      "values": [
+        "email",
+        "nota",
+        "llamada",
+        "reunion",
+        "cambio_estado",
+        "conversion"
+      ]
+    },
+    "public.prospecto_estado": {
+      "name": "prospecto_estado",
+      "schema": "public",
+      "values": [
+        "nuevo",
+        "contactado",
+        "interesado",
+        "propuesta",
+        "negociacion",
+        "ganado",
+        "perdido"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

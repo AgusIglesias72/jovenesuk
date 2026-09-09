@@ -2,8 +2,9 @@ import { test, expect } from "@playwright/test";
 
 /**
  * Portal de Familias. Corre contra el alumno demo del seed (Lola Demo Quince,
- * DNI DEMO-1, con plan de cuotas y pasos). Todo es de SÓLO LECTURA sobre datos
- * sembrados, así que no genera datos que limpiar.
+ * DNI DEMO-1, con plan de cuotas y pasos) usando la cuenta de familia que crea
+ * `npm run db:seed:demo`. Todo es de SÓLO LECTURA sobre datos sembrados, así
+ * que no genera datos que limpiar.
  */
 
 const EMAIL = process.env.E2E_FAMILIA_EMAIL ?? "tutor@demo.jovenesenuk.com";
@@ -13,8 +14,10 @@ if (!PASSWORD) {
 }
 const DNI = "DEMO-1";
 const NOMBRE = "Lola Demo Quince";
-// Alumno de OTRA familia (seed): la demo NO debe poder verlo.
-const DNI_AJENO = "48123456";
+// Benja (DEMO-2): EXISTE en la DB, tiene asignación y pasos, pero cuelga de la
+// otra cuenta de familia (tutor2@demo). Así el 404 prueba la rama de ownership
+// y no la de "el alumno no existe".
+const DNI_AJENO = "DEMO-2";
 
 // El proyecto chromium trae la sesión de admin; acá arrancamos sin sesión y
 // entramos como familia.
@@ -91,6 +94,14 @@ test("Mis datos muestra la ficha del alumno", async ({ page }) => {
 });
 
 test("una familia no puede ver el alumno de otra familia", async ({ page }) => {
+  // El alumno ajeno existe (lo sembró el seed y lo ve el admin), así que un 200
+  // acá sería una fuga de datos entre familias, no un 404 accidental.
   const resp = await page.goto(`/familias/${DNI_AJENO}`);
   expect(resp?.status()).toBe(404);
+
+  // Las subrutas resuelven por el mismo helper: no deben filtrarse tampoco.
+  for (const sub of ["documentacion", "pagos", "viaje", "datos"]) {
+    const r = await page.goto(`/familias/${DNI_AJENO}/${sub}`);
+    expect(r?.status(), `/familias/${DNI_AJENO}/${sub}`).toBe(404);
+  }
 });

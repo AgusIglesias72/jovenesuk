@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import type { ActionResult } from "@/lib/actions/result";
 import { safeAudit } from "@/lib/actions/safe-audit";
+import { auth } from "@/lib/auth";
 import { requireAdminJuk } from "@/lib/auth/helpers";
 import {
   createAlumno,
@@ -17,6 +18,7 @@ import {
 import {
   asegurarCuentaFamilia,
   desactivarCuentaFamiliaSiCorresponde,
+  marcarAccesoEnviado,
   prepararEnvioAcceso,
 } from "@/lib/db/queries/familias";
 import {
@@ -24,6 +26,7 @@ import {
   alumnoCreateSchema,
   alumnoUpdateSchema,
 } from "@/lib/domain/alumnos";
+import { describirAlumnosVinculados } from "@/lib/domain/familias";
 import type { Alumno } from "@/lib/db/schema/alumnos";
 import { fieldErrorsFromZod } from "@/lib/utils/zod";
 
@@ -68,11 +71,13 @@ export async function createAlumnoAction(
 }
 
 /**
- * US-19b: envío (o reenvío) del acceso al Portal de Familias. Regenera la
- * password temporal y manda el email al Tutor 1 desde el remitente del sistema.
+ * US-19b: envío (o reenvío) del acceso al Portal de Familias. Manda un link de
+ * creación de contraseña (24 h) al Tutor 1: NO toca la clave vigente, así que
+ * reenviarlo no deja afuera a una familia que ya entraba.
  */
 export async function enviarAccesoFamiliaAction(
-  alumnoId: string
+  alumnoId: string,
+  confirmarVinculo = false
 ): Promise<ActionResult<{ enviadoA: string }>> {
   const session = await requireAdminJuk();
 
@@ -80,29 +85,42 @@ export async function enviarAccesoFamiliaAction(
   if (!parsedId.success) return { ok: false, error: "Alumno inválido." };
 
   try {
-    const datos = await prepararEnvioAcceso(parsedId.data);
-    if (!datos) {
+    const datos = await prepararEnvioAcceso(parsedId.data, { confirmarVinculo });
+
+    if (datos.estado === "requiere_confirmacion") {
+      return {
+        ok: false,
+        requiereConfirmacion: true,
+        error: `Ese email ya es la cuenta de familia de ${describirAlumnosVinculados(
+          datos.alumnos
+        )}. Si es la misma familia, confirmá para vincular al alumno; si no, corregí el email del Tutor 1.`,
+      };
+    }
+    if (datos.estado === "sin_cuenta") {
       return {
         ok: false,
         error:
-          "No se pudo preparar la cuenta de familia (el email del Tutor 1 ya pertenece a un usuario del equipo).",
+          datos.motivo === "email_del_equipo"
+            ? "El email del Tutor 1 ya pertenece a un usuario del equipo: usá otra dirección."
+            : "El alumno no existe.",
       };
     }
 
-    const { sendWelcomeEmail } = await import("@/lib/email/send-welcome");
-    await sendWelcomeEmail({
-      to: datos.email,
-      name: datos.nombre,
-      temporaryPassword: datos.passwordTemporal,
-      invitedByName: session.user.name,
+    await auth.api.requestPasswordReset({
+      body: { email: datos.email, redirectTo: "/reset-password?alta=familia" },
     });
+    await marcarAccesoEnviado(parsedId.data);
 
     await safeAudit({
       accion: "update",
       entidadTipo: "alumno",
       entidadId: parsedId.data,
       usuarioId: session.user.id,
-      metadata: { accion: "enviar_acceso_familia", enviadoA: datos.email },
+      metadata: {
+        accion: "enviar_acceso_familia",
+        enviadoA: datos.email,
+        ...(confirmarVinculo ? { vinculoFamiliaConfirmado: true } : {}),
+      },
     });
     revalidatePath("/alumnos/[id]", "page");
     return { ok: true, data: { enviadoA: datos.email } };

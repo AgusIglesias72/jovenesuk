@@ -1,16 +1,18 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+
+import { Alert, Button, Field, Input } from "@/components/ui";
 import { authClient } from "@/lib/auth/client";
-import { Button, Field, Input, Alert } from "@/components/ui";
+import { sanitizeReturnTo } from "@/lib/auth/return-to";
 
 /**
- * LoginForm — client component handling the email/password login flow.
+ * LoginForm — flujo email/contraseña con Better-Auth.
  *
- * Uses authClient.signIn (Better-Auth) directly. On success, redirects to
- * `returnTo` (defaults to /dashboard). On failure, shows a generic error
- * message — never leaks which field is wrong (PRD §1.2 US-01).
+ * En caso de credenciales incorrectas mostramos un mensaje genérico (nunca
+ * revela qué campo falló, PRD §1.2 US-01); el 403 de cuenta desactivada sí se
+ * distingue, porque reintentar credenciales no lo va a resolver.
  */
 
 interface LoginFormProps {
@@ -18,12 +20,27 @@ interface LoginFormProps {
   returnTo: string;
 }
 
+type ErrorLogin = { titulo: string; detalle: string };
+
+const CREDENCIALES_INVALIDAS: ErrorLogin = {
+  titulo: "No se pudo ingresar",
+  detalle: "Las credenciales no son válidas. Verificá email y contraseña.",
+};
+
+const CUENTA_DESACTIVADA: ErrorLogin = {
+  titulo: "Cuenta desactivada",
+  detalle: "Tu acceso está dado de baja. Escribinos a Jóvenes en UK para que la reactivemos.",
+};
+
 export function LoginForm({ defaultEmail = "", returnTo }: LoginFormProps) {
   const router = useRouter();
   const [email, setEmail] = useState(defaultEmail);
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ErrorLogin | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Defensa en profundidad: el prop ya viene saneado del server component.
+  const destino = sanitizeReturnTo(returnTo);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,17 +50,15 @@ export function LoginForm({ defaultEmail = "", returnTo }: LoginFormProps) {
       const { error: authError } = await authClient.signIn.email({
         email,
         password,
-        callbackURL: returnTo,
+        callbackURL: destino,
       });
 
       if (authError) {
-        setError(
-          "Las credenciales no son válidas. Verificá email y contraseña."
-        );
+        setError(authError.status === 403 ? CUENTA_DESACTIVADA : CREDENCIALES_INVALIDAS);
         return;
       }
 
-      router.push(returnTo);
+      router.push(destino);
       router.refresh();
     });
   };
@@ -52,8 +67,8 @@ export function LoginForm({ defaultEmail = "", returnTo }: LoginFormProps) {
     <form onSubmit={handleSubmit} noValidate>
       {error && (
         <div className="mb-4">
-          <Alert level="critical" title="No se pudo ingresar">
-            {error}
+          <Alert level="critical" title={error.titulo}>
+            {error.detalle}
           </Alert>
         </div>
       )}
@@ -65,7 +80,7 @@ export function LoginForm({ defaultEmail = "", returnTo }: LoginFormProps) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
-            placeholder="tu@jovenesenuk.com"
+            placeholder="tu@email.com"
             required
             autoFocus={!defaultEmail}
             disabled={isPending}

@@ -3,13 +3,22 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { Button, Field, Input, LinkButton, Select, useConfirm, useToast } from "@/components/ui";
+import {
+  Alert,
+  Button,
+  Field,
+  Input,
+  LinkButton,
+  Select,
+  useConfirm,
+  useToast,
+} from "@/components/ui";
 import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes";
 import { USUARIO_ROLE_LABELS, USUARIO_ROLES } from "@/lib/domain/usuarios";
 
 import { createUsuarioAction } from "./actions";
 
-type Created = { email: string; name: string; tempPassword: string };
+type Created = { email: string; name: string; emailEnviado: boolean };
 
 export function UsuarioForm() {
   const router = useRouter();
@@ -59,23 +68,21 @@ export function UsuarioForm() {
   if (created) {
     return (
       <div className="max-w-xl">
-        <div className="rounded-md border border-green-200 bg-green-50 px-5 py-4">
-          <h2 className="text-sm font-semibold text-green-800">Usuario creado</h2>
-          <p className="mt-1 text-sm text-green-700">
-            Pasale estas credenciales a <strong>{created.name}</strong>. La contraseña
-            temporal se muestra una sola vez — copiala ahora.
-          </p>
-          <dl className="mt-4 space-y-2 text-sm">
-            <div className="flex gap-2">
-              <dt className="w-28 font-medium text-gray-600">Email</dt>
-              <dd className="font-mono text-juk-navy-950">{created.email}</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="w-28 font-medium text-gray-600">Contraseña</dt>
-              <dd className="font-mono font-semibold text-juk-navy-950">{created.tempPassword}</dd>
-            </div>
-          </dl>
-        </div>
+        {created.emailEnviado ? (
+          <Alert level="success" title={`${created.name} ya tiene cuenta`}>
+            Le enviamos a{" "}
+            <span className="font-mono text-[length:var(--t-mono)]">{created.email}</span> un
+            link para crear su contraseña; vence en 24 h. Nadie más conoce esa clave.
+          </Alert>
+        ) : (
+          <Alert level="warning" title={`${created.name} ya tiene cuenta, pero el email no salió`}>
+            La cuenta de{" "}
+            <span className="font-mono text-[length:var(--t-mono)]">{created.email}</span> quedó
+            creada, pero no pudimos mandarle el link para crear la contraseña. Revisá la
+            configuración de Resend y usá &ldquo;Reenviar acceso&rdquo; desde la lista de
+            usuarios.
+          </Alert>
+        )}
         <div className="mt-5 flex items-center gap-3">
           <LinkButton href="/usuarios">Volver a usuarios</LinkButton>
           <Button
@@ -136,9 +143,9 @@ export function UsuarioForm() {
         </Field>
       </div>
 
-      <p className="mt-3 text-xs text-gray-500">
-        Se genera una contraseña temporal que vas a ver al confirmar (el envío por
-        email todavía no está configurado).
+      <p className="mt-3 text-[length:var(--t-small)] text-[var(--c-ink-subtle)]">
+        No se genera ninguna contraseña: le mandamos por email un link para que cree la
+        suya (vence en 24 h).
       </p>
 
       <div className="mt-6 flex items-center justify-end gap-3">

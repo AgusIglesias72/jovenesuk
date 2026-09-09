@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 
-import { Button, useToast } from "@/components/ui";
+import { Button, useConfirm, useToast } from "@/components/ui";
 import { formatFecha } from "@/lib/utils/date";
 
 import { enviarAccesoFamiliaAction } from "../actions";
@@ -19,11 +19,38 @@ export function AccesoFamilia({
 }) {
   const router = useRouter();
   const toast = useToast();
+  const confirm = useConfirm();
   const [isPending, startTransition] = useTransition();
 
-  function enviar() {
+  /*
+   * El email del tutor ya puede ser la cuenta de otra familia (un typo del
+   * admin, o un hermano real). La action no vincula sola: devuelve
+   * requiereConfirmacion y acá se decide, con los alumnos ya vinculados a la
+   * vista.
+   */
+  async function enviar() {
+    const primero = await enviarAccesoFamiliaAction(alumnoId);
+
+    if (primero.ok) {
+      toast.success(`Acceso enviado a ${primero.data.enviadoA}.`);
+      router.refresh();
+      return;
+    }
+
+    if (!primero.requiereConfirmacion) {
+      toast.error(primero.error);
+      return;
+    }
+
+    const { confirmado } = await confirm({
+      titulo: "¿Vincular a esta cuenta de familia?",
+      detalle: primero.error,
+      confirmLabel: "Sí, es la misma familia",
+    });
+    if (!confirmado) return;
+
     startTransition(async () => {
-      const r = await enviarAccesoFamiliaAction(alumnoId);
+      const r = await enviarAccesoFamiliaAction(alumnoId, true);
       if (r.ok) {
         toast.success(`Acceso enviado a ${r.data.enviadoA}.`);
         router.refresh();
@@ -53,7 +80,12 @@ export function AccesoFamilia({
           )}
         </p>
       </div>
-      <Button type="button" variant="secondary" disabled={isPending} onClick={enviar}>
+      <Button
+        type="button"
+        variant="secondary"
+        disabled={isPending}
+        onClick={() => void enviar()}
+      >
         {isPending ? "Enviando…" : enviadoAt ? "Reenviar acceso" : "Enviar acceso al Portal de Familias"}
       </Button>
     </div>

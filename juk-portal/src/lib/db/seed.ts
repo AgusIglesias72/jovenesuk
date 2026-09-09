@@ -78,19 +78,12 @@ async function createUser(opts: {
     );
   }
 
-  // Actualizar el rol (Better-Auth crea con role default = "admin_juk")
-  if (opts.role === "super_admin") {
-    await db
-      .update(users)
-      .set({ role: "super_admin", emailVerified: true })
-      .where(eq(users.email, opts.email));
-  } else {
-    // Marcar email como verificado para que pueda loguearse directamente
-    await db
-      .update(users)
-      .set({ emailVerified: true })
-      .where(eq(users.email, opts.email));
-  }
+  // El alta crea con el rol de menor privilegio ("familia"): acá se sube al rol
+  // real y se marca el email verificado para que pueda loguearse directamente.
+  await db
+    .update(users)
+    .set({ role: opts.role, emailVerified: true })
+    .where(eq(users.email, opts.email));
 
   return { email: opts.email, password: tempPassword };
 }

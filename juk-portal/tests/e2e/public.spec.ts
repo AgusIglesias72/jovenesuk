@@ -1,12 +1,33 @@
+import { inArray } from "drizzle-orm";
 import { test, expect } from "@playwright/test";
 
+import { db } from "../../src/lib/db";
+import { consultas, suscriptores } from "../../src/lib/db/schema";
+
 /*
- * Smoke tests del SITIO PÚBLICO (marketing). Corren sin sesión y sin DB:
- * el proyecto "public" de playwright.config no depende del setup de auth.
- * Cubren que las páginas carguen, el SEO técnico responda, los redirects y
- * 404 anden, y que los formularios envíen.
+ * Smoke tests del SITIO PÚBLICO (marketing). Corren sin sesión: el proyecto
+ * "public" de playwright.config no depende del setup de auth. Cubren que las
+ * páginas carguen, el SEO técnico responda, los redirects y 404 anden, y que
+ * los formularios envíen (eso último SÍ toca la DB y persiste el lead).
+ *
+ * Como el proyecto "public" no dispara el teardown global, los leads que crea
+ * se borran acá mismo en el afterAll (emails @e2e.example.com).
  */
 test.use({ storageState: { cookies: [], origins: [] } });
+
+const emailsCreados: string[] = [];
+
+function emailE2E(prefijo: string): string {
+  const email = `${prefijo}-${Date.now()}-${emailsCreados.length}@e2e.example.com`;
+  emailsCreados.push(email);
+  return email;
+}
+
+test.afterAll(async () => {
+  if (emailsCreados.length === 0) return;
+  await db.delete(consultas).where(inArray(consultas.email, emailsCreados));
+  await db.delete(suscriptores).where(inArray(suscriptores.email, emailsCreados));
+});
 
 const PAGINAS: Array<[string, RegExp]> = [
   ["/", /Aprendé inglés/],
@@ -69,7 +90,7 @@ test("una nota muestra su tabla comparativa y los enlaces internos", async ({ pa
 
 test("el newsletter del hero se envía", async ({ page }) => {
   await page.goto("/");
-  await page.locator("#nl-email").fill("suscriptor@example.com");
+  await page.locator("#nl-email").fill(emailE2E("suscriptor"));
   await page.getByRole("button", { name: "Suscribirme" }).click();
   await expect(page.getByText(/Te suscribiste/)).toBeVisible();
 });
@@ -86,20 +107,14 @@ test("el formulario de consulta valida y se envía", async ({ page }) => {
   // Camino feliz: incluye los selects obligatorios (que arrancan vacíos).
   await page.getByLabel("Nombre").fill("Juan");
   await page.getByLabel("Apellido").fill("Pérez");
-  await page.getByLabel("Email").fill("juan@example.com");
+  await page.getByLabel("Email").fill(emailE2E("consulta"));
   await page.getByLabel(/Tel[eé]fono/).fill("1133334444");
   await page.getByLabel("¿Qué te interesa?").selectOption("grupal");
   await page.getByLabel("¿Cuándo te gustaría viajar?").selectOption("proximos_3_meses");
   await page.getByText(/Acepto que Jóvenes en UK use mis datos/).click();
   await enviar.click();
 
-  // La validación pasó y la action corrió: éxito (DB disponible) o el error
-  // genérico de procesamiento (no un error de validación de campos).
-  await expect(
-    page
-      .getByText("¡Gracias por tu consulta!")
-      .or(page.getByText(/No pudimos procesar/)),
-  ).toBeVisible();
+  await expect(page.getByText("¡Gracias por tu consulta!")).toBeVisible();
 });
 
 test("al elegir colegio aparece el campo de institución", async ({ page }) => {

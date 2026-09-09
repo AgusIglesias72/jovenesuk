@@ -2,29 +2,43 @@ import { sendEmail } from "./index";
 import { WelcomeEmail } from "./templates/welcome-email";
 
 /**
- * Sends the welcome email with a temporary password.
- * Called from the "create user" server action in (admin)/usuarios.
+ * Invitación al portal con el link de creación de contraseña (nunca una
+ * contraseña). El link lo genera Better-Auth: este módulo solo lo maqueta,
+ * así que el llamador es el hook `sendResetPassword` de lib/auth.
  */
+export type AudienciaAcceso = "equipo" | "familia";
+
+export function loginUrlDe(email: string, audiencia: AudienciaAcceso): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://portal.jovenesenuk.com";
+  const query = new URLSearchParams(
+    audiencia === "familia" ? { portal: "familias", email } : { email }
+  );
+  return `${appUrl}/login?${query.toString()}`;
+}
+
 export async function sendWelcomeEmail(opts: {
   to: string;
   name: string;
-  temporaryPassword: string;
-  invitedByName: string;
+  audiencia: AudienciaAcceso;
+  crearPasswordUrl: string;
+  invitedByName?: string;
 }) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://portal.jovenesenuk.com";
-  const loginUrl = `${appUrl}/login?email=${encodeURIComponent(opts.to)}`;
+  const esFamilia = opts.audiencia === "familia";
 
   await sendEmail({
     to: opts.to,
     tipo: "comunicacion",
-    subject: `Acceso al Portal JUK · ${opts.name}`,
+    subject: esFamilia
+      ? `Acceso al Portal de Familias · Jóvenes en UK`
+      : `Acceso al Portal JUK · ${opts.name}`,
     react: (
       <WelcomeEmail
         name={opts.name}
         email={opts.to}
-        temporaryPassword={opts.temporaryPassword}
-        loginUrl={loginUrl}
-        invitedByName={opts.invitedByName}
+        audiencia={opts.audiencia}
+        crearPasswordUrl={opts.crearPasswordUrl}
+        loginUrl={loginUrlDe(opts.to, opts.audiencia)}
+        {...(opts.invitedByName ? { invitedByName: opts.invitedByName } : {})}
       />
     ),
   });

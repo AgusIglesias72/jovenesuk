@@ -96,7 +96,7 @@ test("recorrido completo: del colegio al dashboard", async ({ page, request }) =
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-1.4\n1 0 obj <</Type /Catalog>> endobj\ntrailer <<>>\n%%EOF"),
   });
-  await expect(c2.getByRole("link", { name: /Ver documento/ })).toBeVisible({ timeout: 15000 });
+  await expect(c2.getByRole("link", { name: /Ver documento/ })).toBeVisible();
   await c2.locator("select").selectOption("completado");
   await expect(c2.getByText("Completado").first()).toBeVisible();
 

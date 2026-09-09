@@ -1,17 +1,22 @@
+import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { auth } from "./index";
+import { HOME_BY_ROLE } from "@/lib/routes";
 import type { User } from "@/lib/db/schema/users";
+import { auth } from "./index";
 
 /**
  * Get the current session on the server.
  * Returns null if no session exists.
+ *
+ * Memoizada por request con `cache()`: layout + page + server action comparten
+ * una sola lectura de sessions+users (sin cookieCache, cada llamada pega a la DB).
  */
-export async function getSession() {
-  return auth.api.getSession({
+export const getSession = cache(async () =>
+  auth.api.getSession({
     headers: await headers(),
-  });
-}
+  })
+);
 
 /**
  * Require a valid session, redirecting to /login if not authenticated.
@@ -22,8 +27,11 @@ export async function requireSession() {
   if (!session) {
     redirect("/login");
   }
-  // Usuario desactivado (isActive=false): se lo bloquea aunque tenga sesión válida.
+  // Usuario desactivado (isActive=false): se lo bloquea aunque tenga sesión
+  // válida. Se borra la sesión del server para que /login no lo rebote de
+  // vuelta al portal (loop /login → /dashboard → /login).
   if (session.user.isActive === false) {
+    await auth.api.signOut({ headers: await headers() });
     redirect("/login?inactivo=1");
   }
   return session;
@@ -31,18 +39,16 @@ export async function requireSession() {
 
 /**
  * Require a specific role (or one of several).
- * Throws if the user is authenticated but lacks the required role.
+ * Redirects to the real role's home if the user lacks the required role.
  */
 export async function requireRole(roles: User["role"] | User["role"][]) {
   const session = await requireSession();
   const allowed = Array.isArray(roles) ? roles : [roles];
+  const rol = session.user.role as User["role"];
 
-  if (!allowed.includes(session.user.role as User["role"])) {
-    // Redirigir al home del rol real para evitar loops admin/familia.
-    if (session.user.role === "familia") {
-      redirect("/familias");
-    }
-    redirect("/dashboard");
+  if (!allowed.includes(rol)) {
+    // Al home del rol real, para evitar loops admin/familia.
+    redirect(rol in HOME_BY_ROLE ? HOME_BY_ROLE[rol] : "/dashboard");
   }
   return session;
 }

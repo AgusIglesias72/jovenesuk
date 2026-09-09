@@ -1,6 +1,6 @@
 import { requireFamilia } from "@/lib/auth/helpers";
 
-export const metadata = { title: "Mi viaje · JUK" };
+export const metadata = { title: "Mi viaje" };
 
 export default async function FamiliasLayout({
   children,

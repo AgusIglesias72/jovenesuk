@@ -11,6 +11,7 @@ import { asegurarCuentaFamilia } from "@/lib/db/queries/familias";
 import { getViajeByCodigo } from "@/lib/db/queries/viajes";
 import type { Alumno } from "@/lib/db/schema/alumnos";
 import { ViajeNoInscribibleError } from "@/lib/domain/asignaciones";
+import { LARGO_MINIMO_SECRETO, coincideSecreto, secretoUsable } from "@/lib/domain/webhooks/secreto";
 
 /**
  * Webhook del Application Form JUK (Google Form) — US-15.
@@ -19,7 +20,8 @@ import { ViajeNoInscribibleError } from "@/lib/domain/asignaciones";
  * y, si el form trae `codigoViaje` (cada salida de colegio cliente tiene su
  * propio link), lo asigna automáticamente al viaje generando el tablero M6.
  *
- * Auth: header `x-webhook-secret` debe coincidir con GOOGLE_FORM_WEBHOOK_SECRET.
+ * Auth: header `x-webhook-secret` debe coincidir con GOOGLE_FORM_WEBHOOK_SECRET
+ * (comparación de tiempo constante; el secreto necesita 32+ caracteres).
  * Idempotencia: si ya existe un alumno con el mismo DNI, responde 200 con
  * `duplicado: true` y no crea nada.
  */
@@ -48,9 +50,23 @@ const payloadSchema = z.object({
   codigoViaje: z.string().trim().max(60).optional(),
 });
 
+// El aviso de secreto mal configurado se loguea una vez por instancia: sin
+// esto, un form con reintentos llena los logs con la misma línea.
+let secretoInvalidoLogueado = false;
+
 export async function POST(request: NextRequest) {
   const secret = process.env.GOOGLE_FORM_WEBHOOK_SECRET;
-  if (!secret || request.headers.get("x-webhook-secret") !== secret) {
+  if (!secretoUsable(secret)) {
+    if (!secretoInvalidoLogueado) {
+      secretoInvalidoLogueado = true;
+      console.error(
+        `[webhook/google-form] GOOGLE_FORM_WEBHOOK_SECRET ausente o de menos de ${LARGO_MINIMO_SECRETO} caracteres; se rechazan todos los envíos.`
+      );
+    }
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  if (!coincideSecreto(request.headers.get("x-webhook-secret"), secret)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 

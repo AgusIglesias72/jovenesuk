@@ -1,7 +1,41 @@
 import { expect, type Page } from "@playwright/test";
 
 /* Utilidades compartidas por los specs E2E. Generan datos únicos para no
-   colisionar entre corridas (la suite no tiene teardown). */
+   colisionar entre corridas; el teardown global (global.teardown.ts) borra lo
+   que matchea los patrones de cleanup.ts.
+
+   VARIABLES DE ENTORNO QUE USAN LOS E2E (todas desde .env.local, que
+   playwright.config.ts carga al proceso de Playwright):
+
+     DATABASE_URL          obligatoria — la usan cleanup.ts, auth.setup.ts y
+                           los specs que verifican persistencia (leads).
+     E2E_DATABASE_URL      opcional — si está, pisa DATABASE_URL (branch Neon
+                           dedicada). Solo aplica al server que levanta
+                           Playwright; con PW_PORT apuntando a un server ya
+                           corriendo, manda la DATABASE_URL de ese server.
+     SEED_TEST_PASSWORD    obligatoria — password de las cuentas test.* del
+                           seed demo (npm run db:seed:demo).
+     E2E_EMAIL             opcional — cuenta admin del setup de auth
+                           (default: test.superadmin@jovenesenuk.com).
+     E2E_PASSWORD          opcional — pisa SEED_TEST_PASSWORD para esa cuenta.
+     SEED_FAMILIA_PASSWORD opcional — password de las cuentas de familia demo
+                           (default: SEED_TEST_PASSWORD).
+     E2E_FAMILIA_EMAIL     opcional — cuenta de familia del portal
+                           (default: tutor@demo.jovenesenuk.com).
+     E2E_FAMILIA_PASSWORD  opcional — pisa SEED_FAMILIA_PASSWORD.
+     E2E_COLEGIO           opcional — nombre del colegio destino base
+                           (default: el de COLEGIO_E2E, que crea auth.setup.ts).
+     PW_PORT               opcional — puerto del server bajo prueba (default 3001).
+
+   Precondición: `npm run db:seed:demo` corrido al menos una vez sobre la DB
+   apuntada (cuentas test.*, familias demo y dataset [DEMO]). */
+
+/**
+ * Colegio destino neutro contra el que se crean los viajes de la suite.
+ * `auth.setup.ts` lo garantiza de forma idempotente y el teardown NO lo borra:
+ * es infraestructura de los tests, no un dato generado por ellos.
+ */
+export const COLEGIO_E2E = process.env.E2E_COLEGIO ?? "Colegio E2E Base";
 
 function rand(n = 1e9): number {
   return Math.floor(Math.random() * n);
@@ -28,7 +62,7 @@ export async function crearViaje(
   await page.getByLabel("Fecha de fin").fill(opts?.fechaFin ?? "2027-02-20");
   await page
     .getByLabel("Colegio destino")
-    .selectOption({ label: opts?.colegio ?? "London School of English" });
+    .selectOption({ label: opts?.colegio ?? COLEGIO_E2E });
   await page.getByLabel("Curso").fill("General English");
   await page.getByRole("button", { name: "Guardar" }).click();
 

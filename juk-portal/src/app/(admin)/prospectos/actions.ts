@@ -358,8 +358,10 @@ export async function subirImagenAction(
   if (!(file instanceof File)) {
     return { ok: false, error: "No se recibió ninguna imagen." };
   }
-  if (!file.type.startsWith("image/")) {
-    return { ok: false, error: "El archivo debe ser una imagen." };
+  // La allowlist coincide con la que valida el storage por magic bytes: si acá
+  // pasara un GIF o un SVG, moriría más abajo con un error mucho menos claro.
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+    return { ok: false, error: "La imagen tiene que ser JPG, PNG o WEBP." };
   }
   if (file.size > MAX_IMAGEN_BYTES) {
     return { ok: false, error: "La imagen no puede superar los 5 MB." };

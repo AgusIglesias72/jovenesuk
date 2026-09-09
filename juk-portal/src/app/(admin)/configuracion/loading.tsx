@@ -1,5 +1,5 @@
-import { FormPageSkeleton } from "@/components/ui";
+import { ConfigSkeleton } from "@/components/ui";
 
 export default function Loading() {
-  return <FormPageSkeleton fields={6} />;
+  return <ConfigSkeleton />;
 }

@@ -192,7 +192,7 @@ export async function updateViajeAction(
 export async function cancelarViajeAction(
   id: string,
   opts?: { notificarInscriptos?: boolean }
-): Promise<ActionResult<Viaje & { notificados?: number }>> {
+): Promise<ActionResult<Viaje>> {
   const session = await requireAdminJuk();
 
   const parsedId = z.string().uuid().safeParse(id);
@@ -210,41 +210,27 @@ export async function cancelarViajeAction(
       metadata: { estado: "cancelado", notificarInscriptos: opts?.notificarInscriptos ?? false },
     });
 
-    // US-13: ofrecer notificar a los inscriptos al cancelar (best-effort).
-    let notificados = 0;
+    // US-13: los N emails a las familias van a un job (src/trigger/viajes.ts).
+    // Encolarlos acá y no enviarlos en la action evita el timeout con un grupo
+    // completo y los hace reintentables; si Trigger no está configurado, la
+    // cancelación igual queda hecha.
     if (opts?.notificarInscriptos) {
-      const { listAsignacionesByViaje } = await import("@/lib/db/queries/asignaciones");
-      const { getAlumnoById } = await import("@/lib/db/queries/alumnos");
-      const { sendEmail } = await import("@/lib/email");
-      const { ViajeCanceladoEmail } = await import("@/lib/email/templates/viaje-cancelado-email");
-      const roster = (await listAsignacionesByViaje(parsedId.data)).filter(
-        (a) => a.estado === "activa"
-      );
-      for (const a of roster) {
-        try {
-          const alumno = await getAlumnoById(a.alumno.id);
-          if (!alumno) continue;
-          await sendEmail({
-            to: alumno.tutor1Email,
-            tipo: "comunicacion",
-            subject: `Cancelación del viaje ${viaje.codigo}`,
-            react: ViajeCanceladoEmail({
-              tutorNombre: alumno.tutor1Nombre,
-              alumnoNombre: `${alumno.nombre} ${alumno.apellido}`,
-              viajeNombre: viaje.nombre,
-              viajeCodigo: viaje.codigo,
-            }),
-          });
-          notificados += 1;
-        } catch (err) {
-          Sentry.captureException(err);
-        }
+      try {
+        const { tasks } = await import("@trigger.dev/sdk/v3");
+        const { notificarCancelacionViaje } = await import("@/trigger/viajes");
+        await tasks.trigger<typeof notificarCancelacionViaje>("notificar-cancelacion-viaje", {
+          viajeId: parsedId.data,
+        });
+      } catch (err) {
+        console.error("[viajes] no se pudo encolar el aviso de cancelación", err);
+        Sentry.captureException(err);
       }
     }
 
     revalidatePath("/viajes");
+    revalidatePath("/viajes/[id]", "page");
     revalidatePath("/viajes/[id]/editar", "page");
-    return { ok: true, data: { ...viaje, notificados } };
+    return { ok: true, data: viaje };
   } catch (err) {
     if (err instanceof ViajeNotFoundError) {
       return { ok: false, error: "El viaje no existe." };

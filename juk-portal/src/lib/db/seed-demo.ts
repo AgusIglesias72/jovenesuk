@@ -7,6 +7,11 @@
  *      test.admin@jovenesenuk.com       → admin_juk
  *    Password: env SEED_TEST_PASSWORD (obligatoria, sin default en el código).
  *    Si la cuenta ya existe el seed NO cambia su contraseña.
+ *  - 2 cuentas del Portal de Familias, cada una con SU alumno (ownership real):
+ *      tutor@demo.jovenesenuk.com   → Lola (DEMO-1)
+ *      tutor2@demo.jovenesenuk.com  → Benja (DEMO-2)
+ *    Password: SEED_FAMILIA_PASSWORD ?? SEED_TEST_PASSWORD (se re-fija en cada
+ *    corrida, porque el alumno vinculado se re-crea).
  *  - Dataset demo que cubre todas las ramas del negocio: 4 colegios (configs
  *    documentales distintas, tipos de entrada eta/visa/ninguna), 3 GLs (police
  *    checks en 3 estados), 4 viajes (grupal/individual × 4 orígenes × estados),
@@ -29,6 +34,7 @@ import { asignaciones } from "@/lib/db/schema/asignaciones";
 import { pasosAlumno } from "@/lib/db/schema/pasos-alumno";
 import { crearPasosParaAsignacion } from "@/lib/db/queries/pasos-alumno";
 import { getConfigDocumental, upsertConfigDocumental } from "@/lib/db/queries/colegios";
+import { asegurarCuentaFamilia } from "@/lib/db/queries/familias";
 import {
   crearPlanCuotas,
   registrarPagoCuota,
@@ -46,11 +52,16 @@ function envRequerida(nombre: string): string {
 }
 
 const TEST_PASSWORD = envRequerida("SEED_TEST_PASSWORD");
+const FAMILIA_PASSWORD = process.env.SEED_FAMILIA_PASSWORD ?? TEST_PASSWORD;
 
 const CUENTAS_TEST = [
   { email: "test.superadmin@jovenesenuk.com", name: "Test Súper", role: "super_admin" as const },
   { email: "test.admin@jovenesenuk.com", name: "Test Admin", role: "admin_juk" as const },
 ];
+
+/** Familias demo: emails DISTINTOS = grupos familiares distintos (ownership). */
+const FAMILIA_1 = { email: "tutor@demo.jovenesenuk.com", nombre: "Tutor Demo Uno" };
+const FAMILIA_2 = { email: "tutor2@demo.jovenesenuk.com", nombre: "Tutor Demo Dos" };
 
 const d = (iso: string) => new Date(iso);
 
@@ -78,8 +89,10 @@ async function seedCuentasTest(): Promise<string | null> {
 }
 
 async function wipeDemo() {
-  // asignaciones.viaje_id NO tiene cascade: van primero (cuotas y pasos_alumno
-  // sí cascadean desde asignaciones; gl_viaje y pasos_viaje desde viajes).
+  // asignaciones no cascadea ni desde viajes ni desde alumnos: van primero
+  // (cuotas y pasos_alumno sí cascadean desde asignaciones; gl_viaje y
+  // pasos_viaje desde viajes). Hay que mirar las dos puntas: un alumno demo
+  // puede estar asignado a un viaje que no es demo (y al revés).
   const viajesDemo = await db
     .select({ id: viajes.id })
     .from(viajes)
@@ -89,9 +102,37 @@ async function wipeDemo() {
       inArray(asignaciones.viajeId, viajesDemo.map((v) => v.id))
     );
   }
+  const alumnosDemo = await db
+    .select({ id: alumnos.id })
+    .from(alumnos)
+    .where(like(alumnos.dni, "DEMO-%"));
+  if (alumnosDemo.length > 0) {
+    await db.delete(asignaciones).where(
+      inArray(asignaciones.alumnoId, alumnosDemo.map((a) => a.id))
+    );
+  }
   await db.delete(viajes).where(like(viajes.nombre, "%[DEMO]%"));
   await db.delete(alumnos).where(like(alumnos.dni, "DEMO-%"));
-  await db.delete(colegios).where(like(colegios.nombre, "%[DEMO]%"));
+
+  // Un colegio [DEMO] puede haber quedado enganchado a un viaje real que
+  // alguien creó a mano: en ese caso se conserva (borrarlo rompería el viaje).
+  const colegiosDemo = await db
+    .select({ id: colegios.id, nombre: colegios.nombre })
+    .from(colegios)
+    .where(like(colegios.nombre, "%[DEMO]%"));
+  for (const colegio of colegiosDemo) {
+    const enUso = await db
+      .select({ codigo: viajes.codigo })
+      .from(viajes)
+      .where(eq(viajes.colegioDestinoId, colegio.id))
+      .limit(1);
+    if (enUso[0]) {
+      console.log(`⏭️  ${colegio.nombre} se conserva: lo usa el viaje ${enUso[0].codigo}`);
+      continue;
+    }
+    await db.delete(colegios).where(eq(colegios.id, colegio.id));
+  }
+
   await db.delete(groupLeaders).where(like(groupLeaders.email, "%@demo.jovenesenuk.com"));
   console.log("🧹 Datos [DEMO] anteriores eliminados");
 }
@@ -213,27 +254,38 @@ async function main() {
   console.log("✅ 4 viajes (independiente UK · instituto IRL · colegio cliente · individual JUK directo)");
 
   // ── Alumnos (edades y pasaportes variados) ────────────────────────
-  const tutor = { tutor1Nombre: "Tutor Demo", tutor1Celular: "+54 9 11 0000-0000", tutor1Email: "tutor@demo.jovenesenuk.com" };
+  // Cada alumno con SU email de tutor: un email compartido sería un solo grupo
+  // familiar y el portal mostraría varios alumnos en la misma cuenta.
+  const tutor = (email: string, nombre = "Tutor Demo") => ({
+    tutor1Nombre: nombre,
+    tutor1Celular: "+54 9 11 0000-0000",
+    tutor1Email: email,
+  });
   const als = await db.insert(alumnos).values([
     // 15 al inicio de sep-2026 → A3 versión <16, D1 activo
     { nombre: "Lola", apellido: "Demo Quince", fechaNacimiento: d("2011-03-15"), dni: "DEMO-1",
-      numeroPasaporte: "AAD111111", fechaVencimientoPasaporte: d("2032-01-01"), estado: "inscripto", ...tutor },
+      numeroPasaporte: "AAD111111", fechaVencimientoPasaporte: d("2032-01-01"), estado: "inscripto",
+      ...tutor(FAMILIA_1.email, FAMILIA_1.nombre) },
     // 16 → A3 versión 16-17; pasaporte en ALERTA conservadora (vence dic-2026)
     { nombre: "Benja", apellido: "Demo Dieciséis", fechaNacimiento: d("2010-05-20"), dni: "DEMO-2",
-      numeroPasaporte: "AAD222222", fechaVencimientoPasaporte: d("2026-12-15"), estado: "inscripto", ...tutor },
+      numeroPasaporte: "AAD222222", fechaVencimientoPasaporte: d("2026-12-15"), estado: "inscripto",
+      ...tutor(FAMILIA_2.email, FAMILIA_2.nombre) },
     // 17 → viaje Dublín (instituto, sin ETA)
     { nombre: "Mora", apellido: "Demo Diecisiete", fechaNacimiento: d("2008-11-02"), dni: "DEMO-3",
-      numeroPasaporte: "AAD333333", fechaVencimientoPasaporte: d("2031-06-30"), estado: "inscripto", ...tutor },
+      numeroPasaporte: "AAD333333", fechaVencimientoPasaporte: d("2031-06-30"), estado: "inscripto",
+      ...tutor("tutor3@demo.jovenesenuk.com") },
     // 19 → individual Toronto: A3/D1 N/A por edad, D2 N/A por individual, C1 N/A por visa
     { nombre: "Tomi", apellido: "Demo Adulto", fechaNacimiento: d("2007-01-08"), dni: "DEMO-4",
       numeroPasaporte: "AAD444444", fechaVencimientoPasaporte: d("2033-09-01"), estado: "inscripto",
-      emailAlumno: "tomi@demo.jovenesenuk.com", ...tutor },
+      emailAlumno: "tomi@demo.jovenesenuk.com", ...tutor("tutor4@demo.jovenesenuk.com") },
     // Sin asignar, elegible
     { nombre: "Cata", apellido: "Demo Elegible", fechaNacimiento: d("2009-07-22"), dni: "DEMO-5",
-      numeroPasaporte: "AAD555555", fechaVencimientoPasaporte: d("2030-03-03"), estado: "pre_inscripto", ...tutor },
+      numeroPasaporte: "AAD555555", fechaVencimientoPasaporte: d("2030-03-03"), estado: "pre_inscripto",
+      ...tutor("tutor5@demo.jovenesenuk.com") },
     // Pasaporte que vence ANTES del fin de Wimbledon → dispara la advertencia al asignar
     { nombre: "Juan", apellido: "Demo Pasaporte", fechaNacimiento: d("2010-09-09"), dni: "DEMO-6",
-      numeroPasaporte: "AAD666666", fechaVencimientoPasaporte: d("2026-09-10"), estado: "pre_inscripto", ...tutor },
+      numeroPasaporte: "AAD666666", fechaVencimientoPasaporte: d("2026-09-10"), estado: "pre_inscripto",
+      ...tutor("tutor6@demo.jovenesenuk.com") },
   ]).returning();
   console.log("✅ 6 alumnos (edades 15-19, pasaportes ok / en alerta / corto)");
 
@@ -254,6 +306,36 @@ async function main() {
   };
 
   const [lola, benja, mora, tomi] = als;
+
+  // ── Cuentas del Portal de Familias ────────────────────────────────
+  // Dos familias distintas para poder probar ownership de verdad: la cuenta de
+  // Lola pidiendo el DNI de Benja tiene que dar 404, no "no existe".
+  const authCtx = await auth.$context;
+  for (const [alumno, familia] of [
+    [lola!, FAMILIA_1],
+    [benja!, FAMILIA_2],
+  ] as const) {
+    const resultado = await asegurarCuentaFamilia(alumno.id, familia.email, familia.nombre, {
+      confirmarVinculo: true,
+    });
+    if (resultado.estado !== "vinculada") {
+      throw new Error(
+        `No se pudo vincular la cuenta de familia ${familia.email} (${resultado.estado})`
+      );
+    }
+    const familiaUserId = resultado.userId;
+    await authCtx.internalAdapter.updatePassword(
+      familiaUserId,
+      await authCtx.password.hash(FAMILIA_PASSWORD)
+    );
+    // Una corrida anterior pudo haberla desactivado al dar de baja al alumno.
+    await db
+      .update(users)
+      .set({ isActive: true, emailVerified: true, updatedAt: new Date() })
+      .where(eq(users.id, familiaUserId));
+    console.log(`✅ Cuenta familia: ${familia.email} → ${alumno.nombre} (${alumno.dni})`);
+  }
+
   const asigLola = await asignar(lola!, vWimbledon!);
   await asignar(benja!, vWimbledon!);
   await asignar(mora!, vDublin!);
@@ -303,6 +385,9 @@ async function main() {
   console.log("CUENTAS DE TEST (contraseña fija — solo dev)");
   console.log("=".repeat(62));
   for (const c of CUENTAS_TEST) console.log(`  ${c.email}  ·  ${TEST_PASSWORD}  (${c.role})`);
+  for (const f of [FAMILIA_1, FAMILIA_2]) {
+    console.log(`  ${f.email}  ·  ${FAMILIA_PASSWORD}  (familia)`);
+  }
   console.log("=".repeat(62));
   console.log(`
 Qué validar con el dataset:
@@ -313,6 +398,8 @@ Qué validar con el dataset:
   · NEA Londres: B2 = N/A (colegio cliente, todo vía agencia).
   · Individual Toronto: capacidad 1, D2/C1/B2/A3/D1 en N/A, badge Individual.
   · Cata Demo Elegible queda libre para probar el flujo de asignación.
+  · Portal de Familias: tutor@demo ve SOLO a Lola (DEMO-1) y tutor2@demo SOLO
+    a Benja (DEMO-2) → /familias/DEMO-2 con la cuenta de Lola debe dar 404.
 `);
   process.exit(0);
 }

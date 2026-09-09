@@ -1,4 +1,10 @@
+import { eq } from "drizzle-orm";
 import { test as setup, expect } from "@playwright/test";
+
+import { db } from "../../src/lib/db";
+import { colegios } from "../../src/lib/db/schema";
+
+import { COLEGIO_E2E } from "./helpers";
 
 const authFile = "tests/e2e/.auth/admin.json";
 
@@ -20,4 +26,32 @@ setup("autenticar como admin", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Dashboard", level: 1 })).toBeVisible();
 
   await page.context().storageState({ path: authFile });
+});
+
+/**
+ * Colegio destino base contra el que `crearViaje` arma los viajes de la suite.
+ * Idempotente por nombre (no hay unique en colegios.nombre, así que un
+ * onConflict no sirve) y sin config documental: los specs de documentos/pasos
+ * asumen los defaults del dominio. El teardown lo preserva a propósito.
+ */
+setup("garantizar el colegio base de los E2E", async () => {
+  const existente = await db
+    .select({ id: colegios.id })
+    .from(colegios)
+    .where(eq(colegios.nombre, COLEGIO_E2E))
+    .limit(1);
+  if (existente.length > 0) return;
+
+  const contacto = { nombre: "E2E Contacto", email: "colegio-base@e2e.example.com" };
+  await db.insert(colegios).values({
+    nombre: COLEGIO_E2E,
+    tipo: "destino",
+    pais: "reino_unido",
+    ciudad: "Londres",
+    contactoAcademico: contacto,
+    contactoAdministrativo: contacto,
+    cursosDisponibles: ["General English"],
+    tiposAlojamiento: ["familia_anfitriona"],
+    tipoEntradaRequerida: "eta",
+  });
 });

@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Branding panel shown on the left of auth pages.
  * Pure decoration — communicates the JUK identity on the entry surfaces.
@@ -5,15 +7,42 @@
  * STUDIO direction: deep-teal brand gradient with warm blurred blobs,
  * peach logo chip, display headline with an accented <em>.
  *
+ * El copy es NEUTRO por defecto: por /login entran tanto el equipo como las
+ * familias, y para un padre "Portal Interno" leía como "esto no es para vos".
+ * Con `?portal=familias` (el link que sale en el mail de acceso) el panel habla
+ * en su idioma. Es client component solo por eso: los layouts no reciben
+ * searchParams, así que la audiencia se lee de la URL.
+ *
  * Fondo opcional: si `FONDO_LOGIN` apunta a una imagen, se muestra detrás del
  * gradiente (con un velo de marca encima para que el logo y el texto sigan
  * legibles). Con `null`, queda sólo el gradiente. Cambiá la constante para
  * validar distintas fotos / volver al gradiente.
  */
 
+import { useSearchParams } from "next/navigation";
+
 const FONDO_LOGIN: string | null = "/landing/trips/london-bigben.jpg";
 
-export function JukBrandPanel() {
+export type AudienciaAuth = "equipo" | "familias";
+
+const COPY: Record<AudienciaAuth, { kicker: string; bajada: string }> = {
+  equipo: {
+    kicker: "Portal",
+    bajada:
+      "Alumnos, viajes y el seguimiento de cada paso — del primer formulario al regreso a casa.",
+  },
+  familias: {
+    kicker: "Portal de Familias",
+    bajada:
+      "Documentación, cuotas y novedades del viaje — del primer formulario al regreso a casa.",
+  },
+};
+
+export function JukBrandPanel({ audiencia }: { audiencia?: AudienciaAuth }) {
+  const searchParams = useSearchParams();
+  const resuelta: AudienciaAuth =
+    audiencia ?? (searchParams.get("portal") === "familias" ? "familias" : "equipo");
+  const copy = COPY[resuelta];
   const conImagen = FONDO_LOGIN !== null;
 
   return (
@@ -68,7 +97,7 @@ export function JukBrandPanel() {
         <div className="leading-tight">
           <p className="font-display font-bold">Jóvenes en UK</p>
           <p className="text-[length:var(--t-small)] text-[var(--c-ink-onbrand-muted)]">
-            Portal Interno
+            {copy.kicker}
           </p>
         </div>
       </div>
@@ -81,8 +110,7 @@ export function JukBrandPanel() {
           salga bien, en un solo lugar.
         </p>
         <p className="mt-4 max-w-sm leading-[var(--lh-body)] text-[var(--c-ink-onbrand-muted)]">
-          Alumnos, viajes, group leaders y el seguimiento de cada paso — del
-          primer formulario al regreso a casa.
+          {copy.bajada}
         </p>
       </div>
 

@@ -31,27 +31,27 @@ test("plan de cuotas end-to-end: pagos completan B1, desbloquean C2 y B2 cierra 
   await panel.getByRole("button", { name: "Crear plan de cuotas" }).click();
 
   // El plan aparece con total y última cuota presencial (B2)
-  await expect(panel.getByText("US$ 1.000,00")).toBeVisible({ timeout: 15000 });
-  await expect(panel.getByText("Presencial JUK")).toBeVisible({ timeout: 15000 });
+  await expect(panel.getByText("US$ 1.000,00")).toBeVisible();
+  await expect(panel.getByText("Presencial JUK")).toBeVisible();
 
   // Pagar la cuota 1 (vía agencia) → B1 en progreso
   await panel.getByRole("button", { name: "Registrar pago" }).first().click();
   const b1 = page.locator('[data-paso="b1"]');
-  await expect(b1.locator("span").filter({ hasText: "En progreso" }).first()).toBeVisible({ timeout: 15000 });
-  await expect(b1.getByText("1 de 2 cuotas acreditadas")).toBeVisible({ timeout: 15000 });
+  await expect(b1.locator("span").filter({ hasText: "En progreso" }).first()).toBeVisible();
+  await expect(b1.getByText("1 de 2 cuotas acreditadas")).toBeVisible();
 
   // C2 sigue bloqueado hasta completar B1
   const c2 = page.locator('[data-paso="c2"]');
-  await expect(c2.locator("span").filter({ hasText: "Bloqueado" }).first()).toBeVisible({ timeout: 15000 });
+  await expect(c2.locator("span").filter({ hasText: "Bloqueado" }).first()).toBeVisible();
 
   // Confirmar B2 (última cuota presencial) → B1 completado, C2 desbloqueado, B2 completado
   await panel.getByRole("button", { name: "Confirmar pago presencial" }).click();
   await confirmarModal(page, "Sí, confirmar pago");
-  await expect(b1.locator("span").filter({ hasText: "Completado" }).first()).toBeVisible({ timeout: 15000 });
-  await expect(c2.locator("span").filter({ hasText: "Pendiente" }).first()).toBeVisible({ timeout: 15000 });
+  await expect(b1.locator("span").filter({ hasText: "Completado" }).first()).toBeVisible();
+  await expect(c2.locator("span").filter({ hasText: "Pendiente" }).first()).toBeVisible();
   const b2 = page.locator('[data-paso="b2"]');
-  await expect(b2.locator("span").filter({ hasText: "Completado" }).first()).toBeVisible({ timeout: 15000 });
+  await expect(b2.locator("span").filter({ hasText: "Completado" }).first()).toBeVisible();
 
   // El resumen quedó saldado
-  await expect(panel.getByText("Plan saldado")).toBeVisible({ timeout: 15000 });
+  await expect(panel.getByText("Plan saldado")).toBeVisible();
 });

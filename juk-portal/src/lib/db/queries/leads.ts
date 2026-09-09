@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, or, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, ne, or, type SQL } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -22,6 +22,34 @@ export async function suscribir(email: string, origen = "hero"): Promise<void> {
 export async function crearConsulta(data: NewConsulta): Promise<Consulta> {
   const rows = await db.insert(consultas).values(data).returning();
   return unicaFila(rows, "consultas");
+}
+
+/**
+ * Fecha de la consulta anterior del mismo email por el mismo interés dentro de
+ * la ventana (excluyendo la recién creada). Alimenta el dedup del AVISO al
+ * equipo: el lead se persiste siempre, la notificación no se repite.
+ */
+export async function fechaConsultaPreviaSimilar(opts: {
+  email: string;
+  modalidad: Consulta["modalidad"];
+  desde: Date;
+  excluirId: string;
+}): Promise<Date | null> {
+  const rows = await db
+    .select({ creadoEl: consultas.creadoEl })
+    .from(consultas)
+    .where(
+      and(
+        eq(consultas.email, opts.email),
+        eq(consultas.modalidad, opts.modalidad),
+        gte(consultas.creadoEl, opts.desde),
+        ne(consultas.id, opts.excluirId)
+      )
+    )
+    .orderBy(desc(consultas.creadoEl))
+    .limit(1);
+
+  return rows[0]?.creadoEl ?? null;
 }
 
 export async function getConsultaById(id: string): Promise<Consulta | null> {

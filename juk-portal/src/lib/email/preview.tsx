@@ -1,5 +1,3 @@
-import { render } from "@react-email/render";
-
 import { OutreachColegioEmail } from "./templates/outreach-colegio";
 import { PasswordChangedEmail } from "./templates/password-changed-email";
 import { RecordatorioEmail } from "./templates/recordatorio-email";
@@ -9,7 +7,7 @@ import { WelcomeEmail } from "./templates/welcome-email";
 
 /**
  * Construcción de los templates de email con datos de EJEMPLO, compartida entre
- * el envío de prueba (Configuración / Tests) y la previsualización del Portal.
+ * el envío de prueba y la previsualización de /configuracion.
  * `now` se inyecta para no usar Date.now() en contextos que lo prohíben.
  */
 export function construirTemplatePrueba(
@@ -82,17 +80,12 @@ export function construirTemplatePrueba(
           <WelcomeEmail
             name="Nombre de Ejemplo"
             email={destinatario}
-            temporaryPassword="Temporal123!"
+            audiencia="equipo"
+            crearPasswordUrl={`${appUrl}/reset-password?token=ejemplo`}
             loginUrl={`${appUrl}/login`}
             invitedByName="María"
           />
         ),
       };
   }
-}
-
-/** Renderiza el template a HTML para previsualizarlo en un iframe. */
-export async function renderTemplatePruebaHTML(key: string, destinatario: string): Promise<string> {
-  const { react } = construirTemplatePrueba(key, destinatario);
-  return render(react);
 }

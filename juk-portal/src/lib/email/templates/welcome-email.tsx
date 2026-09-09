@@ -8,57 +8,71 @@ import {
 } from "./_layout";
 
 /**
- * WelcomeEmail — sent when a super_admin creates a new admin user.
+ * WelcomeEmail — invitación al portal, sin contraseñas.
  *
- * Used in: PRD §1.2 US-03
+ * Used in: PRD §1.2 US-03 (equipo) y US-19b (familias).
  *
- * The new user receives a temporary password they MUST change on first
- * login, and a link that pre-fills their email.
+ * El mail nunca lleva credenciales: trae el link de creación de contraseña
+ * (token de Better-Auth, 24 h) y el link de login que precarga el email.
  */
+
+type Audiencia = "equipo" | "familia";
 
 interface WelcomeEmailProps {
   name: string;
   email: string;
-  temporaryPassword: string;
+  audiencia: Audiencia;
+  crearPasswordUrl: string;
   loginUrl: string;
-  invitedByName: string;
+  invitedByName?: string;
 }
 
 export function WelcomeEmail({
   name,
   email,
-  temporaryPassword,
+  audiencia,
+  crearPasswordUrl,
   loginUrl,
   invitedByName,
 }: WelcomeEmailProps) {
+  const esFamilia = audiencia === "familia";
+  const portal = esFamilia ? "Portal de Familias" : "Portal de Gestión Interno";
+
   return (
-    <EmailLayout preview={`Acceso al Portal JUK — contraseña temporal adentro`}>
+    <EmailLayout preview={`Acceso al ${portal} de Jóvenes en UK`}>
       <EmailHeading>Hola {name},</EmailHeading>
 
-      <EmailParagraph>
-        {invitedByName} te dio acceso al Portal de Gestión Interno de Jóvenes en UK.
-        Vas a poder gestionar alumnos, viajes y trámites desde ahí.
-      </EmailParagraph>
+      {esFamilia ? (
+        <EmailParagraph>
+          Te damos acceso al Portal de Familias de Jóvenes en UK. Desde ahí vas a
+          poder seguir el viaje: la documentación que falta, el estado de cada
+          trámite y el plan de pagos, todo en un solo lugar.
+        </EmailParagraph>
+      ) : (
+        <EmailParagraph>
+          {invitedByName ? `${invitedByName} te dio` : "Te dieron"} acceso al Portal
+          de Gestión Interno de Jóvenes en UK. Vas a poder gestionar alumnos,
+          viajes y trámites desde ahí.
+        </EmailParagraph>
+      )}
 
       <EmailParagraph>
-        Estos son tus datos de acceso:
+        Tu usuario es <EmailMonoCode>{email}</EmailMonoCode>. Para entrar por
+        primera vez, creá tu contraseña:
       </EmailParagraph>
+
+      <EmailButton href={crearPasswordUrl}>Crear mi contraseña</EmailButton>
 
       <EmailCallout>
-        <strong>Email:</strong>{" "}<EmailMonoCode>{email}</EmailMonoCode>
-        <br />
-        <strong>Contraseña temporal:</strong>{" "}<EmailMonoCode>{temporaryPassword}</EmailMonoCode>
+        El link vence en <strong>24 horas</strong> y se usa una sola vez. Si se te
+        vence, pedí uno nuevo desde <EmailMonoCode>{loginUrl}</EmailMonoCode> con
+        la opción &ldquo;Olvidé mi contraseña&rdquo;.
       </EmailCallout>
 
       <EmailParagraph>
-        Por seguridad, vas a tener que cambiar la contraseña en el primer inicio de sesión.
-      </EmailParagraph>
-
-      <EmailButton href={loginUrl}>Ingresar al portal</EmailButton>
-
-      <EmailParagraph>
-        Si no esperabas este acceso o no reconocés a {invitedByName}, ignorá este email.
-        Sin tu primer login, la cuenta queda inactiva.
+        {esFamilia
+          ? "Si no esperabas este email, escribinos respondiendo a este mensaje: puede que nos hayamos equivocado de dirección."
+          : "Si no esperabas este acceso, ignorá este email: sin crear la contraseña, nadie puede entrar con tu usuario."}
       </EmailParagraph>
     </EmailLayout>
   );
@@ -67,7 +81,8 @@ export function WelcomeEmail({
 WelcomeEmail.PreviewProps = {
   name: "Tomas Méndez",
   email: "tomas@jovenesenuk.com",
-  temporaryPassword: "Bienvenido-2026",
+  audiencia: "equipo",
+  crearPasswordUrl: "https://portal.jovenesenuk.com/reset-password?token=ejemplo",
   loginUrl: "https://portal.jovenesenuk.com/login?email=tomas%40jovenesenuk.com",
   invitedByName: "María",
 } satisfies WelcomeEmailProps;

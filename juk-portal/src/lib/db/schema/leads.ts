@@ -1,4 +1,4 @@
-import { pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { integer, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 import {
   CUANDO,
@@ -52,3 +52,21 @@ export const consultas = pgTable("consultas", {
 
 export type Consulta = typeof consultas.$inferSelect;
 export type NewConsulta = typeof consultas.$inferInsert;
+
+/**
+ * Ventanas de rate limit de los formularios públicos (sin captcha ni
+ * dependencias externas). La `key` codifica formulario + dimensión + valor
+ * ('lead:ip:203.0.113.7', 'newsletter:email:ana@example.com') y la fila se
+ * reinicia sola cuando la ventana vence — ver `src/lib/domain/anti-abuso.ts`.
+ *
+ * Tabla propia y no la `rate_limits` de Better-Auth: esa la administra la
+ * librería (formato y limpieza propios) y mezclar claves nuestras ahí ataría
+ * la captación de leads a un detalle interno de auth.
+ */
+export const formRateLimits = pgTable("form_rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull().default(0),
+  windowStart: timestamp("window_start").notNull().defaultNow(),
+});
+
+export type FormRateLimit = typeof formRateLimits.$inferSelect;

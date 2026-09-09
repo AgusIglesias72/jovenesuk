@@ -32,7 +32,7 @@ export const documentoCategoria = pgEnum("documento_categoria", [
 /**
  * Documento almacenado en R2.
  * `r2Key` es la key dentro del bucket (sin URL completa).
- * URLs públicas se construyen con R2_PUBLIC_URL + r2Key.
+ * Nunca hay URL pública: se sirven por /api/uploads/<r2Key> (proxy autenticado).
  */
 export const documentos = pgTable("documentos", {
   id: uuid("id").primaryKey().defaultRandom(),

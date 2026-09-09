@@ -26,7 +26,9 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   apellido: text("apellido"),
   image: text("image"),
-  role: userRole("role").notNull().default("admin_juk"),
+  // Default = menor privilegio. Todo alta de admin setea el rol explícito
+  // (seed.ts, finalizarAltaUsuario); si alguien inserta sin rol, no gana acceso.
+  role: userRole("role").notNull().default("familia"),
   // Área del admin dentro del equipo (CEO/Sales/Marketing/Operations). Libre
   // a propósito: el PRD lo llama sub_rol_admin pero no fija valores.
   subRolAdmin: text("sub_rol_admin"),

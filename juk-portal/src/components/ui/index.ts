@@ -55,4 +55,5 @@ export {
   FichaAlumnoSkeleton,
   ViajeDetalleSkeleton,
   DashboardSkeleton,
+  ConfigSkeleton,
 } from "./skeleton";

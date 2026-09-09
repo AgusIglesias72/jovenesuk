@@ -255,13 +255,6 @@ function SidebarBody({
               active={pathname.startsWith("/configuracion")}
               onNavigate={onNavigate}
             />
-            <SidebarItem
-              icon={<IconFlask />}
-              label="Tests"
-              href="/tests"
-              active={pathname.startsWith("/tests")}
-              onNavigate={onNavigate}
-            />
           </SidebarSection>
         )}
       </div>
@@ -421,7 +414,7 @@ function buildBreadcrumb(pathname: string): { label: string; href?: string }[] {
     consultas: "Consultas",
     usuarios: "Usuarios",
     configuracion: "Configuración",
-    tests: "Tests",
+    cuenta: "Mi cuenta",
   };
 
   return segments.map((seg, i) => {
@@ -524,14 +517,6 @@ function IconGear() {
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6}>
       <circle cx={8} cy={8} r={3} />
       <path d="M8 1v2M8 13v2M1 8h2M13 8h2" />
-    </svg>
-  );
-}
-function IconFlask() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6}>
-      <path d="M6 1.5h4M6.5 1.5v4L3 12a1.5 1.5 0 0 0 1.3 2.3h7.4A1.5 1.5 0 0 0 13 12L9.5 5.5v-4" />
-      <path d="M5 9.5h6" />
     </svg>
   );
 }

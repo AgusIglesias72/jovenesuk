@@ -94,8 +94,7 @@ describe("HOME_BY_ROLE", () => {
 });
 
 describe("PORTAL_PREFIXES vs src/app/(admin)", () => {
-  // /tests es un playground que se borra en la próxima ola; no es una ruta del portal.
-  const NO_REGISTRADAS = new Set(["tests"]);
+  const NO_REGISTRADAS = new Set<string>();
 
   it("cada segmento de (admin) está registrado (si agregás un módulo, sumalo a routes.ts)", () => {
     const adminDir = path.resolve(__dirname, "../app/(admin)");
