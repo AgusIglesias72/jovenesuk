@@ -1,4 +1,4 @@
-import { and, asc, count, eq, notInArray, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, notExists, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { groupLeaders, type GroupLeader } from "@/lib/db/schema/grupos-leaders";
@@ -6,21 +6,34 @@ import { groupLeadersViaje, type GroupLeaderViaje } from "@/lib/db/schema/pasos-
 
 import { unicaFila } from "./errors";
 
-// Group Leaders que todavía NO están asignados a este viaje.
-export async function groupLeadersElegibles(viajeId: string): Promise<GroupLeader[]> {
-  const yaAsignados = await db
-    .select({ groupLeaderId: groupLeadersViaje.groupLeaderId })
-    .from(groupLeadersViaje)
-    .where(eq(groupLeadersViaje.viajeId, viajeId));
-  const ids = yaAsignados.map((g) => g.groupLeaderId);
+/** Lo único que la UI necesita de un elegible: el label del select y el id. */
+export type GroupLeaderElegible = Pick<GroupLeader, "id" | "nombre" | "apellido">;
 
-  const conds: SQL[] = [];
-  if (ids.length) conds.push(notInArray(groupLeaders.id, ids));
-
+// Group Leaders que todavía NO están asignados a este viaje: un solo
+// round-trip (NOT EXISTS correlacionado) y solo las columnas del select.
+export async function groupLeadersElegibles(
+  viajeId: string
+): Promise<GroupLeaderElegible[]> {
   return db
-    .select()
+    .select({
+      id: groupLeaders.id,
+      nombre: groupLeaders.nombre,
+      apellido: groupLeaders.apellido,
+    })
     .from(groupLeaders)
-    .where(conds.length ? and(...conds) : undefined)
+    .where(
+      notExists(
+        db
+          .select({ x: sql`1` })
+          .from(groupLeadersViaje)
+          .where(
+            and(
+              eq(groupLeadersViaje.groupLeaderId, groupLeaders.id),
+              eq(groupLeadersViaje.viajeId, viajeId)
+            )
+          )
+      )
+    )
     .orderBy(asc(groupLeaders.apellido), asc(groupLeaders.nombre));
 }
 
@@ -63,27 +76,28 @@ export async function quitarGroupLeaderDeViaje(
 }
 
 // Marca un GL como principal del viaje y limpia el flag del resto: solo un
-// principal por viaje. El driver neon-http no soporta transacciones (ver
-// asignar-alumno.ts), así que lo hacemos en dos updates secuenciales: primero
-// limpiamos el flag de todos y después seteamos el elegido.
+// principal por viaje. neon-http no expone db.transaction(), pero db.batch()
+// manda los dos updates en UN request dentro de una transacción del servidor:
+// nunca queda el viaje sin principal ni con dos.
 export async function marcarPrincipal(
   viajeId: string,
   groupLeaderId: string
 ): Promise<GroupLeaderViaje | null> {
-  await db
-    .update(groupLeadersViaje)
-    .set({ esPrincipal: false })
-    .where(eq(groupLeadersViaje.viajeId, viajeId));
-
-  const rows = await db
-    .update(groupLeadersViaje)
-    .set({ esPrincipal: true })
-    .where(
-      and(
-        eq(groupLeadersViaje.viajeId, viajeId),
-        eq(groupLeadersViaje.groupLeaderId, groupLeaderId)
+  const [, elegido] = await db.batch([
+    db
+      .update(groupLeadersViaje)
+      .set({ esPrincipal: false })
+      .where(eq(groupLeadersViaje.viajeId, viajeId)),
+    db
+      .update(groupLeadersViaje)
+      .set({ esPrincipal: true })
+      .where(
+        and(
+          eq(groupLeadersViaje.viajeId, viajeId),
+          eq(groupLeadersViaje.groupLeaderId, groupLeaderId)
+        )
       )
-    )
-    .returning();
-  return rows[0] ?? null;
+      .returning(),
+  ]);
+  return elegido[0] ?? null;
 }

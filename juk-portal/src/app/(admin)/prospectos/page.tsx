@@ -1,10 +1,10 @@
 import Link from "next/link";
 
 import { LinkButton, PageHeader, Pagination } from "@/components/ui";
-import { listProspectos } from "@/lib/db/queries/prospectos";
+import { listProspectos, listProspectosKanban } from "@/lib/db/queries/prospectos";
 import { prospectoFiltersSchema } from "@/lib/domain/prospectos";
 import { cn } from "@/lib/utils/cn";
-import { paginar } from "@/lib/utils/paginate";
+import { pagina, type Paginado } from "@/lib/utils/paginate";
 
 import { ProspectosFilters } from "./prospectos-filters";
 import { ProspectosKanban } from "./prospectos-kanban";
@@ -33,9 +33,19 @@ export default async function ProspectosPage({
     page: str(sp.page),
   });
   const filters = parsed.success ? parsed.data : {};
+  const criterios = { q: filters.q, estado: filters.estado };
 
-  const todos = await listProspectos({ q: filters.q, estado: filters.estado });
-  const total = todos.length;
+  // El kanban necesita las 7 columnas enteras (se arrastra entre ellas), así
+  // que no pagina: trae el DTO liviano de la tarjeta. La tabla sí pagina en SQL.
+  const datos =
+    vista === "kanban"
+      ? ({ vista: "kanban", tarjetas: await listProspectosKanban(criterios) } as const)
+      : ({
+          vista: "tabla",
+          paginado: await listProspectos(criterios, pagina(str(sp.page))),
+        } as const);
+
+  const total = datos.vista === "kanban" ? datos.tarjetas.length : datos.paginado.total;
 
   const conVista = (v: Vista) => {
     const params = new URLSearchParams();
@@ -72,10 +82,10 @@ export default async function ProspectosPage({
         }
       />
 
-      {vista === "tabla" ? (
-        <TablaVista todos={todos} pageParam={str(sp.page)} />
+      {datos.vista === "tabla" ? (
+        <TablaVista paginado={datos.paginado} />
       ) : (
-        <ProspectosKanban prospectos={todos} />
+        <ProspectosKanban prospectos={datos.tarjetas} />
       )}
     </>
   );
@@ -107,13 +117,11 @@ function VistaTab({
 }
 
 function TablaVista({
-  todos,
-  pageParam,
+  paginado,
 }: {
-  todos: Awaited<ReturnType<typeof listProspectos>>;
-  pageParam: string | undefined;
+  paginado: Paginado<Awaited<ReturnType<typeof listProspectos>>["items"][number]>;
 }) {
-  const { items, total, page, pages } = paginar(todos, pageParam);
+  const { items, total, page, pages } = paginado;
   return (
     <>
       <div className="mb-4">

@@ -1,6 +1,7 @@
-import { listPasosByAsignacion } from "@/lib/db/queries/pasos-alumno";
+import { listPasosByAsignaciones } from "@/lib/db/queries/pasos-alumno";
 import { type PasoAlumno } from "@/lib/db/schema/pasos-alumno";
 import { PASO_CODIGOS, type PasoCodigo } from "@/lib/domain/pasos";
+import { agruparPor } from "@/lib/utils/agrupar";
 
 import { cargarAlumnoFamilia, asignacionesActivas } from "../_data";
 import { EstadoVacio, FamiliaPageHeader } from "../../_ui";
@@ -29,12 +30,12 @@ export default async function DocumentacionPage({ params }: { params: Promise<{ 
     );
   }
 
-  const viajes = await Promise.all(
-    activas.map(async (a) => ({
-      a,
-      pasos: ordenarPasos(await listPasosByAsignacion(a.asignacionId)),
-    }))
-  );
+  const todosLosPasos = await listPasosByAsignaciones(activas.map((a) => a.asignacionId));
+  const pasosPorAsignacion = agruparPor(todosLosPasos, (p) => p.asignacionId);
+  const viajes = activas.map((a) => ({
+    a,
+    pasos: ordenarPasos(pasosPorAsignacion.get(a.asignacionId) ?? []),
+  }));
 
   return (
     <div className="space-y-6">

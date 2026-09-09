@@ -41,7 +41,7 @@ const SALIDAS_DETALLE: SalidaDetalle[] = [
     titulo: "Salida grupal",
     intro:
       "La manera más elegida de hacer tu primer viaje de estudio: viajás con un grupo de juks de tu edad y con el equipo de JUK acompañándote desde el aeropuerto de Ezeiza hasta la vuelta.",
-    img: "/landing/salida-grupal.jpg",
+    img: "/landing/salida-grupal.webp",
     alt: "Estudiantes de JUK frente al Eastgate Clock, Chester",
     bullets: [
       "Dos salidas por año: febrero y julio, en las vacaciones",
@@ -57,7 +57,7 @@ const SALIDAS_DETALLE: SalidaDetalle[] = [
     titulo: "Salida grupal para colegios e institutos",
     intro:
       "Armamos el viaje de estudio de tu institución a medida: el grupo viaja con sus propios líderes y nosotros nos ocupamos de toda la logística, antes y durante la experiencia.",
-    img: "/landing/salida-institutos.jpg",
+    img: "/landing/salida-institutos.webp",
     alt: "Grupo de estudiantes de JUK en Notting Hill, Londres",
     bullets: [
       "Asesoramiento personalizado y planificación del itinerario",
@@ -72,7 +72,7 @@ const SALIDAS_DETALLE: SalidaDetalle[] = [
     titulo: "Salida individual",
     intro:
       "Para jóvenes, adultos y profesionales que quieren armar su experiencia a medida: vos elegís cuándo, cuánto tiempo y qué tipo de curso, y nosotros lo hacemos realidad.",
-    img: "/landing/salida-individual.jpg",
+    img: "/landing/salida-individual.webp",
     alt: "Alumna de JUK con su certificado en English in Chester",
     bullets: [
       "Salidas en cualquier momento del año",

@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, ilike, ne, or, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, ne, or, type SQL } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -8,6 +8,12 @@ import {
   type NewConsulta,
 } from "@/lib/db/schema/leads";
 import type { EstadoConsulta } from "@/lib/domain/leads";
+import {
+  paginarEnSql,
+  totalDe,
+  type Pagina,
+  type Paginado,
+} from "@/lib/utils/paginate";
 
 import { unicaFila } from "./errors";
 
@@ -62,9 +68,7 @@ export type ConsultaFilters = {
   estado?: EstadoConsulta;
 };
 
-export async function listConsultas(
-  filters: ConsultaFilters = {}
-): Promise<Consulta[]> {
+function condicionesConsultas(filters: ConsultaFilters): SQL | undefined {
   const conditions: SQL[] = [];
 
   if (filters.q) {
@@ -78,11 +82,27 @@ export async function listConsultas(
   }
   if (filters.estado) conditions.push(eq(consultas.estado, filters.estado));
 
-  return db
-    .select()
-    .from(consultas)
-    .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(desc(consultas.creadoEl));
+  return conditions.length ? and(...conditions) : undefined;
+}
+
+export async function listConsultas(
+  filters: ConsultaFilters,
+  pagina: Pagina
+): Promise<Paginado<Consulta>> {
+  const where = condicionesConsultas(filters);
+
+  return paginarEnSql(
+    pagina,
+    (limit, offset) =>
+      db
+        .select()
+        .from(consultas)
+        .where(where)
+        .orderBy(desc(consultas.creadoEl))
+        .limit(limit)
+        .offset(offset),
+    () => db.select({ n: count() }).from(consultas).where(where).then(totalDe)
+  );
 }
 
 export async function updateEstadoConsulta(

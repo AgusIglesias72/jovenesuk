@@ -1,4 +1,15 @@
-import { pgTable, text, timestamp, pgEnum, uuid, date, integer, json } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  pgEnum,
+  uuid,
+  date,
+  index,
+  integer,
+  json,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 export const alumnoEstado = pgEnum("alumno_estado", [
   "pre_inscripto",
@@ -25,62 +36,74 @@ export const condicionFiscal = pgEnum("condicion_fiscal", [
  * Datos cargados inicialmente vía webhook del Google Form (Application Form JUK).
  * Datos personales DEBEN coincidir exactamente con pasaporte (PRD §5.3).
  */
-export const alumnos = pgTable("alumnos", {
-  id: uuid("id").primaryKey().defaultRandom(),
+export const alumnos = pgTable(
+  "alumnos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
 
-  // Personales (como figuran en pasaporte)
-  nombre: text("nombre").notNull(),
-  apellido: text("apellido").notNull(),
-  fechaNacimiento: date("fecha_nacimiento", { mode: "date" }).notNull(),
-  dni: text("dni").notNull(),
-  numeroPasaporte: text("numero_pasaporte").notNull(),
-  fechaVencimientoPasaporte: date("fecha_vencimiento_pasaporte", { mode: "date" }).notNull(),
-  // US-18: los cambios de datos de pasaporte quedan marcados con fecha
-  // (impactan la verificación de la Immigration Letter).
-  pasaporteActualizadoAt: timestamp("pasaporte_actualizado_at"),
+    // Personales (como figuran en pasaporte)
+    nombre: text("nombre").notNull(),
+    apellido: text("apellido").notNull(),
+    fechaNacimiento: date("fecha_nacimiento", { mode: "date" }).notNull(),
+    dni: text("dni").notNull(),
+    numeroPasaporte: text("numero_pasaporte").notNull(),
+    fechaVencimientoPasaporte: date("fecha_vencimiento_pasaporte", { mode: "date" }).notNull(),
+    // US-18: los cambios de datos de pasaporte quedan marcados con fecha
+    // (impactan la verificación de la Immigration Letter).
+    pasaporteActualizadoAt: timestamp("pasaporte_actualizado_at"),
 
-  // Contacto del alumno
-  telefonoAlumno: text("telefono_alumno"),
-  emailAlumno: text("email_alumno"),
-  alergiasSalud: text("alergias_salud"),  // confidencial
+    // Contacto del alumno
+    telefonoAlumno: text("telefono_alumno"),
+    emailAlumno: text("email_alumno"),
+    alergiasSalud: text("alergias_salud"),  // confidencial
 
-  // Tutor 1 (siempre requerido)
-  tutor1Nombre: text("tutor1_nombre").notNull(),
-  tutor1Celular: text("tutor1_celular").notNull(),
-  tutor1Email: text("tutor1_email").notNull(),
+    // Tutor 1 (siempre requerido)
+    tutor1Nombre: text("tutor1_nombre").notNull(),
+    tutor1Celular: text("tutor1_celular").notNull(),
+    tutor1Email: text("tutor1_email").notNull(),
 
-  // Tutor 2 (opcional)
-  tutor2Nombre: text("tutor2_nombre"),
-  tutor2Celular: text("tutor2_celular"),
-  tutor2Email: text("tutor2_email"),
+    // Tutor 2 (opcional)
+    tutor2Nombre: text("tutor2_nombre"),
+    tutor2Celular: text("tutor2_celular"),
+    tutor2Email: text("tutor2_email"),
 
-  // Facturación (sólo visible para admins JUK — enforcement en lib/domain)
-  facturacion: json("facturacion").$type<DatosFacturacion | null>(),
+    // Facturación (sólo visible para admins JUK — enforcement en lib/domain)
+    facturacion: json("facturacion").$type<DatosFacturacion | null>(),
 
-  // Preferencias del programa (no se cambian por viaje, son del alumno)
-  preferenciasAlojamiento: text("preferencias_alojamiento"),
-  nivelInglesAutoevaluacion: text("nivel_ingles_autoevaluacion"),
+    // Preferencias del programa (no se cambian por viaje, son del alumno)
+    preferenciasAlojamiento: text("preferencias_alojamiento"),
+    nivelInglesAutoevaluacion: text("nivel_ingles_autoevaluacion"),
 
-  estado: alumnoEstado("estado").default("pre_inscripto").notNull(),
+    estado: alumnoEstado("estado").default("pre_inscripto").notNull(),
 
-  canalAlta: canalAlta("canal_alta").default("alta_manual").notNull(),
-  fechaAlta: timestamp("fecha_alta").defaultNow().notNull(),
-  procesadoPor: uuid("procesado_por"),  // FK lazy a users.id
+    canalAlta: canalAlta("canal_alta").default("alta_manual").notNull(),
+    fechaAlta: timestamp("fecha_alta").defaultNow().notNull(),
+    procesadoPor: uuid("procesado_por"),  // FK lazy a users.id
 
-  // Credenciales del Portal de Familias (US-19b): se generan al crear el
-  // alumno; el ENVÍO es acción manual del admin. 1 cuenta por grupo familiar
-  // (email del Tutor 1, MIN-07).
-  familiaUserId: uuid("familia_user_id"),
-  accesoFamiliaEnviadoAt: timestamp("acceso_familia_enviado_at"),
+    // Credenciales del Portal de Familias (US-19b): se generan al crear el
+    // alumno; el ENVÍO es acción manual del admin. 1 cuenta por grupo familiar
+    // (email del Tutor 1, MIN-07).
+    familiaUserId: uuid("familia_user_id"),
+    accesoFamiliaEnviadoAt: timestamp("acceso_familia_enviado_at"),
 
-  notasInternas: text("notas_internas"),
+    notasInternas: text("notas_internas"),
 
-  // Baja
-  fechaBaja: timestamp("fecha_baja"),
-  motivoBaja: text("motivo_baja"),
+    // Baja
+    fechaBaja: timestamp("fecha_baja"),
+    motivoBaja: text("motivo_baja"),
 
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  // El DNI es la identidad del alumno y el slug de /alumnos/[dni]: lo leen
+  // getAlumnoByDni (ficha, portal de familias) y la idempotencia del webhook,
+  // y duplicarlo haría que la ficha resuelva al primero que aparezca.
+  // familia_user_id es el filtro de TODO el portal de familias
+  // (getAlumnosDeFamilia, alumnosActivosDeCuenta, la baja de la cuenta).
+  (t) => [
+    uniqueIndex("uniq_alumnos_dni").on(t.dni),
+    index("idx_alumnos_familia_user").on(t.familiaUserId),
+  ]
+);
 
 export type Alumno = typeof alumnos.$inferSelect;
 export type NewAlumno = typeof alumnos.$inferInsert;

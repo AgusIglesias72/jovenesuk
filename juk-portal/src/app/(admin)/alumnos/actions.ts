@@ -15,6 +15,7 @@ import {
   reactivarAlumno,
   updateAlumno,
 } from "@/lib/db/queries/alumnos";
+import { esViolacionUnique } from "@/lib/db/queries/errors";
 import {
   asegurarCuentaFamilia,
   desactivarCuentaFamiliaSiCorresponde,
@@ -65,9 +66,19 @@ export async function createAlumnoAction(
     revalidatePath("/alumnos");
     return { ok: true, data: alumno };
   } catch (err) {
+    if (esViolacionUnique(err)) return dniDuplicado();
     Sentry.captureException(err);
     return { ok: false, error: "No pudimos crear el alumno. Probá de nuevo." };
   }
+}
+
+/** Única constraint UNIQUE de `alumnos`: el DNI (uniq_alumnos_dni). */
+function dniDuplicado(): ActionResult<never> {
+  return {
+    ok: false,
+    error: "Ya existe un alumno con ese DNI.",
+    fieldErrors: { dni: ["Ese DNI ya está registrado"] },
+  };
 }
 
 /**
@@ -177,6 +188,7 @@ export async function updateAlumnoAction(
     if (err instanceof AlumnoNotFoundError) {
       return { ok: false, error: "El alumno no existe." };
     }
+    if (esViolacionUnique(err)) return dniDuplicado();
     Sentry.captureException(err);
     return { ok: false, error: "No pudimos guardar los cambios." };
   }

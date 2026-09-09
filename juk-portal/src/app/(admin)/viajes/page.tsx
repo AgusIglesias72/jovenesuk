@@ -1,7 +1,7 @@
 import { LinkButton, PageHeader, Pagination } from "@/components/ui";
 import { listViajes } from "@/lib/db/queries/viajes";
 import { viajeFiltersSchema } from "@/lib/domain/viajes";
-import { paginar } from "@/lib/utils/paginate";
+import { pagina } from "@/lib/utils/paginate";
 
 import { ViajesFilters } from "./viajes-filters";
 import { ViajesTable } from "./viajes-table";
@@ -26,8 +26,12 @@ export default async function ViajesPage({
     tipo: str(sp.tipo),
   });
   const filters = parsed.success ? parsed.data : {};
-  const todos = await listViajes(filters);
-  const { items: viajes, total, page, pages } = paginar(todos, str(sp.page));
+  const {
+    items: viajes,
+    total,
+    page,
+    pages,
+  } = await listViajes(filters, pagina(str(sp.page)));
 
   return (
     <>

@@ -13,10 +13,13 @@ export default async function EditarColegioPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const colegio = await getColegioById(id);
+  // Independientes: getConfigDocumental de un id inexistente devuelve los
+  // defaults del dominio, así que pedirla antes del notFound() es inocuo.
+  const [colegio, configDocumental] = await Promise.all([
+    getColegioById(id),
+    getConfigDocumental(id),
+  ]);
   if (!colegio) notFound();
-
-  const configDocumental = await getConfigDocumental(id);
 
   return (
     <>

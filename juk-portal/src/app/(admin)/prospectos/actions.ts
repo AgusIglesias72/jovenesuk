@@ -15,7 +15,6 @@ import {
   getProspectoById,
   moverProspecto,
   registrarComunicacion,
-  reordenarColumna,
   updateProspecto,
 } from "@/lib/db/queries/prospectos";
 import {
@@ -26,7 +25,6 @@ import {
   parseProspectosCsv,
   prospectoCreateSchema,
   prospectoUpdateSchema,
-  reordenarSchema,
 } from "@/lib/domain/prospectos";
 import { sendOutreachEmail } from "@/lib/email/send-outreach";
 import { putDocumento } from "@/lib/storage";
@@ -137,26 +135,6 @@ export async function moverProspectoAction(
     }
     Sentry.captureException(err);
     return { ok: false, error: "No pudimos mover el prospecto." };
-  }
-}
-
-export async function reordenarProspectosAction(
-  input: unknown
-): Promise<ActionResult<null>> {
-  await requireAdminJuk();
-
-  const parsed = reordenarSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: "Orden inválido." };
-  }
-
-  try {
-    await reordenarColumna(parsed.data.estado, parsed.data.ids);
-    revalidatePath("/prospectos");
-    return { ok: true, data: null };
-  } catch (err) {
-    Sentry.captureException(err);
-    return { ok: false, error: "No pudimos reordenar la columna." };
   }
 }
 

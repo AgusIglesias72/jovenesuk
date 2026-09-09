@@ -134,6 +134,13 @@
       "when": 1788911561252,
       "tag": "0018_ola2_rol_default_y_rate_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788969101421,
+      "tag": "0019_fase2_indices",
+      "breakpoints": true
     }
   ]
 }

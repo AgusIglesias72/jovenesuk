@@ -45,7 +45,7 @@ const GRUPOS: GrupoProgramas[] = [
           "Aprovechan los meses de verano: días largos, actividades al aire libre, excursiones y visitas culturales",
           "Pensión completa, cursos a elección y actividades recreativas también por las noches",
         ],
-        img: "/landing/programa-01.png",
+        img: "/landing/programa-01.webp",
         alt: "Juniors de JUK paseando por una calle inglesa",
       },
       {
@@ -56,7 +56,7 @@ const GRUPOS: GrupoProgramas[] = [
           "Deportes (golf, tenis, fútbol), voluntariado en áreas naturales, prácticas laborales o actividades artísticas como teatro y manualidades",
           "No todos los destinos lo ofrecen: consultanos y te asesoramos según lo que te guste",
         ],
-        img: "/landing/programa-02.png",
+        img: "/landing/programa-02.webp",
         alt: "Estudiante jugando al fútbol en un programa English Plus",
       },
     ],
@@ -77,7 +77,7 @@ const GRUPOS: GrupoProgramas[] = [
           "Foco especial en la competencia oral en clases internacionales, dinámicas y con objetivos claros",
           "Docentes altamente calificados que te ayudan a perder el miedo a hablar",
         ],
-        img: "/landing/programa-04.png",
+        img: "/landing/programa-04.webp",
         alt: "Clase internacional de inglés general",
       },
       {
@@ -89,7 +89,7 @@ const GRUPOS: GrupoProgramas[] = [
           "Mejorás en todas las áreas evaluadas, con práctica específica del formato",
           "También hay cursos para propósitos académicos: aspirantes universitarios y estudiantes de grado o posgrado en instituciones de habla inglesa",
         ],
-        img: "/landing/programa-08.png",
+        img: "/landing/programa-08.webp",
         alt: "Estudiante de JUK con su diploma",
       },
       {
@@ -111,7 +111,7 @@ const GRUPOS: GrupoProgramas[] = [
           "En épocas del año con clima ideal para explorar el destino",
           "Compañeros de edades similares y ritmo pensado para adultos",
         ],
-        img: "/landing/programa-07.png",
+        img: "/landing/programa-07.webp",
         alt: "Participantes de un Adult Programme paseando por Londres",
       },
       {
@@ -123,7 +123,7 @@ const GRUPOS: GrupoProgramas[] = [
           "CELTA: una de las certificaciones más prestigiosas para enseñar inglés como segunda lengua, reconocida mundialmente",
           "DELTA: la máxima calificación docente, con nivel equivalente a una maestría",
         ],
-        img: "/landing/programa-06.png",
+        img: "/landing/programa-06.webp",
         alt: "Docentes con sus certificados de Teacher Training",
       },
     ],

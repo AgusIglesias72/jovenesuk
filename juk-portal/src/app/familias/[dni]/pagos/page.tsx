@@ -1,5 +1,6 @@
-import { listCuotasByAsignacion } from "@/lib/db/queries/cuotas";
+import { listCuotasByAsignaciones } from "@/lib/db/queries/cuotas";
 import { estaVencida } from "@/lib/domain/cuotas";
+import { agruparPor } from "@/lib/utils/agrupar";
 
 import { cargarAlumnoFamilia, asignacionesActivas } from "../_data";
 import { EstadoVacio, FamiliaPageHeader } from "../../_ui";
@@ -21,14 +22,14 @@ export default async function PagosPage({ params }: { params: Promise<{ dni: str
     );
   }
 
-  const viajes = await Promise.all(
-    activas.map(async (a) => ({
-      asignacionId: a.asignacionId,
-      viajeNombre: a.viajeNombre,
-      viajeCodigo: a.viajeCodigo,
-      cuotas: await listCuotasByAsignacion(a.asignacionId),
-    }))
-  );
+  const todasLasCuotas = await listCuotasByAsignaciones(activas.map((a) => a.asignacionId));
+  const cuotasPorAsignacion = agruparPor(todasLasCuotas, (c) => c.asignacionId);
+  const viajes = activas.map((a) => ({
+    asignacionId: a.asignacionId,
+    viajeNombre: a.viajeNombre,
+    viajeCodigo: a.viajeCodigo,
+    cuotas: cuotasPorAsignacion.get(a.asignacionId) ?? [],
+  }));
 
   const hoy = new Date();
   const cantVencidas = viajes.reduce((acc, v) => acc + v.cuotas.filter((c) => estaVencida(c, hoy)).length, 0);

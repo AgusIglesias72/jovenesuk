@@ -105,6 +105,9 @@ export async function POST(request: NextRequest) {
         if (ganador) {
           return NextResponse.json({ ok: true, duplicado: true, alumnoId: ganador.id });
         }
+        // El DNI está tomado pero no lo podemos leer de vuelta (lectura sobre
+        // otra rama de la réplica): 409 con el motivo real, nunca un 500 mudo.
+        return NextResponse.json({ error: "Ya existe un alumno con ese DNI." }, { status: 409 });
       }
       throw err;
     }

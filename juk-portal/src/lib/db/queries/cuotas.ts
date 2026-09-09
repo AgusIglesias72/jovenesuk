@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { cuotas, type Cuota } from "@/lib/db/schema/cuotas";
@@ -19,6 +19,20 @@ export async function listCuotasByAsignacion(asignacionId: string): Promise<Cuot
     .select()
     .from(cuotas)
     .where(eq(cuotas.asignacionId, asignacionId))
+    .orderBy(cuotas.numero);
+}
+
+/**
+ * Cuotas de varias asignaciones en un solo round-trip, ordenadas por número (el
+ * llamador agrupa por `asignacionId` con `agruparPor` y conserva ese orden).
+ * Con neon-http, pedir el plan por asignación en un loop es N saltos HTTPS.
+ */
+export async function listCuotasByAsignaciones(asignacionIds: string[]): Promise<Cuota[]> {
+  if (asignacionIds.length === 0) return [];
+  return db
+    .select()
+    .from(cuotas)
+    .where(inArray(cuotas.asignacionId, asignacionIds))
     .orderBy(cuotas.numero);
 }
 

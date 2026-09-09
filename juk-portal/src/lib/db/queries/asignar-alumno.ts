@@ -2,14 +2,42 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { alumnos, type Alumno } from "@/lib/db/schema/alumnos";
+import { asignaciones } from "@/lib/db/schema/asignaciones";
+import { pasosAlumno, type NewPasoAlumno } from "@/lib/db/schema/pasos-alumno";
 import { viajes, type Viaje } from "@/lib/db/schema/viajes";
 import { ViajeNoInscribibleError } from "@/lib/domain/asignaciones";
-import { edadAlInicioDelViaje, pasosIniciales } from "@/lib/domain/pasos";
+import {
+  debeAutoConfirmar,
+  edadAlInicioDelViaje,
+  fechaLimiteA1Default,
+  pasosIniciales,
+  type PasoInicial,
+} from "@/lib/domain/pasos";
 
-import { countAsignacionesActivas, createAsignacion } from "./asignaciones";
+import { countAsignacionesActivas, getAsignacionDePar } from "./asignaciones";
 import { getColegioById, getConfigDocumental } from "./colegios";
-import { crearPasosParaAsignacion } from "./pasos-alumno";
-import { setViajeEstado } from "./viajes";
+
+/**
+ * Filas del tablero M6 de una asignación. `fechaAltaAlumno` es la
+ * fechaCompletado del Paso 0 (la primera interacción real del alumno con JUK).
+ */
+export function filasTableroInicial(
+  asignacionId: string,
+  pasos: PasoInicial[],
+  fechaAltaAlumno: Date,
+  updatedBy: string | null,
+  fechaLimiteA1: Date | null
+): NewPasoAlumno[] {
+  return pasos.map((p) => ({
+    asignacionId,
+    codigo: p.codigo,
+    estado: p.estado,
+    metadata: p.metadata,
+    fechaLimite: p.codigo === "a1" ? fechaLimiteA1 : null,
+    fechaCompletado: p.codigo === "paso_0" ? fechaAltaAlumno : null,
+    updatedBy,
+  }));
+}
 
 /**
  * Núcleo del trigger de asignación (PRD §6.2), compartido por la server action
@@ -18,6 +46,12 @@ import { setViajeEstado } from "./viajes";
  *
  * Las VALIDACIONES (estado del viaje, pasaporte, cupo) son responsabilidad
  * del llamador: acá solo se ejecuta el efecto.
+ *
+ * Son 2 round-trips: uno con todas las lecturas en paralelo y otro con TODAS
+ * las escrituras en un `db.batch`. neon-http no expone `db.transaction()`,
+ * pero `batch` manda los statements en un único request envuelto en una
+ * transacción del servidor: si falla cualquiera, no queda nada aplicado (no
+ * hay asignaciones sin tablero ni viajes confirmados de más).
  */
 export async function asignarConTablero(opts: {
   viaje: Viaje;
@@ -27,22 +61,29 @@ export async function asignarConTablero(opts: {
 }): Promise<{ asignacionId: string; autoConfirmado: boolean; pasosCreados: number }> {
   const { viaje, alumno, usuarioId } = opts;
 
-  // Re-chequeo del estado justo antes de insertar (cierra la ventana TOCTOU
-  // entre la validación del llamador y este efecto; neon-http no da transacciones).
-  const estadoActual = await db
-    .select({ estado: viajes.estado })
-    .from(viajes)
-    .where(eq(viajes.id, viaje.id))
-    .limit(1);
-  const estado = estadoActual[0]?.estado;
+  // El re-chequeo del estado cierra la ventana TOCTOU entre la validación del
+  // llamador y este efecto.
+  const [estadoRows, existente, colegio, configDocumental, activasPrevias] =
+    await Promise.all([
+      db.select({ estado: viajes.estado }).from(viajes).where(eq(viajes.id, viaje.id)).limit(1),
+      getAsignacionDePar(alumno.id, viaje.id),
+      getColegioById(viaje.colegioDestinoId),
+      getConfigDocumental(viaje.colegioDestinoId),
+      countAsignacionesActivas(viaje.id),
+    ]);
+
+  const estado = estadoRows[0]?.estado;
   if (estado !== "inscripcion_abierta" && estado !== "confirmado") {
     throw new ViajeNoInscribibleError(estado ?? "inexistente");
   }
 
-  const asig = await createAsignacion({ alumnoId: alumno.id, viajeId: viaje.id });
+  // La constraint uniq_alumno_viaje no incluye el estado: sobre una asignación
+  // cancelada reusamos la fila (reactivación); si ya existe activa, el INSERT
+  // choca con 23505 y lo traduce la action ("ya está asignado a este viaje").
+  const reactivable = existente?.estado === "cancelada" ? existente : null;
+  const asignacionId = reactivable?.id ?? crypto.randomUUID();
+  const ahora = new Date();
 
-  const colegio = await getColegioById(viaje.colegioDestinoId);
-  const configDocumental = await getConfigDocumental(viaje.colegioDestinoId);
   const pasos = pasosIniciales({
     configDocumental,
     tipoEntrada: colegio?.tipoEntradaRequerida ?? "eta",
@@ -51,31 +92,55 @@ export async function asignarConTablero(opts: {
     edadAlInicio: edadAlInicioDelViaje(alumno.fechaNacimiento, viaje.fechaInicio),
     canalAlta: alumno.canalAlta,
   });
-  // Default de la fecha límite de A1 (US-20): 30 días antes del inicio del
-  // viaje (el principio operativo "todo resuelto con margen"); editable por alumno.
-  const fechaLimiteA1 = new Date(viaje.fechaInicio);
-  fechaLimiteA1.setUTCDate(fechaLimiteA1.getUTCDate() - 30);
-  await crearPasosParaAsignacion(asig.id, pasos, alumno.fechaAlta, usuarioId, {
-    fechaLimiteA1,
-  });
 
-  // El alumno asignado deja de ser pre-inscripto (PRD §5.5).
-  if (alumno.estado === "pre_inscripto") {
-    await db
-      .update(alumnos)
-      .set({ estado: "inscripto", updatedAt: new Date() })
-      .where(eq(alumnos.id, alumno.id));
-  }
+  const autoConfirmado = debeAutoConfirmar(viaje.tipo, viaje.estado, activasPrevias + 1);
 
-  // Confirmado AUTOMÁTICO al 5to inscripto, solo Grupales (US-13).
-  let autoConfirmado = false;
-  if (viaje.tipo === "grupal" && viaje.estado === "inscripcion_abierta") {
-    const activas = await countAsignacionesActivas(viaje.id);
-    if (activas >= 5) {
-      await setViajeEstado(viaje.id, "confirmado");
-      autoConfirmado = true;
-    }
-  }
+  await db.batch([
+    reactivable
+      ? db
+          .update(asignaciones)
+          .set({
+            estado: "activa",
+            fechaAsignacion: ahora,
+            fechaCancelacion: null,
+            motivoCancelacion: null,
+          })
+          .where(eq(asignaciones.id, reactivable.id))
+      : db
+          .insert(asignaciones)
+          .values({ id: asignacionId, alumnoId: alumno.id, viajeId: viaje.id }),
+    // Reasignación: el tablero se resetea (PRD §6.2).
+    db.delete(pasosAlumno).where(eq(pasosAlumno.asignacionId, asignacionId)),
+    db
+      .insert(pasosAlumno)
+      .values(
+        filasTableroInicial(
+          asignacionId,
+          pasos,
+          alumno.fechaAlta,
+          usuarioId,
+          fechaLimiteA1Default(viaje.fechaInicio)
+        )
+      ),
+    // El alumno asignado deja de ser pre-inscripto (PRD §5.5).
+    ...(alumno.estado === "pre_inscripto"
+      ? [
+          db
+            .update(alumnos)
+            .set({ estado: "inscripto" as const, updatedAt: ahora })
+            .where(eq(alumnos.id, alumno.id)),
+        ]
+      : []),
+    // Confirmado AUTOMÁTICO al 5to inscripto, solo Grupales (US-13).
+    ...(autoConfirmado
+      ? [
+          db
+            .update(viajes)
+            .set({ estado: "confirmado" as const, updatedAt: ahora })
+            .where(eq(viajes.id, viaje.id)),
+        ]
+      : []),
+  ]);
 
-  return { asignacionId: asig.id, autoConfirmado, pasosCreados: pasos.length };
+  return { asignacionId, autoConfirmado, pasosCreados: pasos.length };
 }

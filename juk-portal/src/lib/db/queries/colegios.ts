@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, or, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -16,10 +16,16 @@ import {
   type DocumentoPrograma,
   type RequisitoDocumento,
 } from "@/lib/domain/colegios";
+import {
+  paginarEnSql,
+  totalDe,
+  type Pagina,
+  type Paginado,
+} from "@/lib/utils/paginate";
 
 import { unicaFila } from "./errors";
 
-export async function listColegios(filters: ColegioFilters = {}): Promise<Colegio[]> {
+function condicionesColegios(filters: ColegioFilters): SQL | undefined {
   const conditions: SQL[] = [];
 
   if (filters.q) {
@@ -35,11 +41,40 @@ export async function listColegios(filters: ColegioFilters = {}): Promise<Colegi
     conditions.push(eq(colegios.estado, "activo"));
   }
 
+  return conditions.length ? and(...conditions) : undefined;
+}
+
+/**
+ * Sin paginar: alimenta los combos de colegio destino/cliente del alta y la
+ * edición de viajes, que necesitan todas las opciones. El listado del ABM usa
+ * `listColegiosPaginado`.
+ */
+export async function listColegios(filters: ColegioFilters = {}): Promise<Colegio[]> {
   return db
     .select()
     .from(colegios)
-    .where(conditions.length ? and(...conditions) : undefined)
+    .where(condicionesColegios(filters))
     .orderBy(asc(colegios.nombre));
+}
+
+export async function listColegiosPaginado(
+  filters: ColegioFilters,
+  pagina: Pagina
+): Promise<Paginado<Colegio>> {
+  const where = condicionesColegios(filters);
+
+  return paginarEnSql(
+    pagina,
+    (limit, offset) =>
+      db
+        .select()
+        .from(colegios)
+        .where(where)
+        .orderBy(asc(colegios.nombre))
+        .limit(limit)
+        .offset(offset),
+    () => db.select({ n: count() }).from(colegios).where(where).then(totalDe)
+  );
 }
 
 export async function getColegioById(id: string): Promise<Colegio | null> {
@@ -96,19 +131,28 @@ export async function getConfigDocumental(colegioId: string): Promise<ConfigDocu
   return configDocumentalEfectiva(overrides);
 }
 
-/** Upsert de las 5 filas de config (explícitas, auditables con fecha/usuario). */
+/**
+ * Upsert de las 5 filas de config (explícitas, auditables con fecha/usuario).
+ * Un solo INSERT multi-fila: el `set` toma el requisito de la fila entrante
+ * (`excluded`), que es la única forma de que cada fila reciba el suyo.
+ */
 export async function upsertConfigDocumental(
   colegioId: string,
   config: ConfigDocumental,
   updatedBy: string
 ): Promise<void> {
-  for (const documento of DOCUMENTOS_PROGRAMA) {
-    await db
-      .insert(colegioDocumentoConfig)
-      .values({ colegioId, documento, requisito: config[documento], updatedBy })
-      .onConflictDoUpdate({
-        target: [colegioDocumentoConfig.colegioId, colegioDocumentoConfig.documento],
-        set: { requisito: config[documento], updatedAt: new Date(), updatedBy },
-      });
-  }
+  await db
+    .insert(colegioDocumentoConfig)
+    .values(
+      DOCUMENTOS_PROGRAMA.map((documento) => ({
+        colegioId,
+        documento,
+        requisito: config[documento],
+        updatedBy,
+      }))
+    )
+    .onConflictDoUpdate({
+      target: [colegioDocumentoConfig.colegioId, colegioDocumentoConfig.documento],
+      set: { requisito: sql`excluded.requisito`, updatedAt: new Date(), updatedBy },
+    });
 }

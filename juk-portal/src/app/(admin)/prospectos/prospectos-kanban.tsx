@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, useTransition } from "react";
 
 import { Badge, useToast } from "@/components/ui";
-import type { Prospecto } from "@/lib/db/schema/prospectos";
+import type { ProspectoKanbanItem } from "@/lib/db/queries/prospectos";
 import { PAIS_LABELS } from "@/lib/domain/colegios";
 import {
   PROSPECTO_ESTADOS,
@@ -22,17 +22,17 @@ import { moverProspectoAction } from "./actions";
  * un `prospectos` distinto, la firma cambia y React remonta `<Tablero>` con la
  * `key`, descartando cualquier estado local desincronizado.
  */
-export function ProspectosKanban({ prospectos }: { prospectos: Prospecto[] }) {
+export function ProspectosKanban({ prospectos }: { prospectos: ProspectoKanbanItem[] }) {
   const firma = prospectos
     .map((p) => `${p.id}:${p.estado}:${p.posicion}`)
     .join("|");
   return <Tablero key={firma} prospectos={prospectos} />;
 }
 
-function agrupar(items: Prospecto[]): Record<ProspectoEstado, Prospecto[]> {
+function agrupar(items: ProspectoKanbanItem[]): Record<ProspectoEstado, ProspectoKanbanItem[]> {
   const grupos = Object.fromEntries(
-    PROSPECTO_ESTADOS.map((e) => [e, [] as Prospecto[]])
-  ) as Record<ProspectoEstado, Prospecto[]>;
+    PROSPECTO_ESTADOS.map((e) => [e, [] as ProspectoKanbanItem[]])
+  ) as Record<ProspectoEstado, ProspectoKanbanItem[]>;
   for (const p of items) grupos[p.estado].push(p);
   for (const e of PROSPECTO_ESTADOS) {
     grupos[e].sort((a, b) => a.posicion - b.posicion);
@@ -40,12 +40,12 @@ function agrupar(items: Prospecto[]): Record<ProspectoEstado, Prospecto[]> {
   return grupos;
 }
 
-function Tablero({ prospectos }: { prospectos: Prospecto[] }) {
+function Tablero({ prospectos }: { prospectos: ProspectoKanbanItem[] }) {
   const router = useRouter();
   const toast = useToast();
   const [, startTransition] = useTransition();
 
-  const [items, setItems] = useState<Prospecto[]>(prospectos);
+  const [items, setItems] = useState<ProspectoKanbanItem[]>(prospectos);
   const [sobre, setSobre] = useState<ProspectoEstado | null>(null);
   // Referencia temporal estable: evita Date.now() en render (regla de pureza).
   const [ahora] = useState(() => Date.now());
@@ -154,7 +154,7 @@ function Tablero({ prospectos }: { prospectos: Prospecto[] }) {
   );
 }
 
-function ubicacion(p: Prospecto): string | null {
+function ubicacion(p: ProspectoKanbanItem): string | null {
   const partes = [p.ciudad, p.pais ? PAIS_LABELS[p.pais] : null].filter(Boolean);
   return partes.length > 0 ? partes.join(" · ") : null;
 }
@@ -166,7 +166,7 @@ function TarjetaProspecto({
   onDragEnd,
   onClick,
 }: {
-  prospecto: Prospecto;
+  prospecto: ProspectoKanbanItem;
   ahora: number;
   onDragStart: () => void;
   onDragEnd: () => void;
@@ -197,16 +197,16 @@ function TarjetaProspecto({
         </p>
       ) : null}
 
-      {(prospecto.emails.length > 0 || prospecto.telefonos.length > 0) && (
+      {(prospecto.emailsCount > 0 || prospecto.telefonosCount > 0) && (
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {prospecto.emails.length > 0 ? (
+          {prospecto.emailsCount > 0 ? (
             <span className="inline-flex items-center gap-1 rounded-[var(--r-pill)] bg-[var(--c-surface-2)] px-2 py-0.5 text-[length:var(--t-label)] text-[var(--c-ink-muted)]">
-              ✉ {prospecto.emails.length}
+              ✉ {prospecto.emailsCount}
             </span>
           ) : null}
-          {prospecto.telefonos.length > 0 ? (
+          {prospecto.telefonosCount > 0 ? (
             <span className="inline-flex items-center gap-1 rounded-[var(--r-pill)] bg-[var(--c-surface-2)] px-2 py-0.5 text-[length:var(--t-label)] text-[var(--c-ink-muted)]">
-              ☎ {prospecto.telefonos.length}
+              ☎ {prospecto.telefonosCount}
             </span>
           ) : null}
         </div>

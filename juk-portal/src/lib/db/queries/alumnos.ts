@@ -1,14 +1,20 @@
-import { and, asc, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { alumnos, type Alumno, type NewAlumno } from "@/lib/db/schema/alumnos";
 import { asignaciones } from "@/lib/db/schema/asignaciones";
 import { pasosAlumno } from "@/lib/db/schema/pasos-alumno";
 import { AlumnoNotFoundError, type AlumnoFilters } from "@/lib/domain/alumnos";
+import {
+  paginarEnSql,
+  totalDe,
+  type Pagina,
+  type Paginado,
+} from "@/lib/utils/paginate";
 
 import { unicaFila } from "./errors";
 
-export async function listAlumnos(filters: AlumnoFilters = {}): Promise<Alumno[]> {
+function condicionesAlumnos(filters: AlumnoFilters): SQL | undefined {
   const conditions: SQL[] = [];
 
   if (filters.q) {
@@ -38,11 +44,27 @@ export async function listAlumnos(filters: AlumnoFilters = {}): Promise<Alumno[]
     conditions.push(inArray(alumnos.id, conAlerta));
   }
 
-  return db
-    .select()
-    .from(alumnos)
-    .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(asc(alumnos.apellido), asc(alumnos.nombre));
+  return conditions.length ? and(...conditions) : undefined;
+}
+
+export async function listAlumnos(
+  filters: AlumnoFilters,
+  pagina: Pagina
+): Promise<Paginado<Alumno>> {
+  const where = condicionesAlumnos(filters);
+
+  return paginarEnSql(
+    pagina,
+    (limit, offset) =>
+      db
+        .select()
+        .from(alumnos)
+        .where(where)
+        .orderBy(asc(alumnos.apellido), asc(alumnos.nombre))
+        .limit(limit)
+        .offset(offset),
+    () => db.select({ n: count() }).from(alumnos).where(where).then(totalDe)
+  );
 }
 
 export async function getAlumnoById(id: string): Promise<Alumno | null> {

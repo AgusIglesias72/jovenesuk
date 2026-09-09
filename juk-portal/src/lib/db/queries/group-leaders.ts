@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, or, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, ilike, or, type SQL } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -7,12 +7,16 @@ import {
   type NewGroupLeader,
 } from "@/lib/db/schema/grupos-leaders";
 import { GroupLeaderNotFoundError, type GroupLeaderFilters } from "@/lib/domain/group-leaders";
+import {
+  paginarEnSql,
+  totalDe,
+  type Pagina,
+  type Paginado,
+} from "@/lib/utils/paginate";
 
 import { unicaFila } from "./errors";
 
-export async function listGroupLeaders(
-  filters: GroupLeaderFilters = {}
-): Promise<GroupLeader[]> {
+function condicionesGroupLeaders(filters: GroupLeaderFilters): SQL | undefined {
   const conditions: SQL[] = [];
 
   if (filters.q) {
@@ -28,11 +32,27 @@ export async function listGroupLeaders(
     conditions.push(eq(groupLeaders.policeCheckEstado, filters.policeCheckEstado));
   }
 
-  return db
-    .select()
-    .from(groupLeaders)
-    .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(asc(groupLeaders.apellido), asc(groupLeaders.nombre));
+  return conditions.length ? and(...conditions) : undefined;
+}
+
+export async function listGroupLeaders(
+  filters: GroupLeaderFilters,
+  pagina: Pagina
+): Promise<Paginado<GroupLeader>> {
+  const where = condicionesGroupLeaders(filters);
+
+  return paginarEnSql(
+    pagina,
+    (limit, offset) =>
+      db
+        .select()
+        .from(groupLeaders)
+        .where(where)
+        .orderBy(asc(groupLeaders.apellido), asc(groupLeaders.nombre))
+        .limit(limit)
+        .offset(offset),
+    () => db.select({ n: count() }).from(groupLeaders).where(where).then(totalDe)
+  );
 }
 
 export async function getGroupLeaderById(id: string): Promise<GroupLeader | null> {

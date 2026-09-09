@@ -201,6 +201,181 @@ export function ViajeDetalleSkeleton() {
   );
 }
 
+/* ============================================================
+   Portal de Familias
+   ------------------------------------------------------------
+   El shell (sidebar/header + tabs) NO lleva skeleton propio: un `loading.tsx`
+   en `familias/` convertiría el `notFound()` de pertenencia en un 200 (ver el
+   comentario de `familias/[dni]/layout.tsx`). Cada sección pinta su silueta.
+   ============================================================ */
+
+function FamiliaHeaderSkeleton() {
+  return (
+    <div className="space-y-2">
+      <Skeleton className="h-7 w-40" />
+      <Skeleton className="h-4 w-full max-w-md" />
+    </div>
+  );
+}
+
+/** Card de encabezado de viaje (nombre + código + fechas). */
+function ViajeHeaderSkeleton() {
+  return (
+    <CardShell className="p-4">
+      <Skeleton className="h-5 w-56" />
+      <Skeleton className="mt-2 h-3.5 w-40" />
+      <Skeleton className="mt-3 h-3.5 w-48" />
+    </CardShell>
+  );
+}
+
+/** /familias/[dni]: header + viaje + 2 cards de acceso + pills. */
+export function FamiliaResumenSkeleton() {
+  return (
+    <div role="status" aria-label="Cargando…" className="space-y-6">
+      <FamiliaHeaderSkeleton />
+      <div className="space-y-4">
+        <ViajeHeaderSkeleton />
+        <div className="grid gap-3 sm:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <CardShell key={i} className="p-4">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="mt-2 h-8 w-32" />
+              <Skeleton className="mt-2 h-3 w-20" />
+              <Skeleton className="mt-3 h-2 w-full rounded-[var(--r-pill)]" />
+            </CardShell>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-[var(--tap)] w-52 rounded-[var(--r-pill)]" />
+          <Skeleton className="h-[var(--tap)] w-32 rounded-[var(--r-pill)]" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** /familias/[dni]/documentacion: header + progreso + tarjetas de paso. */
+export function FamiliaDocumentacionSkeleton({ pasos = 5 }: { pasos?: number }) {
+  return (
+    <div role="status" aria-label="Cargando…" className="space-y-6">
+      <FamiliaHeaderSkeleton />
+      <div className="space-y-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-3.5 w-24" />
+        </div>
+        <Skeleton className="h-2 w-full rounded-[var(--r-pill)]" />
+        {Array.from({ length: pasos }).map((_, i) => (
+          <CardShell key={i} className="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <Skeleton className="h-4 w-44" />
+              <Skeleton className="h-6 w-20 rounded-[var(--r-pill)]" />
+            </div>
+            <Skeleton className="mt-3 h-3.5 w-full max-w-sm" />
+          </CardShell>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** /familias/[dni]/pagos: header + resumen del plan + filtros + cuotas. */
+export function FamiliaPagosSkeleton({ cuotas = 6 }: { cuotas?: number }) {
+  return (
+    <div role="status" aria-label="Cargando…" className="space-y-6">
+      <FamiliaHeaderSkeleton />
+      <div className="space-y-4">
+        <CardShell className="p-4">
+          <Skeleton className="h-5 w-56" />
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-6 w-24" />
+              </div>
+            ))}
+          </div>
+          <Skeleton className="mt-4 h-2 w-full rounded-[var(--r-pill)]" />
+        </CardShell>
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 w-24 rounded-[var(--r-pill)]" />
+          ))}
+        </div>
+        <CardShell className="p-0">
+          <div className="divide-y divide-[var(--c-border)]">
+            {Array.from({ length: cuotas }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 px-4 py-3.5">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="ml-auto h-6 w-20 rounded-[var(--r-pill)]" />
+              </div>
+            ))}
+          </div>
+        </CardShell>
+      </div>
+    </div>
+  );
+}
+
+/** /familias/[dni]/viaje: header + viaje + ficha de 6 datos + itinerario. */
+export function FamiliaViajeSkeleton() {
+  return (
+    <div role="status" aria-label="Cargando…" className="space-y-6">
+      <FamiliaHeaderSkeleton />
+      <div className="space-y-4">
+        <ViajeHeaderSkeleton />
+        <CardShell>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-5 w-28" />
+              </div>
+            ))}
+          </div>
+        </CardShell>
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-32" />
+          <div className="rounded-[var(--r-lg)] border border-dashed border-[var(--c-border-strong)] bg-[var(--c-surface)] p-6">
+            <Skeleton className="mx-auto h-4 w-36" />
+            <Skeleton className="mx-auto mt-3 h-3.5 w-full max-w-sm" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** /familias/[dni]/datos: header + dos bloques de datos + caja de reporte. */
+export function FamiliaDatosSkeleton() {
+  return (
+    <div role="status" aria-label="Cargando…" className="space-y-6">
+      <FamiliaHeaderSkeleton />
+      {[8, 4].map((campos, bloque) => (
+        <section key={bloque} className="space-y-3">
+          <Skeleton className="h-5 w-44" />
+          <CardShell>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
+              {Array.from({ length: campos }).map((_, i) => (
+                <div key={i} className="space-y-1.5">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-5 w-32" />
+                </div>
+              ))}
+            </div>
+          </CardShell>
+        </section>
+      ))}
+      <CardShell className="p-4">
+        <Skeleton className="h-4 w-52" />
+        <Skeleton className="mt-3 h-10 w-40 rounded-[var(--r-pill)]" />
+      </CardShell>
+    </div>
+  );
+}
+
 export function DashboardSkeleton() {
   return (
     <div role="status" aria-label="Cargando…">

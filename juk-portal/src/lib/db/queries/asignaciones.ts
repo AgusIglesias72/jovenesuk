@@ -1,16 +1,10 @@
-import { and, asc, count, desc, eq, ne, notInArray, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, ne, notExists, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { alumnos, type Alumno } from "@/lib/db/schema/alumnos";
-import {
-  asignaciones,
-  type Asignacion,
-  type NewAsignacion,
-} from "@/lib/db/schema/asignaciones";
+import { asignaciones, type Asignacion } from "@/lib/db/schema/asignaciones";
 import { viajes, type Viaje } from "@/lib/db/schema/viajes";
 import { AsignacionNotFoundError } from "@/lib/domain/asignaciones";
-
-import { unicaFila } from "./errors";
 
 export type AlumnoAsignado = {
   asignacionId: string;
@@ -51,35 +45,21 @@ export async function countAsignacionesActivas(viajeId: string): Promise<number>
   return rows[0]?.c ?? 0;
 }
 
-// Crea la asignación o, si el par (alumno, viaje) ya existe en estado
-// "cancelada", la reactiva con un UPDATE. La constraint uniq_alumno_viaje no
-// incluye el estado, así que un INSERT sobre una asignación cancelada chocaría
-// (23505): por eso reusamos la fila existente.
-export async function createAsignacion(data: NewAsignacion): Promise<Asignacion> {
-  const { alumnoId, viajeId } = data;
-
-  const existentes = await db
+/**
+ * Asignación existente del par (alumno, viaje), en cualquier estado.
+ * La constraint uniq_alumno_viaje no incluye el estado, así que el alta la
+ * necesita para decidir entre INSERT y reactivación (ver asignar-alumno.ts).
+ */
+export async function getAsignacionDePar(
+  alumnoId: string,
+  viajeId: string
+): Promise<Asignacion | null> {
+  const rows = await db
     .select()
     .from(asignaciones)
-    .where(and(eq(asignaciones.alumnoId, alumnoId), eq(asignaciones.viajeId, viajeId)));
-  const existente = existentes[0];
-
-  if (existente && existente.estado === "cancelada") {
-    const reactivadas = await db
-      .update(asignaciones)
-      .set({
-        estado: data.estado ?? "activa",
-        fechaAsignacion: data.fechaAsignacion ?? new Date(),
-        fechaCancelacion: null,
-        motivoCancelacion: null,
-      })
-      .where(eq(asignaciones.id, existente.id))
-      .returning();
-    return unicaFila(reactivadas, "asignaciones");
-  }
-
-  const rows = await db.insert(asignaciones).values(data).returning();
-  return unicaFila(rows, "asignaciones");
+    .where(and(eq(asignaciones.alumnoId, alumnoId), eq(asignaciones.viajeId, viajeId)))
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 export async function cancelarAsignacion(
@@ -105,21 +85,33 @@ export async function cancelarAsignacion(
   return row;
 }
 
+/** Lo único que la UI necesita de un elegible: el label del select y el id. */
+export type AlumnoElegible = Pick<Alumno, "id" | "nombre" | "apellido">;
+
 // Alumnos asignables: no dados de baja y que no estén ya en el viaje.
-export async function alumnosElegibles(viajeId: string): Promise<Alumno[]> {
-  const yaAsignados = await db
-    .select({ alumnoId: asignaciones.alumnoId })
-    .from(asignaciones)
-    .where(and(eq(asignaciones.viajeId, viajeId), ne(asignaciones.estado, "cancelada")));
-  const ids = yaAsignados.map((a) => a.alumnoId);
-
-  const conds: SQL[] = [ne(alumnos.estado, "baja")];
-  if (ids.length) conds.push(notInArray(alumnos.id, ids));
-
+// Un solo round-trip (NOT EXISTS correlacionado) y solo las 3 columnas que
+// usa el select: la fila completa incluye facturación y datos de salud.
+export async function alumnosElegibles(viajeId: string): Promise<AlumnoElegible[]> {
   return db
-    .select()
+    .select({ id: alumnos.id, nombre: alumnos.nombre, apellido: alumnos.apellido })
     .from(alumnos)
-    .where(and(...conds))
+    .where(
+      and(
+        ne(alumnos.estado, "baja"),
+        notExists(
+          db
+            .select({ x: sql`1` })
+            .from(asignaciones)
+            .where(
+              and(
+                eq(asignaciones.alumnoId, alumnos.id),
+                eq(asignaciones.viajeId, viajeId),
+                ne(asignaciones.estado, "cancelada")
+              )
+            )
+        )
+      )
+    )
     .orderBy(asc(alumnos.apellido), asc(alumnos.nombre));
 }
 

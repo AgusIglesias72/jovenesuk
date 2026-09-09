@@ -9,197 +9,154 @@ import { groupLeaders } from "@/lib/db/schema/grupos-leaders";
 import { pasosAlumno } from "@/lib/db/schema/pasos-alumno";
 import { groupLeadersViaje } from "@/lib/db/schema/pasos-viaje";
 import { viajes } from "@/lib/db/schema/viajes";
-import { pasaporteEnAlertaConservadora } from "@/lib/domain/asignaciones";
-import { CONFIG_DOCUMENTAL_DEFAULT } from "@/lib/domain/colegios";
-import { diasDeMora, estaVencida } from "@/lib/domain/cuotas";
-import { PASO_LABELS, type PasoCodigo } from "@/lib/domain/pasos";
-import { formatFecha } from "@/lib/utils/date";
+import { calcularAlertas, type Alerta } from "@/lib/domain/alertas";
+import { diaCalendarioUTC } from "@/lib/utils/date";
 
-/**
- * Alertas derivadas del dashboard (PRD M2). Se calculan on-read sobre los
- * viajes no terminados; cuando haya Trigger.dev pasan a materializarse.
- * Severidad: critica > alta.
- */
-export type Alerta = {
-  severidad: "critica" | "alta";
-  titulo: string;
-  detalle: string;
-  href: string;
+export type { Alerta };
+
+export type AlertasOpciones = {
+  hoy?: Date;
+  /** Restringe el cálculo a un viaje (detalle de viaje); por default, todos. */
+  viajeId?: string;
 };
 
-export async function getAlertas(hoy = new Date()): Promise<Alerta[]> {
-  const alertas: Alerta[] = [];
+/**
+ * Alertas del dashboard (PRD M2). Las REGLAS viven en domain/alertas; acá solo
+ * se cargan las filas, en tres etapas paralelas porque neon-http cobra un
+ * round-trip HTTPS por query: A (colegios + viajes) → B (config, asignaciones y
+ * GLs, que dependen de A) → C (cuotas y pasos, que dependen de las
+ * asignaciones). Antes eran 7 queries en serie.
+ */
+export async function getAlertas(opciones: AlertasOpciones = {}): Promise<Alerta[]> {
+  const hoy = opciones.hoy ?? new Date();
+  const { viajeId } = opciones;
 
-  // ── Parental Consent desactualizado (M3/US-06) ────────────────────
-  const destinosActivos = await db
-    .select({
-      id: colegios.id,
-      nombre: colegios.nombre,
-      parentalConsentUpdatedAt: colegios.parentalConsentUpdatedAt,
-    })
-    .from(colegios)
-    .where(and(eq(colegios.tipo, "destino"), eq(colegios.estado, "activo")));
-
-  if (destinosActivos.length > 0) {
-    const configRows = await db
+  const [destinos, viajesActivos] = await Promise.all([
+    db
       .select({
-        colegioId: colegioDocumentoConfig.colegioId,
-        requisito: colegioDocumentoConfig.requisito,
+        id: colegios.id,
+        nombre: colegios.nombre,
+        parentalConsentUpdatedAt: colegios.parentalConsentUpdatedAt,
       })
-      .from(colegioDocumentoConfig)
+      .from(colegios)
+      .where(and(eq(colegios.tipo, "destino"), eq(colegios.estado, "activo"))),
+    db
+      .select({ id: viajes.id, codigo: viajes.codigo, fechaInicio: viajes.fechaInicio })
+      .from(viajes)
       .where(
         and(
-          eq(colegioDocumentoConfig.documento, "parental_consent"),
-          inArray(
-            colegioDocumentoConfig.colegioId,
-            destinosActivos.map((c) => c.id)
-          )
+          inArray(viajes.estado, ["inscripcion_abierta", "confirmado", "en_curso"]),
+          viajeId ? eq(viajes.id, viajeId) : undefined
         )
-      );
-    const requisitoPorColegio = new Map(configRows.map((r) => [r.colegioId, r.requisito]));
+      ),
+  ]);
 
-    const limite = new Date(hoy);
-    limite.setMonth(limite.getMonth() - 12);
-    for (const c of destinosActivos) {
-      // Sin fila explícita rige el default del dominio ("na") — no alerta.
-      const requisito =
-        requisitoPorColegio.get(c.id) ?? CONFIG_DOCUMENTAL_DEFAULT.parental_consent;
-      if (requisito === "na") continue;
-      const desactualizado =
-        c.parentalConsentUpdatedAt === null ||
-        c.parentalConsentUpdatedAt.getTime() < limite.getTime();
-      if (!desactualizado) continue;
-      alertas.push({
-        severidad: "alta",
-        titulo: `Parental Consent desactualizado · ${c.nombre}`,
-        detalle: c.parentalConsentUpdatedAt
-          ? `Última actualización: ${formatFecha(c.parentalConsentUpdatedAt)}.`
-          : "Más de 12 meses sin actualizar (o nunca se cargó).",
-        href: `/colegios/${c.id}/editar`,
-      });
-    }
-  }
-
-  const viajesActivos = await db
-    .select()
-    .from(viajes)
-    .where(inArray(viajes.estado, ["inscripcion_abierta", "confirmado", "en_curso"]));
-  if (viajesActivos.length === 0) return alertas;
-  const viajeById = new Map(viajesActivos.map((v) => [v.id, v]));
+  const idsColegios = destinos.map((c) => c.id);
   const idsViajes = viajesActivos.map((v) => v.id);
 
-  const asignacionesActivas = await db
-    .select({
-      asignacionId: asignaciones.id,
-      viajeId: asignaciones.viajeId,
-      alumnoId: alumnos.id,
-      dni: alumnos.dni,
-      nombre: alumnos.nombre,
-      apellido: alumnos.apellido,
-      vencimientoPasaporte: alumnos.fechaVencimientoPasaporte,
-    })
-    .from(asignaciones)
-    .innerJoin(alumnos, eq(asignaciones.alumnoId, alumnos.id))
-    .where(and(eq(asignaciones.estado, "activa"), inArray(asignaciones.viajeId, idsViajes)));
-
-  // ── Pasaportes (criterio conservador: 6 meses post-inicio) ────────
-  for (const a of asignacionesActivas) {
-    const viaje = viajeById.get(a.viajeId);
-    if (!viaje) continue;
-    if (pasaporteEnAlertaConservadora(a.vencimientoPasaporte, viaje.fechaInicio)) {
-      const vencido = a.vencimientoPasaporte.getTime() < hoy.getTime();
-      alertas.push({
-        severidad: "critica",
-        titulo: `Pasaporte ${vencido ? "vencido" : "por vencer"} · ${a.apellido}, ${a.nombre}`,
-        detalle: `Vence el ${formatFecha(a.vencimientoPasaporte)} y ${viaje.codigo} sale el ${formatFecha(viaje.fechaInicio)}.`,
-        href: `/alumnos/${a.dni}`,
-      });
-    }
-  }
+  const [configRows, asignacionesActivas, glsAsignados] = await Promise.all([
+    idsColegios.length > 0
+      ? db
+          .select({
+            colegioId: colegioDocumentoConfig.colegioId,
+            requisito: colegioDocumentoConfig.requisito,
+          })
+          .from(colegioDocumentoConfig)
+          .where(
+            and(
+              eq(colegioDocumentoConfig.documento, "parental_consent"),
+              inArray(colegioDocumentoConfig.colegioId, idsColegios)
+            )
+          )
+      : [],
+    idsViajes.length > 0
+      ? db
+          .select({
+            asignacionId: asignaciones.id,
+            viajeId: asignaciones.viajeId,
+            dni: alumnos.dni,
+            nombre: alumnos.nombre,
+            apellido: alumnos.apellido,
+            vencimientoPasaporte: alumnos.fechaVencimientoPasaporte,
+          })
+          .from(asignaciones)
+          .innerJoin(alumnos, eq(asignaciones.alumnoId, alumnos.id))
+          .where(
+            and(eq(asignaciones.estado, "activa"), inArray(asignaciones.viajeId, idsViajes))
+          )
+      : [],
+    idsViajes.length > 0
+      ? db
+          .select({
+            viajeId: groupLeadersViaje.viajeId,
+            nombre: groupLeaders.nombre,
+            apellido: groupLeaders.apellido,
+            policeCheckEstado: groupLeaders.policeCheckEstado,
+          })
+          .from(groupLeadersViaje)
+          .innerJoin(groupLeaders, eq(groupLeadersViaje.groupLeaderId, groupLeaders.id))
+          .where(inArray(groupLeadersViaje.viajeId, idsViajes))
+      : [],
+  ]);
 
   const idsAsignaciones = asignacionesActivas.map((a) => a.asignacionId);
-  const porAsignacion = new Map(asignacionesActivas.map((a) => [a.asignacionId, a]));
+  // Mismo criterio que estaVencida(): la columna es `date` (medianoche UTC) y
+  // comparar contra el INICIO del día evita marcar en mora lo que vence hoy.
+  const inicioDeHoy = new Date(diaCalendarioUTC(hoy));
 
-  if (idsAsignaciones.length > 0) {
-    // ── Mora en cuotas ──────────────────────────────────────────────
-    const cuotasImpagas = await db
-      .select()
-      .from(cuotas)
-      .where(and(inArray(cuotas.asignacionId, idsAsignaciones), ne(cuotas.estado, "pagada")));
-    for (const c of cuotasImpagas) {
-      if (!estaVencida(c, hoy)) continue;
-      const a = porAsignacion.get(c.asignacionId);
-      if (!a) continue;
-      const dias = diasDeMora(c, hoy);
-      alertas.push({
-        severidad: dias > 7 ? "critica" : "alta",
-        titulo: `Cuota ${c.numero} en mora · ${a.apellido}, ${a.nombre}`,
-        detalle: `${dias} día${dias === 1 ? "" : "s"} de atraso (vencía el ${formatFecha(c.fechaVencimiento)}).`,
-        href: `/alumnos/${a.dni}`,
-      });
-    }
+  const [cuotasVencidas, pasosBloqueados] = await Promise.all([
+    idsAsignaciones.length > 0
+      ? db
+          .select({
+            asignacionId: cuotas.asignacionId,
+            numero: cuotas.numero,
+            estado: cuotas.estado,
+            fechaVencimiento: cuotas.fechaVencimiento,
+          })
+          .from(cuotas)
+          .where(
+            and(
+              inArray(cuotas.asignacionId, idsAsignaciones),
+              ne(cuotas.estado, "pagada"),
+              lt(cuotas.fechaVencimiento, inicioDeHoy)
+            )
+          )
+      : [],
+    idsAsignaciones.length > 0
+      ? db
+          .select({
+            asignacionId: pasosAlumno.asignacionId,
+            codigo: pasosAlumno.codigo,
+            notas: pasosAlumno.notas,
+            metadata: pasosAlumno.metadata,
+          })
+          .from(pasosAlumno)
+          .where(
+            and(
+              inArray(pasosAlumno.asignacionId, idsAsignaciones),
+              eq(pasosAlumno.estado, "bloqueado")
+            )
+          )
+      : [],
+  ]);
 
-    // ── Pasos bloqueados (ETA rechazado y afines) ───────────────────
-    const bloqueados = await db
-      .select()
-      .from(pasosAlumno)
-      .where(
-        and(inArray(pasosAlumno.asignacionId, idsAsignaciones), eq(pasosAlumno.estado, "bloqueado"))
-      );
-    for (const p of bloqueados) {
-      if (p.codigo === "c2" && (p.metadata as Record<string, unknown>).bloqueadoPor === "b1")
-        continue; // dependencia estructural, no problema operativo
-      const a = porAsignacion.get(p.asignacionId);
-      if (!a) continue;
-      const esEtaRechazado =
-        p.codigo === "c1" && (p.metadata as Record<string, unknown>).subEstado === "rechazado";
-      alertas.push({
-        severidad: esEtaRechazado ? "critica" : "alta",
-        titulo: `${esEtaRechazado ? "ETA rechazado" : `${PASO_LABELS[p.codigo as PasoCodigo]} bloqueado`} · ${a.apellido}, ${a.nombre}`,
-        detalle: p.notas ?? "Requiere intervención del equipo.",
-        href: `/alumnos/${a.dni}`,
-      });
-    }
-  }
-
-  // ── Police checks de GLs en viajes próximos ───────────────────────
-  const glsAsignados = await db
-    .select({
-      viajeId: groupLeadersViaje.viajeId,
-      nombre: groupLeaders.nombre,
-      apellido: groupLeaders.apellido,
-      estado: groupLeaders.policeCheckEstado,
-      vencimiento: groupLeaders.policeCheckFechaVencimiento,
-    })
-    .from(groupLeadersViaje)
-    .innerJoin(groupLeaders, eq(groupLeadersViaje.groupLeaderId, groupLeaders.id))
-    .where(inArray(groupLeadersViaje.viajeId, idsViajes));
-  for (const gl of glsAsignados) {
-    const viaje = viajeById.get(gl.viajeId);
-    if (!viaje) continue;
-    if (gl.estado === "vencido") {
-      alertas.push({
-        severidad: "critica",
-        titulo: `Police check vencido · ${gl.apellido}, ${gl.nombre}`,
-        detalle: `GL de ${viaje.codigo}; sin check vigente no puede acompañar al grupo.`,
-        href: `/viajes/${viaje.codigo}`,
-      });
-    }
-  }
-
-  return alertas.sort((a, b) => (a.severidad === b.severidad ? 0 : a.severidad === "critica" ? -1 : 1));
+  return calcularAlertas({
+    destinos,
+    requisitoParentalConsentPorColegio: new Map(configRows.map((r) => [r.colegioId, r.requisito])),
+    viajes: viajesActivos,
+    asignaciones: asignacionesActivas,
+    cuotasImpagas: cuotasVencidas,
+    pasosBloqueados,
+    groupLeaders: glsAsignados,
+    hoy,
+  });
 }
 
 /** Contador de alumnos con al menos una cuota vencida (indicador de mora, M2). */
 export async function countAlumnosEnMora(hoy = new Date()): Promise<number> {
-  // Misma semántica de día calendario que estaVencida(): la columna es `date`
-  // (medianoche UTC) — comparar contra el INICIO del día evita marcar en mora
-  // a las cuotas que vencen hoy.
-  const inicioDeHoy = new Date(
-    Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth(), hoy.getUTCDate())
-  );
+  const inicioDeHoy = new Date(diaCalendarioUTC(hoy));
   const rows = await db
-    .select({ asignacionId: cuotas.asignacionId, alumnoId: asignaciones.alumnoId })
+    .select({ alumnoId: asignaciones.alumnoId })
     .from(cuotas)
     .innerJoin(asignaciones, eq(cuotas.asignacionId, asignaciones.id))
     .where(and(ne(cuotas.estado, "pagada"), lt(cuotas.fechaVencimiento, inicioDeHoy)));

@@ -48,11 +48,20 @@ export default defineConfig({
     // el teardown que limpia los datos generados por la corrida.
     { name: "setup", testMatch: /auth\.setup\.ts/, teardown: "cleanup" },
     { name: "cleanup", testMatch: /global\.teardown\.ts/ },
+    // Sesión de familia aparte: un solo login para todo el spec del portal
+    // (loguear por test agotaba el rate limit de Better-Auth).
+    { name: "setup-familia", testMatch: /familia\.setup\.ts/ },
     {
       name: "chromium",
-      testIgnore: /public\.spec\.ts/,
+      testIgnore: /(public|familias)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], storageState: "tests/e2e/.auth/admin.json" },
       dependencies: ["setup"],
+    },
+    {
+      name: "familias",
+      testMatch: /familias\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], storageState: "tests/e2e/.auth/familia.json" },
+      dependencies: ["setup-familia"],
     },
     // Sitio público: sin sesión y sin depender del setup de auth. Los leads que
     // crean sus formularios los limpia el propio spec (no lo alcanza el teardown).

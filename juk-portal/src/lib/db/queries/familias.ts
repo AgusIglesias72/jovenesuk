@@ -1,11 +1,16 @@
 import { randomBytes } from "node:crypto";
 
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, desc, eq, ne } from "drizzle-orm";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { alumnos } from "@/lib/db/schema/alumnos";
+import { asignaciones } from "@/lib/db/schema/asignaciones";
+import { colegios } from "@/lib/db/schema/colegios";
+import { groupLeaders } from "@/lib/db/schema/grupos-leaders";
+import { groupLeadersViaje } from "@/lib/db/schema/pasos-viaje";
 import { users } from "@/lib/db/schema/users";
+import { viajes, type Viaje } from "@/lib/db/schema/viajes";
 import { evaluarVinculoFamilia, type AlumnoVinculado } from "@/lib/domain/familias";
 
 /**
@@ -215,4 +220,80 @@ export async function getAlumnosDeFamilia(
     .from(alumnos)
     .where(and(eq(alumnos.familiaUserId, familiaUserId), ne(alumnos.estado, "baja")))
     .orderBy(asc(alumnos.apellido), asc(alumnos.nombre));
+}
+
+/* ============================================================
+   Lecturas de la pantalla "Mi viaje" del portal
+   ------------------------------------------------------------
+   Ambas se resuelven con el alumnoId y NO dependen entre sí, así que las dos
+   salen en paralelo: la pantalla pasa de 2 + 2N round-trips (viaje, colegio y
+   GLs por asignación) a 2 fijos.
+   ============================================================ */
+
+export type ViajeDeFamilia = {
+  asignacionId: string;
+  viajeId: string;
+  viajeNombre: string;
+  viajeCodigo: string;
+  fechaInicio: Date;
+  fechaFin: Date;
+  paisDestino: Viaje["paisDestino"];
+  curso: string;
+  tipoAlojamientoSolicitado: Viaje["tipoAlojamientoSolicitado"];
+  colegioNombre: string | null;
+  colegioCiudad: string | null;
+};
+
+/** Viajes vigentes del alumno con destino resuelto (asignaciones ⋈ viajes ⋈ colegios). */
+export async function listViajesDeFamilia(alumnoId: string): Promise<ViajeDeFamilia[]> {
+  return db
+    .select({
+      asignacionId: asignaciones.id,
+      viajeId: viajes.id,
+      viajeNombre: viajes.nombre,
+      viajeCodigo: viajes.codigo,
+      fechaInicio: viajes.fechaInicio,
+      fechaFin: viajes.fechaFin,
+      paisDestino: viajes.paisDestino,
+      curso: viajes.curso,
+      tipoAlojamientoSolicitado: viajes.tipoAlojamientoSolicitado,
+      colegioNombre: colegios.nombre,
+      colegioCiudad: colegios.ciudad,
+    })
+    .from(asignaciones)
+    .innerJoin(viajes, eq(asignaciones.viajeId, viajes.id))
+    .leftJoin(colegios, eq(viajes.colegioDestinoId, colegios.id))
+    .where(and(eq(asignaciones.alumnoId, alumnoId), ne(asignaciones.estado, "cancelada")))
+    .orderBy(desc(asignaciones.fechaAsignacion));
+}
+
+export type RepresentanteDeFamilia = {
+  viajeId: string;
+  nombre: string;
+  apellido: string;
+};
+
+/**
+ * Group leaders de los viajes vigentes del alumno. El principal de cada viaje
+ * es la PRIMERA fila de su grupo (es_principal desc, apellido, nombre), igual
+ * criterio que el back-office.
+ */
+export async function listRepresentantesDeFamilia(
+  alumnoId: string
+): Promise<RepresentanteDeFamilia[]> {
+  return db
+    .select({
+      viajeId: groupLeadersViaje.viajeId,
+      nombre: groupLeaders.nombre,
+      apellido: groupLeaders.apellido,
+    })
+    .from(asignaciones)
+    .innerJoin(groupLeadersViaje, eq(groupLeadersViaje.viajeId, asignaciones.viajeId))
+    .innerJoin(groupLeaders, eq(groupLeadersViaje.groupLeaderId, groupLeaders.id))
+    .where(and(eq(asignaciones.alumnoId, alumnoId), ne(asignaciones.estado, "cancelada")))
+    .orderBy(
+      desc(groupLeadersViaje.esPrincipal),
+      asc(groupLeaders.apellido),
+      asc(groupLeaders.nombre)
+    );
 }

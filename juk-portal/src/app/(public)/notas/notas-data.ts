@@ -309,7 +309,7 @@ export const NOTAS: Nota[] = [
     categoria: "Programas",
     fecha: "2026-06-10",
     lecturaMin: 9,
-    img: "/landing/programa-04.png",
+    img: "/landing/programa-04.webp",
     alt: "Clase internacional de inglés",
     intro: [
       "Es el programa que más nos consultan, y con razón: Study & Work te permite estudiar inglés en Irlanda y trabajar legalmente mientras tanto, ayudándote a financiar la estadía. Acá va la guía completa, con los números reales y los pasos en orden.",
@@ -446,7 +446,7 @@ export const NOTAS: Nota[] = [
     categoria: "Programas",
     fecha: "2026-06-09",
     lecturaMin: 8,
-    img: "/landing/programa-08.png",
+    img: "/landing/programa-08.webp",
     alt: "Estudiante con su diploma de inglés",
     intro: [
       "“¿Qué examen me conviene rendir?” es una de las preguntas que más escuchamos. Y la respuesta corta es: depende de para qué lo necesites. Cada certificación internacional tiene su público, su formato y su validez, y elegir bien te ahorra tiempo, plata y frustración.",
@@ -561,7 +561,7 @@ export const NOTAS: Nota[] = [
     categoria: "Guías",
     fecha: "2026-06-08",
     lecturaMin: 8,
-    img: "/landing/salida-grupal.jpg",
+    img: "/landing/salida-grupal.webp",
     alt: "Estudiantes de JUK de viaje en Chester, Inglaterra",
     intro: [
       "Que un hijo adolescente viaje solo al exterior por primera vez genera la misma mezcla en todas las familias: entusiasmo por la oportunidad y mil preguntas sobre la seguridad, la organización y el día a día. Las dos cosas son válidas.",

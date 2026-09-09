@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gt, inArray, ne, notInArray } from "drizzle-orm";
+import { and, asc, count, eq, gt, inArray, ne, notInArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { alumnos } from "@/lib/db/schema/alumnos";
@@ -17,11 +17,11 @@ export type DashboardStats = {
 };
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const [alumnosRow] = await db.select({ c: count() }).from(alumnos);
-  const viajeRows = await db
-    .select({ estado: viajes.estado, c: count() })
-    .from(viajes)
-    .groupBy(viajes.estado);
+  // Independientes entre sí: sobre neon-http cada await es un round-trip.
+  const [[alumnosRow], viajeRows] = await Promise.all([
+    db.select({ c: count() }).from(alumnos),
+    db.select({ estado: viajes.estado, c: count() }).from(viajes).groupBy(viajes.estado),
+  ]);
 
   const porEstado = (e: Viaje["estado"]) =>
     viajeRows.find((r) => r.estado === e)?.c ?? 0;
@@ -61,39 +61,43 @@ export async function getProximosViajesConOcupacion(limit = 6): Promise<ViajeCon
   if (base.length === 0) return [];
   const ids = base.map((v) => v.id);
 
-  const filas = await db
+  // Se agrega en SQL (una fila por asignación, no una por paso: eran ~800 filas
+  // de JSON por dashboard). WHY del predicado: replica cuentaParaCompletitud()
+  // de domain/pasos/estados.ts — un paso cuenta si no es "na" y no quedó
+  // marcado opcional. `-> 'opcional'` (json, no ->>) para que solo el booleano
+  // true cuente como opcional, igual que el `=== true` del dominio.
+  const cuentaParaCompletitud = sql`${pasosAlumno.estado} <> 'na' and coalesce((${pasosAlumno.metadata} -> 'opcional')::text, 'false') <> 'true'`;
+
+  // LEFT JOIN: una asignación sin pasos suma como inscripto con total 0.
+  const porAsignacion = await db
     .select({
       viajeId: asignaciones.viajeId,
-      asignacionId: asignaciones.id,
-      codigo: pasosAlumno.codigo,
-      estado: pasosAlumno.estado,
-      metadata: pasosAlumno.metadata,
+      total: sql<number>`count(*) filter (where ${cuentaParaCompletitud})`.mapWith(Number),
+      completos:
+        sql<number>`count(*) filter (where ${cuentaParaCompletitud} and ${pasosAlumno.estado} = 'completado')`.mapWith(
+          Number
+        ),
     })
     .from(asignaciones)
     .leftJoin(pasosAlumno, eq(pasosAlumno.asignacionId, asignaciones.id))
-    .where(and(eq(asignaciones.estado, "activa"), inArray(asignaciones.viajeId, ids)));
+    .where(and(eq(asignaciones.estado, "activa"), inArray(asignaciones.viajeId, ids)))
+    .groupBy(asignaciones.viajeId, asignaciones.id);
 
-  const porViaje = new Map<string, Map<string, { total: number; completos: number }>>();
-  for (const f of filas) {
-    const porAsig = porViaje.get(f.viajeId) ?? new Map();
-    porViaje.set(f.viajeId, porAsig);
-    const acc = porAsig.get(f.asignacionId) ?? { total: 0, completos: 0 };
-    porAsig.set(f.asignacionId, acc);
-    if (!f.codigo || f.estado === "na") continue;
-    if ((f.metadata as Record<string, unknown> | null)?.opcional === true) continue;
-    acc.total += 1;
-    if (f.estado === "completado") acc.completos += 1;
+  const porViaje = new Map<string, { inscriptos: number; completos: number }>();
+  for (const f of porAsignacion) {
+    const acc = porViaje.get(f.viajeId) ?? { inscriptos: 0, completos: 0 };
+    acc.inscriptos += 1;
+    if (f.total > 0 && f.completos === f.total) acc.completos += 1;
+    porViaje.set(f.viajeId, acc);
   }
 
   return base.map((v) => {
-    const porAsig = porViaje.get(v.id) ?? new Map<string, { total: number; completos: number }>();
-    const alumnosViaje = [...porAsig.values()];
-    const alumnosCompletos = alumnosViaje.filter((a) => a.total > 0 && a.completos === a.total).length;
+    const acc = porViaje.get(v.id) ?? { inscriptos: 0, completos: 0 };
     return {
       ...v,
-      inscriptos: alumnosViaje.length,
-      completitudPct: alumnosViaje.length
-        ? Math.round((alumnosCompletos / alumnosViaje.length) * 100)
+      inscriptos: acc.inscriptos,
+      completitudPct: acc.inscriptos
+        ? Math.round((acc.completos / acc.inscriptos) * 100)
         : 0,
     };
   });

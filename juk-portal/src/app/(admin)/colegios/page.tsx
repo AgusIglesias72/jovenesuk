@@ -1,7 +1,7 @@
 import { LinkButton, PageHeader, Pagination } from "@/components/ui";
-import { listColegios } from "@/lib/db/queries/colegios";
+import { listColegiosPaginado } from "@/lib/db/queries/colegios";
 import { colegioFiltersSchema } from "@/lib/domain/colegios";
-import { paginar } from "@/lib/utils/paginate";
+import { pagina } from "@/lib/utils/paginate";
 
 import { ColegiosFilters } from "./colegios-filters";
 import { ColegiosTable } from "./colegios-table";
@@ -26,8 +26,12 @@ export default async function ColegiosPage({
     incluirInactivos: str(sp.incluirInactivos) === "1" ? true : undefined,
   });
   const filters = parsed.success ? parsed.data : {};
-  const todos = await listColegios(filters);
-  const { items: colegios, total, page, pages } = paginar(todos, str(sp.page));
+  const {
+    items: colegios,
+    total,
+    page,
+    pages,
+  } = await listColegiosPaginado(filters, pagina(str(sp.page)));
 
   return (
     <>

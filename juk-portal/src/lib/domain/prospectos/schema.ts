@@ -95,11 +95,6 @@ export const moverEstadoSchema = z.object({
   posicion: z.coerce.number().int().min(0),
 });
 
-export const reordenarSchema = z.object({
-  estado: prospectoEstadoEnum,
-  ids: z.array(z.string().uuid()),
-});
-
 export const enviarOutreachSchema = z.object({
   prospectoId: z.string().uuid(),
   asunto: z.string().trim().min(3, "El asunto es muy corto"),
@@ -115,6 +110,5 @@ export type ProspectoCreateData = z.output<typeof prospectoCreateSchema>;
 export type ProspectoUpdateData = z.output<typeof prospectoUpdateSchema>;
 export type ProspectoFilters = z.output<typeof prospectoFiltersSchema>;
 export type MoverEstadoData = z.output<typeof moverEstadoSchema>;
-export type ReordenarData = z.output<typeof reordenarSchema>;
 export type EnviarOutreachData = z.output<typeof enviarOutreachSchema>;
 export type NotaData = z.output<typeof notaSchema>;

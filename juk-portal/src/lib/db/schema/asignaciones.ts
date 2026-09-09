@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, pgEnum, uuid, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, pgEnum, uuid, index, unique } from "drizzle-orm/pg-core";
 import { alumnos } from "./alumnos";
 import { viajes } from "./viajes";
 
@@ -38,10 +38,16 @@ export const asignaciones = pgTable(
     fechaCancelacion: timestamp("fecha_cancelacion"),
     motivoCancelacion: text("motivo_cancelacion"),
   },
-  (t) => ({
+  // La unique (alumno_id, viaje_id) ya sirve las búsquedas por alumno
+  // (listAsignacionesByAlumno) por ser su columna izquierda; falta la mirada
+  // inversa, que es la más caliente: roster del viaje, cupo, elegibles,
+  // dashboard y pagos filtran por viaje_id, casi siempre con el estado
+  // (activa / ≠ cancelada) al lado.
+  (t) => [
     // Un alumno no puede estar dos veces en el mismo viaje.
-    uniqAlumnoViaje: unique("uniq_alumno_viaje").on(t.alumnoId, t.viajeId),
-  })
+    unique("uniq_alumno_viaje").on(t.alumnoId, t.viajeId),
+    index("idx_asignaciones_viaje").on(t.viajeId, t.estado),
+  ]
 );
 
 export type Asignacion = typeof asignaciones.$inferSelect;

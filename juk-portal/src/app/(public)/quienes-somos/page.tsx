@@ -90,7 +90,7 @@ export default function QuienesSomosPage() {
             <div className="absolute -bottom-4 -right-4 h-full w-full rounded-[var(--r-xl)] bg-[var(--c-accent-soft)]" aria-hidden />
             <div className="relative aspect-[4/3] overflow-hidden rounded-[var(--r-xl)] shadow-[shadow:var(--shadow-2)]">
               <Image
-                src="/landing/salida-institutos.jpg"
+                src="/landing/salida-institutos.webp"
                 alt="Grupo de estudiantes de JUK en Notting Hill, Londres"
                 fill
                 sizes="(min-width: 1024px) 520px, 100vw"

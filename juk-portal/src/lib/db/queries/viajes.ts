@@ -1,15 +1,21 @@
-import { and, desc, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { colegios } from "@/lib/db/schema/colegios";
 import { viajes, type NewViaje, type Viaje } from "@/lib/db/schema/viajes";
 import { ViajeNotFoundError, type ViajeFilters } from "@/lib/domain/viajes";
+import {
+  paginarEnSql,
+  totalDe,
+  type Pagina,
+  type Paginado,
+} from "@/lib/utils/paginate";
 
 import { unicaFila } from "./errors";
 
 export type ViajeListItem = Viaje & { colegioDestinoNombre: string | null };
 
-export async function listViajes(filters: ViajeFilters = {}): Promise<ViajeListItem[]> {
+function condicionesViajes(filters: ViajeFilters): SQL | undefined {
   const conditions: SQL[] = [];
 
   if (filters.q) {
@@ -21,14 +27,32 @@ export async function listViajes(filters: ViajeFilters = {}): Promise<ViajeListI
   if (filters.origen) conditions.push(eq(viajes.origen, filters.origen));
   if (filters.tipo) conditions.push(eq(viajes.tipo, filters.tipo));
 
-  const rows = await db
-    .select({ viaje: viajes, colegioDestinoNombre: colegios.nombre })
-    .from(viajes)
-    .leftJoin(colegios, eq(viajes.colegioDestinoId, colegios.id))
-    .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(desc(viajes.fechaInicio));
+  return conditions.length ? and(...conditions) : undefined;
+}
 
-  return rows.map((r) => ({ ...r.viaje, colegioDestinoNombre: r.colegioDestinoNombre }));
+export async function listViajes(
+  filters: ViajeFilters,
+  pagina: Pagina
+): Promise<Paginado<ViajeListItem>> {
+  const where = condicionesViajes(filters);
+
+  return paginarEnSql(
+    pagina,
+    async (limit, offset) => {
+      const rows = await db
+        .select({ viaje: viajes, colegioDestinoNombre: colegios.nombre })
+        .from(viajes)
+        .leftJoin(colegios, eq(viajes.colegioDestinoId, colegios.id))
+        .where(where)
+        .orderBy(desc(viajes.fechaInicio))
+        .limit(limit)
+        .offset(offset);
+      return rows.map((r) => ({ ...r.viaje, colegioDestinoNombre: r.colegioDestinoNombre }));
+    },
+    // El leftJoin solo resuelve el nombre del colegio destino (FK → PK, no
+    // multiplica filas) y ningún filtro lo toca: contar `viajes` alcanza.
+    () => db.select({ n: count() }).from(viajes).where(where).then(totalDe)
+  );
 }
 
 export async function listViajesPorEstado(estados: Viaje["estado"][]): Promise<Viaje[]> {

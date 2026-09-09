@@ -1,4 +1,14 @@
-import { pgTable, text, timestamp, pgEnum, uuid, integer, date, numeric } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  pgEnum,
+  uuid,
+  date,
+  index,
+  integer,
+  numeric,
+} from "drizzle-orm/pg-core";
 import { asignaciones } from "./asignaciones";
 
 /**
@@ -25,34 +35,41 @@ export const cuotaEstado = pgEnum("cuota_estado", [
  * registro separado. Es la última cuota de este plan, marcada con
  * canal="presencial". Esto evita doble contabilización (ver PRD §6.12).
  */
-export const cuotas = pgTable("cuotas", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  asignacionId: uuid("asignacion_id")
-    .notNull()
-    .references(() => asignaciones.id, { onDelete: "cascade" }),
+export const cuotas = pgTable(
+  "cuotas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    asignacionId: uuid("asignacion_id")
+      .notNull()
+      .references(() => asignaciones.id, { onDelete: "cascade" }),
 
-  numero: integer("numero").notNull(),  // 1, 2, 3...
-  esUltimaCuota: integer("es_ultima_cuota").notNull().default(0),  // 1 si lo es
+    numero: integer("numero").notNull(),  // 1, 2, 3...
+    esUltimaCuota: integer("es_ultima_cuota").notNull().default(0),  // 1 si lo es
 
-  monto: numeric("monto", { precision: 12, scale: 2 }).notNull(),  // en la moneda acordada
-  moneda: monedaCuota("moneda").notNull().default("USD"),
-  // Cotización aplicada si el pago se registró en otra moneda (opcional).
-  cotizacionAplicada: numeric("cotizacion_aplicada", { precision: 12, scale: 4 }),
+    monto: numeric("monto", { precision: 12, scale: 2 }).notNull(),  // en la moneda acordada
+    moneda: monedaCuota("moneda").notNull().default("USD"),
+    // Cotización aplicada si el pago se registró en otra moneda (opcional).
+    cotizacionAplicada: numeric("cotizacion_aplicada", { precision: 12, scale: 4 }),
 
-  fechaVencimiento: date("fecha_vencimiento", { mode: "date" }).notNull(),
-  fechaPagoEfectivo: timestamp("fecha_pago_efectivo"),
+    fechaVencimiento: date("fecha_vencimiento", { mode: "date" }).notNull(),
+    fechaPagoEfectivo: timestamp("fecha_pago_efectivo"),
 
-  canal: canalPago("canal").notNull(),
-  estado: cuotaEstado("estado").default("pendiente").notNull(),
+    canal: canalPago("canal").notNull(),
+    estado: cuotaEstado("estado").default("pendiente").notNull(),
 
-  observaciones: text("observaciones"),
+    observaciones: text("observaciones"),
 
-  // Quién registró el pago (trazabilidad, Modelo v1.7)
-  registradoPor: uuid("registrado_por"),
+    // Quién registró el pago (trazabilidad, Modelo v1.7)
+    registradoPor: uuid("registrado_por"),
 
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  // El plan de pagos SIEMPRE se lee entero por asignación (listCuotasByAsignacion,
+  // los pasos B1/B2 del tablero, el panel de pagos del viaje) y se regenera con
+  // un DELETE por asignación.
+  (t) => [index("idx_cuotas_asignacion").on(t.asignacionId)]
+);
 
 export type Cuota = typeof cuotas.$inferSelect;
 export type NewCuota = typeof cuotas.$inferInsert;

@@ -7,11 +7,6 @@ import { test, expect } from "@playwright/test";
  * que no genera datos que limpiar.
  */
 
-const EMAIL = process.env.E2E_FAMILIA_EMAIL ?? "tutor@demo.jovenesenuk.com";
-const PASSWORD = process.env.E2E_FAMILIA_PASSWORD ?? process.env.SEED_FAMILIA_PASSWORD ?? process.env.SEED_TEST_PASSWORD;
-if (!PASSWORD) {
-  throw new Error("Falta E2E_FAMILIA_PASSWORD, SEED_FAMILIA_PASSWORD o SEED_TEST_PASSWORD en el entorno (.env.local).");
-}
 const DNI = "DEMO-1";
 const NOMBRE = "Lola Demo Quince";
 // Benja (DEMO-2): EXISTE en la DB, tiene asignación y pasos, pero cuelga de la
@@ -19,17 +14,8 @@ const NOMBRE = "Lola Demo Quince";
 // y no la de "el alumno no existe".
 const DNI_AJENO = "DEMO-2";
 
-// El proyecto chromium trae la sesión de admin; acá arrancamos sin sesión y
-// entramos como familia.
-test.use({ storageState: { cookies: [], origins: [] } });
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/login");
-  await page.locator('input[type="email"]').fill(EMAIL);
-  await page.locator('input[type="password"]').fill(PASSWORD);
-  await page.getByRole("button", { name: "Ingresar" }).click();
-  await page.waitForURL((url) => !url.pathname.endsWith("/login"));
-});
+// La sesión de familia la arma `familia.setup.ts` (proyecto "familias" en
+// playwright.config.ts): un login por corrida, no uno por test.
 
 test("entra al portal y aterriza en el resumen del alumno", async ({ page }) => {
   await page.goto("/familias");

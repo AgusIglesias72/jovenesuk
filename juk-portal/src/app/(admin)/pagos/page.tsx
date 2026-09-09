@@ -1,6 +1,11 @@
 import { PageHeader, Pagination, StatCard } from "@/components/ui";
-import { listCuotasGlobal, viajesConCuotas } from "@/lib/db/queries/pagos";
-import { paginar } from "@/lib/utils/paginate";
+import {
+  listCuotasGlobal,
+  resumenPagosGlobal,
+  viajesConCuotas,
+  type EstadoEfectivo,
+} from "@/lib/db/queries/pagos";
+import { pagina } from "@/lib/utils/paginate";
 import {
   diasDeMora,
   estadoEfectivoCuota,
@@ -8,6 +13,8 @@ import {
   MONEDAS,
   type Moneda,
 } from "@/lib/domain/cuotas";
+
+const ESTADOS_EFECTIVOS: EstadoEfectivo[] = ["pagada", "vencida", "pendiente"];
 
 import { PagosFilters } from "./pagos-filters";
 import { PagosTable, type PagoRow } from "./pagos-table";
@@ -21,14 +28,18 @@ export default async function PagosPage({
 }) {
   const sp = await searchParams;
   const moneda = MONEDAS.includes(sp.moneda as Moneda) ? (sp.moneda as Moneda) : undefined;
+  const estado = ESTADOS_EFECTIVOS.find((e) => e === sp.estado);
+  const hoy = new Date();
 
-  const [cuotas, viajes] = await Promise.all([
-    listCuotasGlobal({ viajeId: sp.viaje, moneda }),
+  // El resumen se calcula sobre el universo filtrado por viaje/moneda (nunca
+  // por estado): si dependiera de la página visible mostraría totales falsos.
+  const [cuotas, resumenGlobal, viajes] = await Promise.all([
+    listCuotasGlobal({ viajeId: sp.viaje, moneda, estado }, pagina(sp.page), hoy),
+    resumenPagosGlobal({ viajeId: sp.viaje, moneda }, hoy),
     viajesConCuotas(),
   ]);
 
-  const hoy = new Date();
-  const todas: PagoRow[] = cuotas.map((c) => ({
+  const rows: PagoRow[] = cuotas.items.map((c) => ({
     id: c.id,
     numero: c.numero,
     esUltimaCuota: c.esUltimaCuota,
@@ -47,27 +58,7 @@ export default async function PagosPage({
     viajeCodigo: c.viajeCodigo,
   }));
 
-  const filtradas =
-    sp.estado === "pagada" || sp.estado === "vencida" || sp.estado === "pendiente"
-      ? todas.filter((r) => r.estadoEfectivo === sp.estado)
-      : todas;
-  const { items: rows, total, page, pages } = paginar(filtradas, sp.page);
-
-  // Resumen por moneda sobre el universo filtrado por viaje/moneda (no por estado).
-  const resumen = MONEDAS.map((m) => {
-    const deMoneda = todas.filter((r) => r.moneda === m);
-    if (deMoneda.length === 0) return null;
-    const sum = (fn: (r: PagoRow) => boolean) =>
-      deMoneda.filter(fn).reduce((acc, r) => acc + Number(r.monto), 0);
-    return {
-      moneda: m,
-      cobrado: sum((r) => r.estadoEfectivo === "pagada"),
-      pendiente: sum((r) => r.estadoEfectivo !== "pagada"),
-      enMora: sum((r) => r.estadoEfectivo === "vencida"),
-    };
-  }).filter((r) => r !== null);
-
-  const cuotasEnMora = todas.filter((r) => r.estadoEfectivo === "vencida").length;
+  const { porMoneda: resumen, cuotasEnMora } = resumenGlobal;
 
   return (
     <>
@@ -102,7 +93,7 @@ export default async function PagosPage({
       </div>
 
       <PagosTable rows={rows} />
-      <Pagination total={total} page={page} pages={pages} />
+      <Pagination total={cuotas.total} page={cuotas.page} pages={cuotas.pages} />
     </>
   );
 }

@@ -1,4 +1,5 @@
 import { aplicaUltimoPagoPresencial, type ViajeOrigen } from "@/lib/domain/viajes";
+import { diaCalendarioUTC } from "@/lib/utils/date";
 
 /**
  * Derivaciones del plan de cuotas (B1/B2). Lógica pura sobre una shape mínima
@@ -15,12 +16,10 @@ export type CuotaLike = {
   fechaPagoEfectivo: Date | null;
 };
 
-const monto = (c: CuotaLike) => (typeof c.monto === "string" ? Number(c.monto) : c.monto);
+/** Lo mínimo para decidir si una cuota está vencida (lo usan las alertas). */
+export type CuotaVencibleLike = Pick<CuotaLike, "estado" | "fechaVencimiento">;
 
-/** Día calendario UTC (las columnas `date` parsean a medianoche UTC). */
-function diaUTC(d: Date): number {
-  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-}
+const monto = (c: CuotaLike) => (typeof c.monto === "string" ? Number(c.monto) : c.monto);
 
 /**
  * Canal de una cuota al crearse (PRD B1/B2, ex CRIT-01): la ÚLTIMA cuota es
@@ -36,13 +35,15 @@ export function canalCuota(origen: ViajeOrigen, esUltima: boolean): "agencia" | 
  * columna `date` (medianoche UTC) y compararla con `new Date()` crudo marcaba
  * la mora desde las 21:00 ART del día previo.
  */
-export function estaVencida(c: CuotaLike, hoy: Date): boolean {
-  return c.estado !== "pagada" && diaUTC(c.fechaVencimiento) < diaUTC(hoy);
+export function estaVencida(c: CuotaVencibleLike, hoy: Date): boolean {
+  return c.estado !== "pagada" && diaCalendarioUTC(c.fechaVencimiento) < diaCalendarioUTC(hoy);
 }
 
-export function diasDeMora(c: CuotaLike, hoy: Date): number {
+export function diasDeMora(c: CuotaVencibleLike, hoy: Date): number {
   if (!estaVencida(c, hoy)) return 0;
-  return Math.round((diaUTC(hoy) - diaUTC(c.fechaVencimiento)) / 86_400_000);
+  return Math.round(
+    (diaCalendarioUTC(hoy) - diaCalendarioUTC(c.fechaVencimiento)) / 86_400_000
+  );
 }
 
 export function totalPlan(cuotas: CuotaLike[]): number {

@@ -354,7 +354,7 @@ export function Hero() {
         <div className="relative hidden min-h-[440px] sm:block">
           <FlightPath />
           <HeroPhoto
-            src="/landing/trips/oxford.jpg"
+            src="/landing/trips/oxford.webp"
             alt="Edificios históricos de Oxford"
             caption="OXFORD"
             tilt="[--tilt:-7deg]"
@@ -520,7 +520,7 @@ export const SALIDAS: Salida[] = [
     slug: "grupal",
     titulo: "Salida grupal",
     badge: "Febrero y julio",
-    img: "/landing/salida-grupal.jpg",
+    img: "/landing/salida-grupal.webp",
     alt: "Estudiantes de JUK frente al Eastgate Clock, Chester",
     desc: "Viajá en grupo a Cambridge o Londres con el equipo de JUK acompañándote durante todo el viaje.",
     incluye: [
@@ -533,7 +533,7 @@ export const SALIDAS: Salida[] = [
     slug: "institutos",
     titulo: "Colegios e institutos",
     badge: "Para instituciones",
-    img: "/landing/salida-institutos.jpg",
+    img: "/landing/salida-institutos.webp",
     alt: "Grupo de estudiantes de JUK en Notting Hill, Londres",
     desc: "Programas a medida para grupos de estudiantes con líderes de la institución, con gestión integral del viaje.",
     incluye: [
@@ -546,7 +546,7 @@ export const SALIDAS: Salida[] = [
     slug: "individual",
     titulo: "Salida individual",
     badge: "Todo el año",
-    img: "/landing/salida-individual.jpg",
+    img: "/landing/salida-individual.webp",
     alt: "Alumna de JUK con su certificado en English in Chester",
     desc: "Para jóvenes, adultos y profesionales: armá tu experiencia con fechas, duración, curso y alojamiento a tu medida.",
     incluye: [
@@ -796,25 +796,25 @@ type Testimonio = {
 const TESTIMONIOS: Testimonio[] = [
   {
     nombre: "Camila O'Toole",
-    foto: "/landing/testimonio-camila.png",
+    foto: "/landing/testimonio-camila.webp",
     texto:
       "¡Gracias JUK por organizarme absolutamente todo! Me gustaron mucho las clases. Me voy muy contenta y ahora voy a seguir hablando Inglés con los amigos que hice de todas las nacionalidades",
   },
   {
     nombre: "Mariano Ordoñez",
-    foto: "/landing/testimonio-mariano.jpg",
+    foto: "/landing/testimonio-mariano.webp",
     texto:
       "¡Sin dudas fue una de las mejores experiencias de mi vida! Realmente no me alcanzan las palabras para agradecer todo lo que hicieron. Ojalá otros también vivan esta increíble experiencia.",
   },
   {
     nombre: "Nicolás Ianniccillo",
-    foto: "/landing/testimonio-nicolas.jpg",
+    foto: "/landing/testimonio-nicolas.webp",
     texto:
       "Experiencia super recomendable. Estando tan lejos de casa el apoyo de JUK fue indispensable en todo momento. Sin dudas lo volvería a repetir!",
   },
   {
     nombre: "Clara Michelini",
-    foto: "/landing/testimonio-clara.jpeg",
+    foto: "/landing/testimonio-clara.webp",
     texto:
       "Fue una de las experiencias más enriquecedoras que he vivido! Decidí hacer este intercambio porque quería mejorar mi inglés y, además, noté un crecimiento personal impresionante ¡Si tienen la oportunidad, hagan este viaje!",
   },

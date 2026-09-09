@@ -1,8 +1,9 @@
 import Link from "next/link";
 
-import { listCuotasByAsignacion } from "@/lib/db/queries/cuotas";
-import { listPasosByAsignacion } from "@/lib/db/queries/pasos-alumno";
+import { listCuotasByAsignaciones } from "@/lib/db/queries/cuotas";
+import { listPasosByAsignaciones } from "@/lib/db/queries/pasos-alumno";
 import { estaVencida, formatMonto, saldoPendiente, type Moneda } from "@/lib/domain/cuotas";
+import { agruparPor } from "@/lib/utils/agrupar";
 
 import { asignacionesActivas, cargarAlumnoFamilia } from "./_data";
 import {
@@ -34,29 +35,28 @@ export default async function ResumenPage({ params }: { params: Promise<{ dni: s
   const hoy = new Date();
   const base = `/familias/${dni}`;
 
-  const viajes = await Promise.all(
-    activas.map(async (a) => {
-      const [pasos, cuotas] = await Promise.all([
-        listPasosByAsignacion(a.asignacionId),
-        listCuotasByAsignacion(a.asignacionId),
-      ]);
-      const doc = completitud(pasos);
-      const docAccion = pasos.filter(
-        (p) => p.estado === "vencido"
-      ).length;
-      const cuotasVencidas = cuotas.filter((c) => estaVencida(c, hoy)).length;
-      const moneda = (cuotas[0]?.moneda ?? "USD") as Moneda;
-      return {
-        a,
-        doc,
-        docAccion,
-        cuotasVencidas,
-        saldo: saldoPendiente(cuotas),
-        tieneCuotas: cuotas.length > 0,
-        moneda,
-      };
-    })
-  );
+  const ids = activas.map((a) => a.asignacionId);
+  const [todosLosPasos, todasLasCuotas] = await Promise.all([
+    listPasosByAsignaciones(ids),
+    listCuotasByAsignaciones(ids),
+  ]);
+  const pasosPorAsignacion = agruparPor(todosLosPasos, (p) => p.asignacionId);
+  const cuotasPorAsignacion = agruparPor(todasLasCuotas, (c) => c.asignacionId);
+
+  const viajes = activas.map((a) => {
+    const pasos = pasosPorAsignacion.get(a.asignacionId) ?? [];
+    const cuotas = cuotasPorAsignacion.get(a.asignacionId) ?? [];
+    const cuotasVencidas = cuotas.filter((c) => estaVencida(c, hoy)).length;
+    return {
+      a,
+      doc: completitud(pasos),
+      docAccion: pasos.filter((p) => p.estado === "vencido").length,
+      cuotasVencidas,
+      saldo: saldoPendiente(cuotas),
+      tieneCuotas: cuotas.length > 0,
+      moneda: (cuotas[0]?.moneda ?? "USD") as Moneda,
+    };
+  });
 
   const totalDocAccion = viajes.reduce((acc, v) => acc + v.docAccion, 0);
   const totalCuotasVencidas = viajes.reduce((acc, v) => acc + v.cuotasVencidas, 0);

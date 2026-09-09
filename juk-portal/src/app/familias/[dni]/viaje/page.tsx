@@ -1,9 +1,8 @@
-import { getColegioById } from "@/lib/db/queries/colegios";
-import { listGroupLeadersDeViaje } from "@/lib/db/queries/pasos-viaje";
-import { getViajeById } from "@/lib/db/queries/viajes";
+import { listRepresentantesDeFamilia, listViajesDeFamilia } from "@/lib/db/queries/familias";
 import { PAIS_LABELS, TIPO_ALOJAMIENTO_LABELS } from "@/lib/domain/colegios";
+import { agruparPor } from "@/lib/utils/agrupar";
 
-import { cargarAlumnoFamilia, asignacionesActivas } from "../_data";
+import { cargarAlumnoFamilia } from "../_data";
 import { EstadoVacio, FamiliaPageHeader, SeccionTitulo, ViajeHeader } from "../../_ui";
 
 export const metadata = { title: "Mi viaje · JUK" };
@@ -11,9 +10,15 @@ export const metadata = { title: "Mi viaje · JUK" };
 export default async function ViajePage({ params }: { params: Promise<{ dni: string }> }) {
   const { dni } = await params;
   const { alumno } = await cargarAlumnoFamilia(dni);
-  const activas = await asignacionesActivas(alumno.id);
 
-  if (activas.length === 0) {
+  // Los dos selects dependen solo del alumno, así que salen juntos: el viaje ya
+  // trae su colegio destino por join y el representante se resuelve agrupando.
+  const [viajes, representantes] = await Promise.all([
+    listViajesDeFamilia(alumno.id),
+    listRepresentantesDeFamilia(alumno.id),
+  ]);
+
+  if (viajes.length === 0) {
     return (
       <div className="space-y-6">
         <FamiliaPageHeader title="Viaje" />
@@ -22,17 +27,7 @@ export default async function ViajePage({ params }: { params: Promise<{ dni: str
     );
   }
 
-  const viajes = await Promise.all(
-    activas.map(async (a) => {
-      const viaje = await getViajeById(a.viajeId);
-      const [colegio, gls] = await Promise.all([
-        viaje ? getColegioById(viaje.colegioDestinoId) : Promise.resolve(null),
-        listGroupLeadersDeViaje(a.viajeId),
-      ]);
-      const principal = gls.find((g) => g.esPrincipal) ?? gls[0] ?? null;
-      return { a, viaje, colegio, principal };
-    })
-  );
+  const principalPorViaje = agruparPor(representantes, (r) => r.viajeId);
 
   return (
     <div className="space-y-6">
@@ -41,46 +36,49 @@ export default async function ViajePage({ params }: { params: Promise<{ dni: str
         subtitle="Toda la info de tu viaje. El itinerario oficial lo publicamos más cerca de la salida."
       />
       <div className="space-y-8">
-        {viajes.map(({ a, viaje, colegio, principal }) => (
-        <section key={a.asignacionId} className="space-y-4">
-          <ViajeHeader
-            nombre={a.viajeNombre}
-            codigo={a.viajeCodigo}
-            fechaInicio={a.fechaInicio}
-            fechaFin={a.fechaFin}
-          />
-
-          <div className="rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] p-5 shadow-[shadow:var(--shadow-1)]">
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
-              <Dato label="Destino" valor={colegio?.nombre ?? "—"} />
-              <Dato label="País" valor={viaje ? PAIS_LABELS[viaje.paisDestino] : "—"} />
-              <Dato label="Ciudad" valor={colegio?.ciudad ?? "—"} />
-              <Dato label="Curso" valor={viaje?.curso ?? "—"} />
-              <Dato
-                label="Alojamiento"
-                valor={viaje ? TIPO_ALOJAMIENTO_LABELS[viaje.tipoAlojamientoSolicitado] : "—"}
+        {viajes.map((v) => {
+          const principal = principalPorViaje.get(v.viajeId)?.[0] ?? null;
+          return (
+            <section key={v.asignacionId} className="space-y-4">
+              <ViajeHeader
+                nombre={v.viajeNombre}
+                codigo={v.viajeCodigo}
+                fechaInicio={v.fechaInicio}
+                fechaFin={v.fechaFin}
               />
-              <Dato
-                label="Representante"
-                valor={principal ? `${principal.nombre} ${principal.apellido}` : "A confirmar"}
-              />
-            </dl>
-          </div>
 
-          <div className="space-y-2">
-            <SeccionTitulo titulo="Itinerario" />
-            <div className="rounded-[var(--r-lg)] border border-dashed border-[var(--c-border-strong)] bg-[var(--c-surface)] p-6 text-center">
-              <p className="text-[length:var(--t-body)] font-semibold text-[var(--c-ink)]">
-                Próximamente
-              </p>
-              <p className="mt-1 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
-                Cuando publiquemos el itinerario oficial del viaje, lo vas a ver acá y te avisamos
-                por email.
-              </p>
-            </div>
-          </div>
-        </section>
-        ))}
+              <div className="rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] p-5 shadow-[shadow:var(--shadow-1)]">
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
+                  <Dato label="Destino" valor={v.colegioNombre ?? "—"} />
+                  <Dato label="País" valor={PAIS_LABELS[v.paisDestino]} />
+                  <Dato label="Ciudad" valor={v.colegioCiudad ?? "—"} />
+                  <Dato label="Curso" valor={v.curso} />
+                  <Dato
+                    label="Alojamiento"
+                    valor={TIPO_ALOJAMIENTO_LABELS[v.tipoAlojamientoSolicitado]}
+                  />
+                  <Dato
+                    label="Representante"
+                    valor={principal ? `${principal.nombre} ${principal.apellido}` : "A confirmar"}
+                  />
+                </dl>
+              </div>
+
+              <div className="space-y-2">
+                <SeccionTitulo titulo="Itinerario" />
+                <div className="rounded-[var(--r-lg)] border border-dashed border-[var(--c-border-strong)] bg-[var(--c-surface)] p-6 text-center">
+                  <p className="text-[length:var(--t-body)] font-semibold text-[var(--c-ink)]">
+                    Próximamente
+                  </p>
+                  <p className="mt-1 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
+                    Cuando publiquemos el itinerario oficial del viaje, lo vas a ver acá y te
+                    avisamos por email.
+                  </p>
+                </div>
+              </div>
+            </section>
+          );
+        })}
       </div>
     </div>
   );

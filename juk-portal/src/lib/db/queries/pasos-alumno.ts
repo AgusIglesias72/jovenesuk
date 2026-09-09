@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { pasosAlumno, type PasoAlumno } from "@/lib/db/schema/pasos-alumno";
@@ -6,6 +6,16 @@ import type { PasoInicial } from "@/lib/domain/pasos";
 
 export async function listPasosByAsignacion(asignacionId: string): Promise<PasoAlumno[]> {
   return db.select().from(pasosAlumno).where(eq(pasosAlumno.asignacionId, asignacionId));
+}
+
+/**
+ * Pasos de varias asignaciones en un solo round-trip (el llamador agrupa por
+ * `asignacionId` con `agruparPor`). Con neon-http cada query es un HTTPS
+ * independiente, así que pedir los pasos por asignación en un loop es N saltos.
+ */
+export async function listPasosByAsignaciones(asignacionIds: string[]): Promise<PasoAlumno[]> {
+  if (asignacionIds.length === 0) return [];
+  return db.select().from(pasosAlumno).where(inArray(pasosAlumno.asignacionId, asignacionIds));
 }
 
 export async function getPasoAlumnoById(id: string): Promise<PasoAlumno | null> {

@@ -12,12 +12,17 @@ import {
   type ProspectoComunicacion,
 } from "@/lib/db/schema/prospectos";
 import {
-  PROSPECTO_ESTADOS,
   ProspectoNotFoundError,
   type ProspectoCreateData,
   type ProspectoEstado,
   type ProspectoImportado,
 } from "@/lib/domain/prospectos";
+import {
+  paginarEnSql,
+  totalDe,
+  type Pagina,
+  type Paginado,
+} from "@/lib/utils/paginate";
 
 import { createColegio } from "./colegios";
 
@@ -29,9 +34,7 @@ export type ListProspectosFilters = {
   responsableId?: string;
 };
 
-export async function listProspectos(
-  filters: ListProspectosFilters = {}
-): Promise<Prospecto[]> {
+function condicionesProspectos(filters: ListProspectosFilters): SQL | undefined {
   const conditions: SQL[] = [];
 
   if (filters.q) {
@@ -44,52 +47,78 @@ export async function listProspectos(
     conditions.push(eq(prospectos.responsableId, filters.responsableId));
   }
 
-  return db
-    .select()
+  return conditions.length ? and(...conditions) : undefined;
+}
+
+export async function listProspectos(
+  filters: ListProspectosFilters,
+  pagina: Pagina
+): Promise<Paginado<Prospecto>> {
+  const where = condicionesProspectos(filters);
+
+  return paginarEnSql(
+    pagina,
+    (limit, offset) =>
+      db
+        .select()
+        .from(prospectos)
+        .where(where)
+        .orderBy(asc(prospectos.estado), asc(prospectos.posicion))
+        .limit(limit)
+        .offset(offset),
+    () => db.select({ n: count() }).from(prospectos).where(where).then(totalDe)
+  );
+}
+
+/** Lo único que dibuja la tarjeta del kanban: sin notas ni unsubscribeToken. */
+export type ProspectoKanbanItem = {
+  id: string;
+  nombre: string;
+  estado: ProspectoEstado;
+  posicion: number;
+  pais: Prospecto["pais"];
+  ciudad: string | null;
+  contactoNombre: string | null;
+  proximaAccionAt: Date | null;
+  emailsCount: number;
+  telefonosCount: number;
+};
+
+/**
+ * El tablero no pagina (arrastrar entre columnas necesita las 7 columnas
+ * enteras), así que trae solo las columnas de la tarjeta. `emails`/`telefonos`
+ * son `json`: se leen para contarlos acá y nunca llegan al navegador.
+ */
+export async function listProspectosKanban(
+  filters: ListProspectosFilters = {}
+): Promise<ProspectoKanbanItem[]> {
+  const rows = await db
+    .select({
+      id: prospectos.id,
+      nombre: prospectos.nombre,
+      estado: prospectos.estado,
+      posicion: prospectos.posicion,
+      pais: prospectos.pais,
+      ciudad: prospectos.ciudad,
+      contactoNombre: prospectos.contactoNombre,
+      proximaAccionAt: prospectos.proximaAccionAt,
+      emails: prospectos.emails,
+      telefonos: prospectos.telefonos,
+    })
     .from(prospectos)
-    .where(conditions.length ? and(...conditions) : undefined)
+    .where(condicionesProspectos(filters))
     .orderBy(asc(prospectos.estado), asc(prospectos.posicion));
+
+  return rows.map(({ emails, telefonos, ...resto }) => ({
+    ...resto,
+    emailsCount: emails.length,
+    telefonosCount: telefonos.length,
+  }));
 }
 
 export async function getProspectoById(id: string): Promise<Prospecto | null> {
   const rows = await db.select().from(prospectos).where(eq(prospectos.id, id)).limit(1);
   return rows[0] ?? null;
-}
-
-/** Todos los prospectos agrupados por estado y ordenados por posición (kanban). */
-export async function getProspectosPorEstado(): Promise<
-  Record<ProspectoEstado, Prospecto[]>
-> {
-  const filas = await db
-    .select()
-    .from(prospectos)
-    .orderBy(asc(prospectos.estado), asc(prospectos.posicion));
-
-  const porEstado = Object.fromEntries(
-    PROSPECTO_ESTADOS.map((e) => [e, [] as Prospecto[]])
-  ) as Record<ProspectoEstado, Prospecto[]>;
-
-  for (const fila of filas) {
-    porEstado[fila.estado].push(fila);
-  }
-  return porEstado;
-}
-
-/** Total de prospectos por estado (headers de las columnas del kanban). */
-export async function countProspectos(): Promise<Record<ProspectoEstado, number>> {
-  const rows = await db
-    .select({ estado: prospectos.estado, c: count() })
-    .from(prospectos)
-    .groupBy(prospectos.estado);
-
-  const totales = Object.fromEntries(
-    PROSPECTO_ESTADOS.map((e) => [e, 0])
-  ) as Record<ProspectoEstado, number>;
-
-  for (const row of rows) {
-    totales[row.estado] = row.c;
-  }
-  return totales;
 }
 
 /** Próxima posición libre al final de la columna de un estado. */
@@ -181,20 +210,6 @@ export async function moverProspecto(
   const row = rows[0];
   if (!row) throw new ProspectoNotFoundError(id);
   return row;
-}
-
-/** Reasigna posicion=index a cada id en orden. Updates secuenciales (sin tx). */
-export async function reordenarColumna(
-  estado: ProspectoEstado,
-  orderedIds: string[]
-): Promise<void> {
-  for (let i = 0; i < orderedIds.length; i++) {
-    const id = orderedIds[i]!;
-    await db
-      .update(prospectos)
-      .set({ estado, posicion: i, updatedAt: new Date() })
-      .where(eq(prospectos.id, id));
-  }
 }
 
 export async function getComunicaciones(

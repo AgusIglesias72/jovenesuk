@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { Badge, LinkButton, PageHeader } from "@/components/ui";
 import { getComunicaciones, getProspectoById } from "@/lib/db/queries/prospectos";
-import { listUsuarios } from "@/lib/db/queries/usuarios";
+import { getUsuarioById } from "@/lib/db/queries/usuarios";
 import { PAIS_LABELS } from "@/lib/domain/colegios";
 import {
   PROSPECTO_ESTADO_LABELS,
@@ -38,14 +38,10 @@ export default async function ProspectoDetailPage({
   const prospecto = await getProspectoById(id);
   if (!prospecto) notFound();
 
-  const [comunicaciones, usuarios] = await Promise.all([
+  const [comunicaciones, responsable] = await Promise.all([
     getComunicaciones(prospecto.id),
-    listUsuarios(),
+    prospecto.responsableId ? getUsuarioById(prospecto.responsableId) : null,
   ]);
-
-  const responsable = prospecto.responsableId
-    ? usuarios.find((u) => u.id === prospecto.responsableId)
-    : undefined;
 
   const ubicacion = [
     prospecto.ciudad,

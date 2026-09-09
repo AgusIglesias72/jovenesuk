@@ -42,33 +42,42 @@ export default async function AlumnoDetailPage({
   const activas = asignacionesAlumno.filter((a) => a.estado === "activa");
 
   const tableros = await Promise.all(
-    activas.map(async (a) => ({
-      asignacion: a,
-      pasos: (await listPasosByAsignacion(a.asignacionId)).map(
-        (p): PasoView => ({
-          id: p.id,
-          codigo: p.codigo as PasoCodigo,
-          estado: p.estado as PasoEstado,
-          metadata: p.metadata,
-          notas: p.notas,
-          fechaCompletado: p.fechaCompletado,
-        })
-      ),
-      cuotas: (await listCuotasByAsignacion(a.asignacionId)).map(
-        (c): CuotaView => ({
-          id: c.id,
-          numero: c.numero,
-          esUltimaCuota: c.esUltimaCuota,
-          monto: c.monto,
-          moneda: c.moneda as Moneda,
-          estado: c.estado,
-          canal: c.canal,
-          fechaVencimiento: c.fechaVencimiento,
-          fechaPagoEfectivo: c.fechaPagoEfectivo,
-          observaciones: c.observaciones,
-        })
-      ),
-    }))
+    activas.map(async (a) => {
+      // Pasos y cuotas de la asignación son independientes: en paralelo, o
+      // cada tablero cuesta 2 round-trips en serie contra Neon.
+      const [pasos, cuotas] = await Promise.all([
+        listPasosByAsignacion(a.asignacionId),
+        listCuotasByAsignacion(a.asignacionId),
+      ]);
+
+      return {
+        asignacion: a,
+        pasos: pasos.map(
+          (p): PasoView => ({
+            id: p.id,
+            codigo: p.codigo as PasoCodigo,
+            estado: p.estado as PasoEstado,
+            metadata: p.metadata,
+            notas: p.notas,
+            fechaCompletado: p.fechaCompletado,
+          })
+        ),
+        cuotas: cuotas.map(
+          (c): CuotaView => ({
+            id: c.id,
+            numero: c.numero,
+            esUltimaCuota: c.esUltimaCuota,
+            monto: c.monto,
+            moneda: c.moneda as Moneda,
+            estado: c.estado,
+            canal: c.canal,
+            fechaVencimiento: c.fechaVencimiento,
+            fechaPagoEfectivo: c.fechaPagoEfectivo,
+            observaciones: c.observaciones,
+          })
+        ),
+      };
+    })
   );
 
   return (

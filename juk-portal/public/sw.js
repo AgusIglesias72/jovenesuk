@@ -1,11 +1,24 @@
 /* Service worker de Jóvenes en UK — PWA segura.
    Reglas: solo GET same-origin. Nunca toca datos/auth. Nunca cachea HTML
    de páginas de la app (salvo /offline). Navegaciones network-first con
-   fallback offline; assets estáticos cache-first (stale-while-revalidate). */
+   fallback offline; los assets propios de la PWA (iconos y fuentes)
+   cache-first con revalidación en segundo plano.
 
-const VERSION = "juk-v1";
+   Por qué NO cachea /_next/static ni "todo lo que tenga extensión": los
+   chunks de Next ya vienen con hash en el nombre y Cache-Control immutable,
+   así que el navegador los guarda solo; duplicarlos acá sumaba un juego
+   completo de chunks al Cache Storage por cada deploy y no se purgaba nunca.
+   Con /icons/ y /fonts/ el universo cacheable es finito (6 archivos hoy) y
+   MAX_ENTRIES lo mantiene acotado ante cualquier agregado futuro.
+
+   VERSION: bumpear a mano al cambiar /offline o este archivo. Al activarse
+   una versión nueva se borran TODAS las cachés anteriores y se vuelve a
+   precachear /offline, así que un solo bump purga lo viejo. */
+
+const VERSION = "juk-v2";
 const STATIC_CACHE = "juk-static-" + VERSION;
 const OFFLINE_URL = "/offline";
+const MAX_ENTRIES = 40;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -41,14 +54,18 @@ function isBypassedPath(pathname) {
 }
 
 function isStaticAsset(pathname) {
-  return (
-    pathname.startsWith("/_next/static/") ||
-    pathname.startsWith("/icons/") ||
-    pathname.startsWith("/fonts/") ||
-    /\.(?:js|css|woff2?|ttf|otf|eot|png|jpg|jpeg|gif|svg|webp|avif|ico)$/i.test(
-      pathname
-    )
-  );
+  return pathname.startsWith("/icons/") || pathname.startsWith("/fonts/");
+}
+
+/* cache.keys() devuelve en orden de inserción: borrar del principio alcanza
+   como poda, no hace falta un LRU real para un set de assets fijo. */
+function trimCache(cache) {
+  return cache.keys().then((keys) => {
+    if (keys.length <= MAX_ENTRIES) return undefined;
+    return Promise.all(
+      keys.slice(0, keys.length - MAX_ENTRIES).map((key) => cache.delete(key))
+    );
+  });
 }
 
 self.addEventListener("fetch", (event) => {
@@ -82,7 +99,11 @@ self.addEventListener("fetch", (event) => {
           const network = fetch(request)
             .then((response) => {
               if (response && response.ok && response.type === "basic") {
-                cache.put(request, response.clone());
+                event.waitUntil(
+                  cache
+                    .put(request, response.clone())
+                    .then(() => (cached ? undefined : trimCache(cache)))
+                );
               }
               return response;
             })

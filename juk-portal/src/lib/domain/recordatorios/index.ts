@@ -8,6 +8,8 @@
  * notificaciones_enviadas lo hace la capa de queries.
  */
 
+import { diasEntre } from "@/lib/utils/date";
+
 export const DIAS_RECORDATORIO_A1 = [14, 7, 3, 1] as const;
 export const DIAS_RECORDATORIO_D1 = [90, 60, 30] as const;
 
@@ -18,13 +20,9 @@ export type RecordatorioPendiente = {
   diasAntes: number;
 };
 
-const MS_DIA = 86_400_000;
-
 /** Días enteros entre hoy y la fecha objetivo (negativo si ya pasó). */
 export function diasHasta(fecha: Date, hoy: Date): number {
-  const f = Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate());
-  const h = Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth(), hoy.getUTCDate());
-  return Math.round((f - h) / MS_DIA);
+  return diasEntre(hoy, fecha);
 }
 
 /**

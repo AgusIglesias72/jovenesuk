@@ -1,7 +1,7 @@
 import { LinkButton, PageHeader, Pagination } from "@/components/ui";
 import { listAlumnos } from "@/lib/db/queries/alumnos";
 import { alumnoFiltersSchema } from "@/lib/domain/alumnos";
-import { paginar } from "@/lib/utils/paginate";
+import { pagina } from "@/lib/utils/paginate";
 
 import { AlumnosFilters } from "./alumnos-filters";
 import { AlumnosTable } from "./alumnos-table";
@@ -25,8 +25,12 @@ export default async function AlumnosPage({
     alerta: str(sp.alerta),
   });
   const filters = parsed.success ? parsed.data : {};
-  const todos = await listAlumnos(filters);
-  const { items: alumnos, total, page, pages } = paginar(todos, str(sp.page));
+  const {
+    items: alumnos,
+    total,
+    page,
+    pages,
+  } = await listAlumnos(filters, pagina(str(sp.page)));
 
   return (
     <>
