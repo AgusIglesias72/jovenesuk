@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 
 import {
   Button,
@@ -337,10 +337,15 @@ export function AlumnoForm({
   );
 }
 
+// Grupo nombrado por su título: "Datos personales" y "Tutor 1" repiten los mismos
+// rótulos (Nombre, Email), así que el lector de pantalla necesita saber en cuál está.
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const tituloId = useId();
   return (
-    <section className="mb-8">
-      <SectionTitle className="mb-3">{title}</SectionTitle>
+    <section role="group" aria-labelledby={tituloId} className="mb-8">
+      <SectionTitle id={tituloId} className="mb-3">
+        {title}
+      </SectionTitle>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
     </section>
   );

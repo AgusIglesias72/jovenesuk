@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 
 import {
   Button,
@@ -128,6 +128,8 @@ function PasoCard({
   const toast = useToast();
   const confirm = useConfirm();
   const [isPending, startTransition] = useTransition();
+  const tituloId = useId();
+  const estadoId = useId();
   const fileRef = useRef<HTMLInputElement>(null);
   const [subiendo, setSubiendo] = useState<string | null>(null);
   const fechaLimiteGuardada = paso.fechaLimite ? toDateInput(paso.fechaLimite) : "";
@@ -240,9 +242,14 @@ function PasoCard({
     typeof paso.metadata.archivoUrl === "string" ? paso.metadata.archivoUrl : null;
   const aceptaDocumento = editable && PASOS_CON_DOCUMENTO.has(paso.codigo) && paso.estado !== "na";
 
+  // La card se anuncia como "<paso>, <estado>": el estado va como descripción
+  // porque el mismo texto también aparece en el selector de transición.
   return (
     <div
       data-paso={paso.codigo}
+      role="group"
+      aria-labelledby={tituloId}
+      aria-describedby={estadoId}
       className={`rounded-[var(--r-md)] border p-3 transition-shadow hover:shadow-[shadow:var(--shadow-1)] ${
         apagado
           ? "border-dashed border-[var(--c-border)] bg-transparent opacity-70"
@@ -254,6 +261,7 @@ function PasoCard({
           {paso.codigo === "paso_0" ? "P0" : paso.codigo}
         </span>
         <span
+          id={estadoId}
           className={`inline-flex items-center gap-1.5 rounded-[var(--r-pill)] px-2.5 py-0.5 text-[length:var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] ${c.badge}`}
         >
           <span className="h-1.5 w-1.5 rounded-full bg-current" />
@@ -262,6 +270,7 @@ function PasoCard({
       </div>
 
       <p
+        id={tituloId}
         className={`mt-1.5 text-[length:var(--t-small)] font-semibold ${
           apagado ? "text-[var(--c-ink-subtle)]" : "text-[var(--c-ink)]"
         }`}

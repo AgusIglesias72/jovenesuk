@@ -107,6 +107,28 @@ export const auth = betterAuth({
     },
   },
 
+  /*
+   * Una cuenta desactivada no abre sesión. Va en el hook de creación de sesión
+   * y no en un before sobre /sign-in/email porque Better-Auth lo corre DESPUÉS
+   * de verificar la contraseña: así nadie puede sondear qué emails existen y
+   * están dados de baja. Lanzar el APIError corta antes de setear la cookie y
+   * le llega al login como 403 ("Cuenta desactivada"); devolver false daría un
+   * 401 genérico de credenciales.
+   */
+  databaseHooks: {
+    session: {
+      create: {
+        before: async (session) => {
+          const { getUsuarioById } = await import("@/lib/db/queries/usuarios");
+          const usuario = await getUsuarioById(session.userId);
+          if (usuario && usuario.isActive === false) {
+            throw new APIError("FORBIDDEN", { message: "Cuenta desactivada" });
+          }
+        },
+      },
+    },
+  },
+
   session: {
     expiresIn: 60 * 60 * 8,         // 8 hours
     updateAge: 60 * 60,              // refresh session if accessed within 1h

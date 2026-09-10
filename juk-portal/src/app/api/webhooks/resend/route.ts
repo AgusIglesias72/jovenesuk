@@ -1,5 +1,3 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
-
 import { NextResponse, type NextRequest } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
@@ -8,6 +6,7 @@ import {
   actualizarEstadoComunicacion,
   type ComunicacionEstado,
 } from "@/lib/db/queries/prospecto-tracking";
+import { verificarFirma } from "@/lib/domain/webhooks/svix";
 
 /**
  * Webhook de tracking de Resend para los emails de outreach del CRM de prospectos.
@@ -33,31 +32,6 @@ const EVENTO_A_ESTADO: Record<string, ComunicacionEstado> = {
   "email.bounced": "rebotado",
   "email.complained": "spam",
 };
-
-function verificarFirma(
-  secret: string,
-  svixId: string,
-  svixTimestamp: string,
-  rawBody: string,
-  signatureHeader: string
-): boolean {
-  const base64Secret = secret.startsWith("whsec_") ? secret.slice("whsec_".length) : secret;
-  const secretBytes = Buffer.from(base64Secret, "base64");
-  const signedContent = `${svixId}.${svixTimestamp}.${rawBody}`;
-  const esperado = createHmac("sha256", secretBytes).update(signedContent).digest();
-
-  // El header trae una lista separada por espacios de "v1,<sig>" (puede haber
-  // varias firmas durante una rotación de secret); alcanza con que una matchee.
-  for (const parte of signatureHeader.split(" ")) {
-    const coma = parte.indexOf(",");
-    if (coma === -1) continue;
-    const firma = Buffer.from(parte.slice(coma + 1), "base64");
-    if (firma.length === esperado.length && timingSafeEqual(firma, esperado)) {
-      return true;
-    }
-  }
-  return false;
-}
 
 let secretFaltanteLogueado = false;
 

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 import { defineConfig, devices } from "@playwright/test";
 
@@ -28,11 +28,20 @@ if (DATABASE_URL) process.env.DATABASE_URL = DATABASE_URL;
 const PORT = Number(process.env.PW_PORT ?? 3001);
 const baseURL = `http://localhost:${PORT}`;
 
+// En CI se prueba lo que se deploya: `next start` sobre el build, no Turbopack
+// en dev. E2E_SERVER=dev|start lo fuerza (ej: CI sin build, o probar el build
+// en local). En local, sin la variable, todo sigue como siempre.
+const EN_CI = Boolean(process.env.CI);
+const SERVER =
+  process.env.E2E_SERVER ?? (EN_CI && existsSync(".next/BUILD_ID") ? "start" : "dev");
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: false,
   workers: 1,
-  retries: 0,
+  // En CI un flake de red/Neon no debe tapar el resto; el reporte html marca
+  // los tests que pasaron solo al reintentar (flaky) para ir a buscarlos.
+  retries: EN_CI ? 2 : 0,
   // Turbopack compila la ruta en la primera visita: 60s de aire por test (los
   // specs que necesitan más lo suben con test.setTimeout).
   timeout: 60_000,
@@ -40,8 +49,12 @@ export default defineConfig({
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : [["list"]],
   use: {
     baseURL,
-    // Con retries 0, "on-first-retry" no captura nunca nada.
+    // Guarda el trace de cada intento fallido (en local, con retries 0,
+    // "on-first-retry" no capturaría nunca nada).
     trace: "retain-on-failure",
+    // Sobre `next start` la app registra el service worker (sw-register.tsx) y
+    // su cache contaminaría la navegación entre tests. Ningún spec prueba el SW.
+    serviceWorkers: SERVER === "start" ? "block" : "allow",
   },
   projects: [
     // setup arma la sesión y, al terminar todo lo que depende de él, dispara
@@ -88,9 +101,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npm run dev -- -p ${PORT}`,
+    command: SERVER === "start" ? `npm run start -- -p ${PORT}` : `npm run dev -- -p ${PORT}`,
     url: `${baseURL}/login`,
-    reuseExistingServer: true,
+    // En CI siempre un server propio: reusar uno ajeno daría verdes falsos.
+    reuseExistingServer: !EN_CI,
     timeout: 120_000,
     env: {
       // Los E2E ejercitan formularios que disparan mails: en dry-run se

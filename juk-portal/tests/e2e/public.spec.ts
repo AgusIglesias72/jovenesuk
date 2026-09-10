@@ -77,7 +77,11 @@ test("una nota inexistente muestra el 404", async ({ page }) => {
 
 test("la navegación lleva a las secciones", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "Salidas" }).first().click();
+  // La nav principal del header (el footer repite el mismo link).
+  await page
+    .getByRole("navigation", { name: "Principal", exact: true })
+    .getByRole("link", { name: "Salidas", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/salidas$/);
   await expect(page.getByRole("heading", { level: 1, name: /Tres maneras de viajar/ })).toBeVisible();
 });
@@ -90,7 +94,7 @@ test("una nota muestra su tabla comparativa y los enlaces internos", async ({ pa
 
 test("el newsletter del hero se envía", async ({ page }) => {
   await page.goto("/");
-  await page.locator("#nl-email").fill(emailE2E("suscriptor"));
+  await page.getByLabel("Tu email", { exact: true }).fill(emailE2E("suscriptor"));
   await page.getByRole("button", { name: "Suscribirme" }).click();
   await expect(page.getByText(/Te suscribiste/)).toBeVisible();
 });

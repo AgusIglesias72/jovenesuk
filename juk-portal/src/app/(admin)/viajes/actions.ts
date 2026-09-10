@@ -200,6 +200,21 @@ export async function cancelarViajeAction(
     return { ok: false, error: "Viaje inválido." };
   }
 
+  // Misma máquina de estados que la edición: finalizado y cancelado son
+  // terminales. Sin esto se "cancelaba" un viaje ya finalizado y un doble
+  // envío re-notificaba a todas las familias.
+  const actual = await getViajeById(parsedId.data);
+  if (!actual) return { ok: false, error: "El viaje no existe." };
+  if (actual.estado === "cancelado") {
+    return { ok: false, error: "El viaje ya está cancelado." };
+  }
+  if (!puedeTransicionar(actual.estado, "cancelado")) {
+    return {
+      ok: false,
+      error: `Un viaje en estado "${VIAJE_ESTADO_LABELS[actual.estado]}" no se puede cancelar.`,
+    };
+  }
+
   try {
     const viaje = await setViajeEstado(parsedId.data, "cancelado");
     await safeAudit({
@@ -207,7 +222,11 @@ export async function cancelarViajeAction(
       entidadTipo: "viaje",
       entidadId: parsedId.data,
       usuarioId: session.user.id,
-      metadata: { estado: "cancelado", notificarInscriptos: opts?.notificarInscriptos ?? false },
+      metadata: {
+        estadoAnterior: actual.estado,
+        estado: "cancelado",
+        notificarInscriptos: opts?.notificarInscriptos ?? false,
+      },
     });
 
     // US-13: los N emails a las familias van a un job (src/trigger/viajes.ts).

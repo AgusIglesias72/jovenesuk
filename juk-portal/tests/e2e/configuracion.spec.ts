@@ -44,7 +44,8 @@ test("configuración de mails: guarda remitentes y la UI de prueba está disponi
   await expect(page.getByRole("heading", { name: "Configuración", level: 1 })).toBeVisible();
 
   const mails = page.locator("[data-config-mails]");
-  const remitenteOriginal = await mails.getByLabel("Remitente de automáticos").inputValue();
+  const remitente = mails.getByLabel("Remitente de automáticos");
+  const remitenteOriginal = await remitente.inputValue();
 
   // Guardar un valor único y verificar persistencia tras recargar
   const nombre = `JUK E2E ${Date.now().toString().slice(-6)}`;
@@ -54,31 +55,26 @@ test("configuración de mails: guarda remitentes y la UI de prueba está disponi
   await expect(page.getByText("Configuración guardada.")).toBeVisible();
 
   await page.reload();
-  await expect(page.locator("[data-config-mails]").getByLabel("Nombre del remitente")).toHaveValue(
-    nombre
-  );
+  await expect(mails.getByLabel("Nombre del remitente")).toHaveValue(nombre);
 
-  // La validación rechaza emails inválidos
-  await page
-    .locator("[data-config-mails]")
-    .getByLabel("Remitente de automáticos")
-    .fill("no-es-un-email");
-  await page.locator("[data-config-mails]").getByRole("button", { name: "Guardar" }).click();
-  await expect(page.getByText("Email inválido.").first()).toBeVisible();
+  // La validación rechaza emails inválidos, con el error asociado al campo.
+  await remitente.fill("no-es-un-email");
+  await mails.getByRole("button", { name: "Guardar" }).click();
+  await expect(remitente).toHaveAccessibleDescription(/Email inválido/);
 
-  // Dejar el remitente válido de nuevo (el afterAll restaura la fila entera)
-  await page
-    .locator("[data-config-mails]")
-    .getByLabel("Remitente de automáticos")
-    .fill(remitenteOriginal);
-  await page.locator("[data-config-mails]").getByRole("button", { name: "Guardar" }).click();
-  await expect(page.getByText("Configuración guardada.").first()).toBeVisible();
+  // Dejar el remitente válido de nuevo (el afterAll restaura la fila entera).
+  // El toast del primer guardado murió con el reload: este es el único.
+  await remitente.fill(remitenteOriginal);
+  await mails.getByRole("button", { name: "Guardar" }).click();
+  await expect(page.getByText("Configuración guardada.")).toBeVisible();
 
   // El panel de prueba ofrece templates y destinatario precargado
   const prueba = page.locator("[data-config-prueba]");
   await expect(prueba.getByRole("button", { name: "Enviar prueba" })).toBeVisible();
   await expect(prueba.getByLabel("Enviar a")).toHaveValue(/@/);
   await expect(
-    prueba.locator('option:text-is("Acceso al portal (credenciales) · comunicación")')
+    prueba
+      .getByLabel("Template", { exact: true })
+      .locator("option", { hasText: "Acceso al portal (credenciales) · comunicación" })
   ).toHaveCount(1);
 });

@@ -31,8 +31,8 @@ test.describe("login: feedback y returnTo (sin sesión)", () => {
 
   test("un returnTo hacia otro dominio termina en /dashboard", async ({ page }) => {
     await page.goto("/login?returnTo=%2F%2Fevil.com");
-    await page.locator('input[type="email"]').fill(EMAIL);
-    await page.locator('input[type="password"]').fill(PASSWORD);
+    await page.getByLabel("Email").fill(EMAIL);
+    await page.getByLabel("Contraseña").fill(PASSWORD);
     await page.getByRole("button", { name: "Ingresar" }).click();
 
     await page.waitForURL("**/dashboard");
@@ -41,8 +41,8 @@ test.describe("login: feedback y returnTo (sin sesión)", () => {
 
   test("un returnTo con backslash tampoco escapa del portal", async ({ page }) => {
     await page.goto("/login?returnTo=%2F%5Cevil.com");
-    await page.locator('input[type="email"]').fill(EMAIL);
-    await page.locator('input[type="password"]').fill(PASSWORD);
+    await page.getByLabel("Email").fill(EMAIL);
+    await page.getByLabel("Contraseña").fill(PASSWORD);
     await page.getByRole("button", { name: "Ingresar" }).click();
 
     await page.waitForURL("**/dashboard");

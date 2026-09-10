@@ -33,10 +33,8 @@ describe("proxy: sesión", () => {
     expect(locationDe(res)).toBe(`${ORIGIN}/login?returnTo=%2Fviajes%2FUK-2026-JUL-LONDON`);
   });
 
-  it("con cookie en /login → /dashboard", () => {
-    const res = pedir("/login", { cookie: true });
-    expect(res.status).toBe(307);
-    expect(locationDe(res)).toBe(`${ORIGIN}/dashboard`);
+  it("con cookie en /login → pasa: la página valida la sesión (evita el loop con cookies vencidas)", () => {
+    expect(pasa(pedir("/login", { cookie: true }))).toBe(true);
   });
 
   it("acepta la cookie __Secure- de producción", () => {

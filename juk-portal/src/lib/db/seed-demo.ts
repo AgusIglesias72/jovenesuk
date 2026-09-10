@@ -6,7 +6,7 @@
  *      test.superadmin@jovenesenuk.com  → super_admin
  *      test.admin@jovenesenuk.com       → admin_juk
  *    Password: env SEED_TEST_PASSWORD (obligatoria, sin default en el código).
- *    Si la cuenta ya existe el seed NO cambia su contraseña.
+ *    Si la cuenta ya existe, re-fija la contraseña, el rol y la deja activa.
  *  - 2 cuentas del Portal de Familias, cada una con SU alumno (ownership real):
  *      tutor@demo.jovenesenuk.com   → Lola (DEMO-1)
  *      tutor2@demo.jovenesenuk.com  → Benja (DEMO-2)
@@ -70,8 +70,18 @@ async function seedCuentasTest(): Promise<string | null> {
   for (const cuenta of CUENTAS_TEST) {
     const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, cuenta.email)).limit(1);
     if (existing.length > 0) {
-      console.log(`⏭️  ${cuenta.email} ya existe`);
-      if (cuenta.role === "super_admin") superAdminId = existing[0]!.id;
+      // Se re-fija igual que las cuentas de familia: una base copiada de otra
+      // (la branch efímera del CI) trae la cuenta con otra contraseña, y un E2E
+      // anterior pudo haberla dejado inactiva o con otro rol.
+      const userId = existing[0]!.id;
+      const authCtx = await auth.$context;
+      await authCtx.internalAdapter.updatePassword(userId, await authCtx.password.hash(TEST_PASSWORD));
+      await db
+        .update(users)
+        .set({ role: cuenta.role, emailVerified: true, isActive: true, updatedAt: new Date() })
+        .where(eq(users.id, userId));
+      console.log(`♻️  ${cuenta.email} ya existía: contraseña, rol y estado re-fijados`);
+      if (cuenta.role === "super_admin") superAdminId = userId;
       continue;
     }
     await auth.api.signUpEmail({

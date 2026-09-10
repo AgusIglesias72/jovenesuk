@@ -6,7 +6,9 @@ import {
   asignaciones,
   colegios,
   consultas,
+  documentos,
   groupLeaders,
+  pasosAlumno,
   prospectos,
   suscriptores,
   users,
@@ -51,6 +53,31 @@ export async function cleanupE2EData() {
   const aids = (await db.select({ id: alumnos.id }).from(alumnos).where(e2eAlumno)).map((r) => r.id);
   const cids = (await db.select({ id: colegios.id }).from(colegios).where(e2eColegio)).map((r) => r.id);
   const gids = (await db.select({ id: groupLeaders.id }).from(groupLeaders).where(e2eGl)).map((r) => r.id);
+
+  // documentos no tiene FK (entidad_tipo + entidad_id): los de los pasos de
+  // alumnos E2E se buscan antes de que las asignaciones cascadeen esos pasos,
+  // o quedan huérfanos en la base.
+  const asignacionesE2E = [
+    ...(vids.length
+      ? await db.select({ id: asignaciones.id }).from(asignaciones).where(inArray(asignaciones.viajeId, vids))
+      : []),
+    ...(aids.length
+      ? await db.select({ id: asignaciones.id }).from(asignaciones).where(inArray(asignaciones.alumnoId, aids))
+      : []),
+  ].map((r) => r.id);
+  const pasosE2E = asignacionesE2E.length
+    ? (
+        await db
+          .select({ id: pasosAlumno.id })
+          .from(pasosAlumno)
+          .where(inArray(pasosAlumno.asignacionId, asignacionesE2E))
+      ).map((r) => r.id)
+    : [];
+  if (pasosE2E.length) {
+    await db
+      .delete(documentos)
+      .where(and(eq(documentos.entidadTipo, "paso_alumno"), inArray(documentos.entidadId, pasosE2E)));
+  }
 
   // asignaciones primero (RESTRICT hacia alumnos/viajes); cuotas y pasos_alumno cascadean.
   if (vids.length) await db.delete(asignaciones).where(inArray(asignaciones.viajeId, vids));

@@ -125,7 +125,7 @@ test("newsletter: se suscribe y es idempotente", async ({ page }) => {
   const email = emailE2E("nl");
 
   await page.goto("/");
-  await page.locator("#nl-email").fill(email);
+  await page.getByLabel("Tu email", { exact: true }).fill(email);
   await page.getByRole("button", { name: "Suscribirme" }).click();
   await expect(page.getByText(/Te suscribiste/)).toBeVisible();
 
@@ -135,7 +135,7 @@ test("newsletter: se suscribe y es idempotente", async ({ page }) => {
 
   // Re-suscribir el mismo email no duplica (onConflictDoNothing).
   await page.goto("/");
-  await page.locator("#nl-email").fill(email);
+  await page.getByLabel("Tu email", { exact: true }).fill(email);
   await page.getByRole("button", { name: "Suscribirme" }).click();
   await expect(page.getByText(/Te suscribiste/)).toBeVisible();
 

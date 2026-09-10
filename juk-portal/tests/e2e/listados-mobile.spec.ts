@@ -1,6 +1,13 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
 
-import { confirmarModal, crearAlumno, crearViaje, panelAlumnosAsignados } from "./helpers";
+import {
+  abrirFichaDesdeViaje,
+  asignarAlumnoAlViaje,
+  confirmarModal,
+  crearAlumno,
+  crearPlanCuotas,
+  crearViaje,
+} from "./helpers";
 
 /**
  * @mobile — los listados en un teléfono.
@@ -43,20 +50,23 @@ test("@mobile /alumnos muestra las filas como tarjetas y 'Ver' es tapeable", asy
   await page.getByPlaceholder(/Buscar por nombre/).fill(alumno.apellido);
   await expect(page).toHaveURL(/\/alumnos\?q=/);
 
-  const fila = page.getByRole("row").filter({ hasText: alumno.apellido });
-  await expect(fila.first()).toBeVisible();
+  // Por "Apellido, Nombre" y no solo por apellido: la búsqueda es parcial y un
+  // apellido de otra corrida que lo contenga traería dos filas.
+  const fila = page.getByRole("row").filter({ hasText: alumno.label });
+  await expect(fila).toBeVisible();
 
   // Modo card: cada celda anuncia su rótulo dentro de la propia fila.
   for (const rotulo of ["DNI", "Pasaporte vto.", "Estado"]) {
-    await expect(fila.first().getByText(rotulo, { exact: true })).toBeVisible();
+    await expect(fila.getByText(rotulo, { exact: true })).toBeVisible();
   }
 
-  // La acción principal de la primera fila entra en pantalla y se puede tocar.
-  await visibleSinScrollLateral(page, fila.first().getByRole("link", { name: "Ver" }));
+  // La acción principal de la fila entra en pantalla y se puede tocar.
+  const ver = fila.getByRole("link", { name: "Ver" });
+  await visibleSinScrollLateral(page, ver);
   await sinScrollHorizontal(page);
 
-  await fila.first().getByRole("link", { name: "Ver" }).click();
-  await page.waitForURL("**/alumnos/**");
+  await ver.click();
+  await page.waitForURL(`**/alumnos/${alumno.dni}`);
 });
 
 test("@mobile /pagos muestra las cuotas como tarjetas y 'Registrar pago' es tapeable", async ({
@@ -64,31 +74,27 @@ test("@mobile /pagos muestra las cuotas como tarjetas y 'Registrar pago' es tape
 }) => {
   const alumno = await crearAlumno(page);
   const codigo = await crearViaje(page);
+  await asignarAlumnoAlViaje(page, alumno);
+  await abrirFichaDesdeViaje(page, alumno);
 
-  await page
-    .locator("select", { has: page.locator('option:text-is("Elegí un alumno…")') })
-    .selectOption({ label: alumno.label });
-  await panelAlumnosAsignados(page)
-    .getByRole("button", { name: "Asignar" })
-    .click();
-
-  await page.getByRole("link", { name: `${alumno.apellido}, ${alumno.nombre}` }).first().click();
-  await page.waitForURL("**/alumnos/**");
-
-  const cuotas = page.locator("[data-cuotas-panel]");
-  await cuotas.getByLabel("Cuotas").fill("2");
-  await cuotas.getByLabel("Monto por cuota").fill("600");
-  await cuotas.getByLabel("Primer vencimiento").fill("2026-12-01");
-  await cuotas.getByRole("button", { name: "Crear plan de cuotas" }).click();
+  const cuotas = await crearPlanCuotas(page, {
+    cuotas: "2",
+    monto: "600",
+    primerVencimiento: "2026-12-01",
+  });
   await expect(cuotas.getByText("US$ 1.200,00")).toBeVisible();
 
   await page.goto("/pagos");
   await page
-    .locator("select", { has: page.locator('option:text-is("Todos los viajes")') })
+    .getByLabel("Filtrar por viaje", { exact: true })
     .selectOption({ label: `${codigo} · Viaje ${codigo}` });
   await expect(page).toHaveURL(/viaje=/);
 
-  const fila = page.getByRole("row").filter({ hasText: alumno.apellido }).first();
+  // La cuota 1: la 2° es la última (presencial) y se distingue por "(última)".
+  const fila = page
+    .getByRole("row")
+    .filter({ hasText: alumno.label })
+    .filter({ hasNotText: "(última)" });
   await expect(fila).toBeVisible();
 
   for (const rotulo of ["Viaje", "Monto", "Vencimiento", "Estado"]) {

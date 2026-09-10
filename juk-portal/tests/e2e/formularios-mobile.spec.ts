@@ -1,6 +1,6 @@
 import { test, expect, devices, type Page } from "@playwright/test";
 
-import { crearAlumno, crearColegio } from "./helpers";
+import { crearAlumno, crearColegio, seccionFormAlumno } from "./helpers";
 
 /**
  * Los formularios del back-office desde un teléfono. La app nativa va a ser
@@ -40,7 +40,9 @@ test(
     await page.goto("/alumnos/nuevo");
 
     // En el alta el foco arranca puesto: se puede escribir sin tocar nada.
-    await expect(page.getByLabel("Nombre*", { exact: true }).first()).toBeFocused();
+    await expect(
+      seccionFormAlumno(page, "Datos personales").getByLabel("Nombre*", { exact: true })
+    ).toBeFocused();
 
     // Facturación (7 campos que casi nunca se cargan) nace plegada.
     await expect(page.getByLabel("Razón social")).toBeHidden();
@@ -59,10 +61,10 @@ test(
     expect(desborda).toBe(false);
 
     // Y el alta completa funciona con ese viewport (helper = mismo flujo real).
-    const { apellido } = await crearAlumno(page);
+    const alumno = await crearAlumno(page);
     await expect(page).toHaveURL(/\/alumnos$/);
-    await page.getByPlaceholder(/Buscar por nombre/).fill(apellido);
-    await expect(page.getByText(apellido).first()).toBeVisible();
+    await page.getByPlaceholder(/Buscar por nombre/).fill(alumno.apellido);
+    await expect(page.getByRole("row").filter({ hasText: alumno.label })).toBeVisible();
   }
 );
 

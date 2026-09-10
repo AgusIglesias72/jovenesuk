@@ -231,6 +231,7 @@ function PasoEditor({
           <TransfersForm metadata={paso.metadata} disabled={isPending} onSave={guardar} />
           <RosterCobertura
             viajeId={viajeId}
+            disabled={Boolean(requiere)}
             tipo="transfers"
             etiqueta="Transfer asignado"
             metadata={paso.metadata}
@@ -243,6 +244,7 @@ function PasoEditor({
           <TarjetaForm metadata={paso.metadata} disabled={isPending} onSave={guardar} />
           <RosterCobertura
             viajeId={viajeId}
+            disabled={Boolean(requiere)}
             tipo="tarjeta_transporte"
             etiqueta="Tarjeta entregada"
             metadata={paso.metadata}
@@ -260,12 +262,15 @@ function PasoEditor({
  */
 function RosterCobertura({
   viajeId,
+  disabled = false,
   tipo,
   etiqueta,
   metadata,
   roster,
 }: {
   viajeId: string;
+  /** Hay un paso del que depende sin completar: la action igual lo rechazaría. */
+  disabled?: boolean;
   tipo: "transfers" | "tarjeta_transporte";
   etiqueta: string;
   metadata: Record<string, unknown>;
@@ -312,8 +317,10 @@ function RosterCobertura({
               </span>
               <Checkbox
                 label={etiqueta}
+                // Todas las filas dicen lo mismo a la vista; el nombre dice de qué alumno es.
+                aria-label={`${etiqueta} · ${r.apellido}, ${r.nombre}`}
                 checked={porAlumno[r.asignacionId] === true}
-                disabled={isPending}
+                disabled={isPending || disabled}
                 onChange={(e) => marcar(r.asignacionId, e.target.checked)}
               />
             </li>

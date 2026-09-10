@@ -111,7 +111,10 @@ export async function listCuotasGlobal(
         .innerJoin(alumnos, eq(asignaciones.alumnoId, alumnos.id))
         .innerJoin(viajes, eq(asignaciones.viajeId, viajes.id))
         .where(where)
-        .orderBy(asc(cuotas.fechaVencimiento), asc(cuotas.numero))
+        // El id desempata: todo el viaje comparte vencimiento y número de
+        // cuota, y un ORDER BY no total con LIMIT/OFFSET repite y saltea
+        // filas entre páginas.
+        .orderBy(asc(cuotas.fechaVencimiento), asc(cuotas.numero), asc(cuotas.id))
         .limit(limit)
         .offset(offset);
       return rows as CuotaGlobalRow[];

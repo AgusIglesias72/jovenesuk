@@ -1,10 +1,7 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 
-import { crearViaje, selectorEstadoPaso } from "./helpers";
+import { botonPasoViaje, crearViaje, selectorEstadoPaso } from "./helpers";
 
-// Los pasos se identifican por su número + label. Hace falta el número porque el
-// botón de "Transfers" bloqueado incluye el texto "Requiere Pasajes", lo que
-// haría ambiguo un match por /Pasajes/ solo.
 const PASOS = [
   ["01", "Pasajes"],
   ["02", "Excursiones"],
@@ -13,36 +10,35 @@ const PASOS = [
   ["05", "Police Checks"],
 ] as const;
 
-function pasoBtn(page: Page, num: string, label: string) {
-  return page.getByRole("button", { name: new RegExp(`${num} ${label}`) });
-}
-
 test("el tablero M7 muestra los 5 pasos del viaje", async ({ page }) => {
   await crearViaje(page);
   await expect(page.getByRole("heading", { name: "Seguimiento del viaje · M7" })).toBeVisible();
   for (const [num, label] of PASOS) {
-    await expect(pasoBtn(page, num, label)).toBeVisible();
+    await expect(botonPasoViaje(page, label)).toContainText(num);
   }
 });
 
 test("Transfers no puede avanzar mientras Pasajes no esté completado", async ({ page }) => {
   await crearViaje(page);
-  await pasoBtn(page, "03", "Transfers").click();
+  await botonPasoViaje(page, "Transfers").click();
 
   await expect(page.getByText("Transfers depende de que")).toBeVisible();
   // El selector de estado solo ofrece Pendiente y Bloqueado (sin avanzar).
-  await expect(selectorEstadoPaso(page).locator("option")).toHaveText(["Pendiente", "Bloqueado"]);
+  await expect(selectorEstadoPaso(page, "Transfers").locator("option")).toHaveText([
+    "Pendiente",
+    "Bloqueado",
+  ]);
 });
 
 test("al completar Pasajes, Transfers habilita las transiciones de avance", async ({ page }) => {
   await crearViaje(page);
 
-  await pasoBtn(page, "01", "Pasajes").click();
-  await selectorEstadoPaso(page).selectOption({ label: "Completado" });
-  await expect(pasoBtn(page, "01", "Pasajes").filter({ hasText: "Completado" })).toBeVisible();
+  await botonPasoViaje(page, "Pasajes").click();
+  await selectorEstadoPaso(page, "Pasajes").selectOption({ label: "Completado" });
+  await expect(botonPasoViaje(page, "Pasajes")).toContainText("Completado");
 
-  await pasoBtn(page, "03", "Transfers").click();
-  await expect(selectorEstadoPaso(page).locator("option")).toHaveText([
+  await botonPasoViaje(page, "Transfers").click();
+  await expect(selectorEstadoPaso(page, "Transfers").locator("option")).toHaveText([
     "Pendiente",
     "En progreso",
     "Completado",
@@ -52,7 +48,7 @@ test("al completar Pasajes, Transfers habilita las transiciones de avance", asyn
 
 test("los datos de Pasajes se guardan y persisten", async ({ page }) => {
   await crearViaje(page);
-  await pasoBtn(page, "01", "Pasajes").click();
+  await botonPasoViaje(page, "Pasajes").click();
 
   await page.getByLabel("Aerolínea").fill("British Airways");
   await page.getByLabel("N° de vuelo").fill("BA246");
@@ -68,7 +64,7 @@ test("los datos de Pasajes se guardan y persisten", async ({ page }) => {
 
 test("Police Checks avisa cuando el viaje no tiene Group Leaders asignados", async ({ page }) => {
   await crearViaje(page);
-  await pasoBtn(page, "05", "Police Checks").click();
+  await botonPasoViaje(page, "Police Checks").click();
   await expect(
     page.getByText("No hay Group Leaders asignados a este viaje todavía.")
   ).toBeVisible();

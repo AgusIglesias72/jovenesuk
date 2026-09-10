@@ -604,9 +604,10 @@ export function Checkbox({ label, className, ...props }: CheckboxProps) {
           className="peer absolute h-full w-full opacity-0 cursor-pointer"
           {...props}
         />
+        {/* Sin pointer-events: tapaba al input y el click no le llegaba al control real. */}
         <span
           className={cn(
-            "absolute inset-0 rounded-[var(--r-xs)] border border-[var(--c-border-strong)] bg-[var(--c-surface)]",
+            "pointer-events-none absolute inset-0 rounded-[var(--r-xs)] border border-[var(--c-border-strong)] bg-[var(--c-surface)]",
             "transition-colors duration-150",
             "peer-checked:border-[var(--c-brand)] peer-checked:bg-[var(--c-brand)]",
             "peer-focus-visible:shadow-[shadow:var(--ring-focus)]"

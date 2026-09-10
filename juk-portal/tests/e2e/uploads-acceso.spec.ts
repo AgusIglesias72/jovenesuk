@@ -1,12 +1,13 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 
-import { crearAlumno, crearViaje, panelAlumnosAsignados } from "./helpers";
-
-function selectorElegibles(page: Page) {
-  return page.locator("select", {
-    has: page.locator('option:text-is("Elegí un alumno…")'),
-  });
-}
+import {
+  abrirFichaDesdeViaje,
+  adjuntoPasoAlumno,
+  asignarAlumnoAlViaje,
+  crearAlumno,
+  crearViaje,
+  pasoAlumno,
+} from "./helpers";
 
 /** PDF válido (magic bytes %PDF) de ~2 MB, armado en memoria. */
 function pdfDeDosMegas(): Buffer {
@@ -23,22 +24,18 @@ test("/api/uploads sirve el documento al admin y nunca a un anónimo", async ({
 }) => {
   const alumno = await crearAlumno(page);
   await crearViaje(page);
-  await selectorElegibles(page).selectOption({ label: alumno.label });
-  await panelAlumnosAsignados(page)
-    .getByRole("button", { name: "Asignar" })
-    .click();
-  await page.getByRole("link", { name: `${alumno.apellido}, ${alumno.nombre}` }).first().click();
-  await page.waitForURL("**/alumnos/**");
+  await asignarAlumnoAlViaje(page, alumno);
+  await abrirFichaDesdeViaje(page, alumno);
 
-  const a1 = page.locator('[data-paso="a1"]');
-  await a1.locator('input[type="file"]').setInputFiles({
+  await adjuntoPasoAlumno(page, "a1").setInputFiles({
     name: "application form firmado.pdf",
     mimeType: "application/pdf",
     buffer: pdfDeDosMegas(),
   });
 
-  const link = a1.getByRole("link", { name: /Ver documento/ });
-  await expect(link).toBeVisible({ timeout: 30000 });
+  const link = pasoAlumno(page, "a1").getByRole("link", { name: /Ver documento/ });
+  // Más que el expect.timeout global (15s): son 2 MB por server action + escritura en storage.
+  await expect(link).toBeVisible({ timeout: 30_000 });
 
   const href = await link.getAttribute("href");
   expect(href).toBeTruthy();

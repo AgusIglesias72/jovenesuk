@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { Alert } from "@/components/ui";
+import { getSession } from "@/lib/auth/helpers";
 import { sanitizeReturnTo } from "@/lib/auth/return-to";
+import { HOME_BY_ROLE } from "@/lib/routes";
 
 import { LoginForm } from "./login-form";
 
@@ -32,6 +35,15 @@ const COPY = {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const returnTo = sanitizeReturnTo(params.returnTo);
+
+  // Ya logueado con una cuenta activa: fuera del login. Lo decide la página y
+  // no el proxy porque solo acá se puede validar la sesión de verdad.
+  const session = await getSession();
+  if (session && session.user.isActive !== false) {
+    const rol = session.user.role;
+    const home = rol in HOME_BY_ROLE ? HOME_BY_ROLE[rol as keyof typeof HOME_BY_ROLE] : "/dashboard";
+    redirect(params.returnTo ? returnTo : home);
+  }
   const copy = params.portal === "familias" ? COPY.familias : COPY.equipo;
 
   return (

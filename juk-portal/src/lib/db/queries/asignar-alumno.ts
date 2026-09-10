@@ -93,7 +93,8 @@ export async function asignarConTablero(opts: {
     canalAlta: alumno.canalAlta,
   });
 
-  const autoConfirmado = debeAutoConfirmar(viaje.tipo, viaje.estado, activasPrevias + 1);
+  // Con el estado RELEÍDO: el `viaje` del llamador puede estar desactualizado.
+  const autoConfirmado = debeAutoConfirmar(viaje.tipo, estado, activasPrevias + 1);
 
   await db.batch([
     reactivable

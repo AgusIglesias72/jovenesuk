@@ -51,6 +51,6 @@ export function paginar<T>(
 ): Paginado<T> {
   const total = rows.length;
   const pages = Math.max(1, Math.ceil(total / size));
-  const page = Math.min(Math.max(1, Number(pageParam) || 1), pages);
+  const page = Math.min(pagina(pageParam, size).page, pages);
   return { items: rows.slice((page - 1) * size, page * size), total, page, pages };
 }

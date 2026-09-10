@@ -64,6 +64,15 @@ async function pasoConOwnership(
   return { ok: true, session, paso };
 }
 
+/**
+ * Lo que hace la familia (subir, confirmar) manda el paso a revisión de JUK
+ * solo si todavía no estaba en curso: nunca reabre un paso que el equipo ya
+ * dio por completado.
+ */
+function avanzaConAccionFamilia(estado: PasoAlumno["estado"]): boolean {
+  return estado === "pendiente" || estado === "vencido" || estado === "bloqueado";
+}
+
 function revalidarFamilia(conDocumentacion = false) {
   revalidatePath("/familias/[dni]", "page");
   if (conDocumentacion) revalidatePath("/familias/[dni]/documentacion", "page");
@@ -119,8 +128,7 @@ export async function subirDocumentoFamiliaAction(formData: FormData): Promise<F
     });
 
     // Tras subir, el paso queda "Enviado — pendiente revisión JUK".
-    const debeAvanzar =
-      paso.estado === "pendiente" || paso.estado === "vencido" || paso.estado === "bloqueado";
+    const debeAvanzar = avanzaConAccionFamilia(paso.estado);
 
     await updatePasoAlumno(
       paso.id,
@@ -230,7 +238,7 @@ export async function confirmarPasoFamiliaAction(input: {
     await updatePasoAlumno(
       paso.id,
       {
-        estado: "en_progreso",
+        ...(avanzaConAccionFamilia(paso.estado) ? { estado: "en_progreso" as const } : {}),
         metadata: { ...(paso.metadata as Record<string, unknown>), confirmadoFamilia: true },
       },
       session.user.id

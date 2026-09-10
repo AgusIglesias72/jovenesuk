@@ -74,10 +74,10 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (sessionToken && isAuthPath) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
+  // Al usuario ya logueado que entra a /login lo redirige la propia página,
+  // que valida la sesión real. Acá solo se sabe si la cookie existe: con una
+  // cookie vencida o de una cuenta desactivada, rebotar a /dashboard armaba el
+  // loop /login → /dashboard → /login.
   return NextResponse.next();
 }
 

@@ -10,7 +10,9 @@ import {
   flujoPago,
   generaCredencialesRepresentante,
 } from "./flujo-pago";
-import { VIAJE_ORIGENES, capacidadMaxima, viajeCreateSchema } from "./schema";
+import { VIAJE_ORIGENES } from "./schema";
+
+// Las reglas del schema por tipo de viaje (GLs, capacidad) viven en schema.test.ts.
 
 describe("flujoPago (ex CRIT-01)", () => {
   it("vía agencia para independiente, instituto y colegio cliente", () => {
@@ -67,60 +69,5 @@ describe("tipo de viaje", () => {
     expect(aplicaPsicofisico("individual")).toBe(false);
     expect(aplicaPoliceChecks("grupal")).toBe(true);
     expect(aplicaPoliceChecks("individual")).toBe(false);
-  });
-
-  it("capacidad: Grupal = GL × 12; Individual = 1 fija", () => {
-    expect(capacidadMaxima(3, "grupal")).toBe(36);
-    expect(capacidadMaxima(0, "individual")).toBe(1);
-    expect(capacidadMaxima(5, "individual")).toBe(1);
-  });
-});
-
-describe("viajeCreateSchema — reglas por tipo", () => {
-  const base = {
-    codigo: "UK-2026-JUL-LONDON",
-    nombre: "Londres en Julio",
-    fechaInicio: "2026-07-01",
-    fechaFin: "2026-07-15",
-    origen: "representante_independiente",
-    colegioDestinoId: "8c9f2a31-44a4-4f1e-9e5a-1d2b3c4d5e6f",
-    paisDestino: "reino_unido",
-    curso: "General English",
-    tipoAlojamientoSolicitado: "familia_anfitriona",
-    capacidadMinima: 5,
-  };
-
-  it("Grupal exige al menos 1 GL", () => {
-    const r = viajeCreateSchema.safeParse({ ...base, tipo: "grupal", cantidadGroupLeaders: 0 });
-    expect(r.success).toBe(false);
-  });
-
-  it("Individual exige exactamente 0 GLs", () => {
-    expect(
-      viajeCreateSchema.safeParse({ ...base, tipo: "individual", cantidadGroupLeaders: 0 }).success
-    ).toBe(true);
-    expect(
-      viajeCreateSchema.safeParse({ ...base, tipo: "individual", cantidadGroupLeaders: 1 }).success
-    ).toBe(false);
-  });
-
-  it("acepta juk_directo como origen", () => {
-    const r = viajeCreateSchema.safeParse({
-      ...base,
-      origen: "juk_directo",
-      tipo: "individual",
-      cantidadGroupLeaders: 0,
-    });
-    expect(r.success).toBe(true);
-  });
-
-  it("rechaza comisión de agencia fuera de 0-100", () => {
-    const r = viajeCreateSchema.safeParse({
-      ...base,
-      tipo: "grupal",
-      cantidadGroupLeaders: 1,
-      comisionAgenciaPct: 150,
-    });
-    expect(r.success).toBe(false);
   });
 });

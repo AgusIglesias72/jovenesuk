@@ -1,48 +1,17 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 
-import { codigoViajeUnico, crearViaje, panelAlumnosAsignados } from "./helpers";
+import {
+  asignarAlumnoAlViaje,
+  codigoViajeUnico,
+  crearAlumno,
+  crearViaje,
+  fechaEnDias,
+} from "./helpers";
 
 /*
  * Dashboard (PRD M2): secciones, stat cards con destino filtrado, accesos
  * rápidos y "Alumnos con acción urgente" → ficha del alumno.
  */
-
-/** YYYY-MM-DD a N días de hoy (lo que acepta el DateInput del formulario). */
-function fechaEnDias(dias: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + dias);
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${mm}-${dd}`;
-}
-
-/**
- * Como crearAlumno() de helpers.ts, pero con el vencimiento del pasaporte
- * elegido. El email del tutor respeta el patrón que limpia el teardown.
- */
-async function crearAlumnoConPasaporte(page: Page, vencimiento: string) {
-  const sufijo = Math.floor(Math.random() * 100000);
-  const nombre = "Urgente";
-  // "Aa…": ante empate de urgencia el orden cae en el apellido, y así la fila
-  // del test queda entre las primeras aunque haya datos acumulados.
-  const apellido = `Aaurgente${sufijo}`;
-  const dni = String(10000000 + Math.floor(Math.random() * 89999999));
-
-  await page.goto("/alumnos/nuevo");
-  await page.getByLabel("Nombre*", { exact: true }).first().fill(nombre);
-  await page.getByLabel("Apellido*", { exact: true }).fill(apellido);
-  await page.getByLabel("Fecha de nacimiento*").fill("2008-05-10");
-  await page.getByLabel("DNI*").fill(dni);
-  await page.getByLabel("N° de pasaporte*").fill(`AE${100000 + sufijo}`);
-  await page.getByLabel("Vencimiento del pasaporte*").fill(vencimiento);
-  await page.getByLabel("Nombre*", { exact: true }).nth(1).fill("Tutor Uno");
-  await page.getByLabel("Celular*", { exact: true }).fill("+541199999999");
-  await page.getByLabel("Email*", { exact: true }).fill(`tutor-${dni}@example.com`);
-  await page.getByRole("button", { name: "Guardar" }).click();
-  await expect(page).toHaveURL(/\/alumnos$/);
-
-  return { nombre, apellido, dni, label: `${apellido}, ${nombre}` };
-}
 
 test.describe("dashboard M2", () => {
   test("muestra las secciones y los accesos rápidos a las tareas frecuentes", async ({ page }) => {
@@ -81,6 +50,8 @@ test.describe("dashboard M2", () => {
 
     for (const [label, href, heading] of destinos) {
       await page.goto("/dashboard");
+      // Por href: el destino filtrado ES lo que se prueba, y el texto de la card
+      // ("Alumnos") también está contenido en otra ("Alumnos en mora").
       const card = page.getByRole("region", { name: "Resumen", exact: true }).locator(`a[href="${href}"]`);
       await expect(card).toContainText(label);
       await card.click();
@@ -94,20 +65,20 @@ test.describe("dashboard M2", () => {
   }) => {
     // Viaje que sale hoy (inminente) y pasaporte que cubre el viaje —no pide
     // confirmación al asignar— pero vence dentro de los 6 meses: alerta crítica.
-    const alumno = await crearAlumnoConPasaporte(page, fechaEnDias(60));
+    const alumno = await crearAlumno(page, {
+      nombre: "Urgente",
+      // "Aa…": ante empate de urgencia el orden cae en el apellido, y así la fila
+      // del test queda entre las primeras aunque haya datos acumulados.
+      apellido: `Aaurgente${Math.floor(Math.random() * 100000)}`,
+      vencimientoPasaporte: fechaEnDias(60),
+    });
     const codigo = await crearViaje(page, {
       codigo: codigoViajeUnico(),
       fechaInicio: fechaEnDias(0),
       fechaFin: fechaEnDias(10),
     });
 
-    await page
-      .locator("select", { has: page.locator('option:text-is("Elegí un alumno…")') })
-      .selectOption({ label: alumno.label });
-    await panelAlumnosAsignados(page)
-      .getByRole("button", { name: "Asignar" })
-      .click();
-    await expect(page.getByText(alumno.label).first()).toBeVisible();
+    await asignarAlumnoAlViaje(page, alumno);
 
     await page.goto("/dashboard");
     const urgentes = page.getByRole("region", { name: "Alumnos con acción urgente", exact: true });

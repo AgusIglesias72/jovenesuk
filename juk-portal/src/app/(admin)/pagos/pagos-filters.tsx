@@ -26,6 +26,7 @@ export function PagosFilters({
     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
       <div className="w-full sm:w-52">
         <Select
+          aria-label="Filtrar por estado"
           value={sp.get("estado") ?? ""}
           onChange={(e) => pushParam("estado", e.target.value || null)}
         >
@@ -38,6 +39,7 @@ export function PagosFilters({
       <div className="w-full sm:w-72">
         <Select
           searchable
+          aria-label="Filtrar por viaje"
           value={sp.get("viaje") ?? ""}
           onChange={(e) => pushParam("viaje", e.target.value || null)}
         >
@@ -51,6 +53,7 @@ export function PagosFilters({
       </div>
       <div className="w-full sm:w-44">
         <Select
+          aria-label="Filtrar por moneda"
           value={sp.get("moneda") ?? ""}
           onChange={(e) => pushParam("moneda", e.target.value || null)}
         >

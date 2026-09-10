@@ -57,6 +57,7 @@ const eslintConfig = [
       "docs/**",
       "test-results/**",
       "playwright-report/**",
+      "coverage/**",
       "next-env.d.ts",
     ],
   },

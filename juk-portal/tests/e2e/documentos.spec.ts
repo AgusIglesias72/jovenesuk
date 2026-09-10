@@ -1,32 +1,25 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 
-import { crearAlumno, crearViaje, panelAlumnosAsignados } from "./helpers";
-
-function selectorElegibles(page: Page) {
-  return page.locator("select", {
-    has: page.locator('option:text-is("Elegí un alumno…")'),
-  });
-}
+import {
+  abrirFichaDesdeViaje,
+  adjuntoPasoAlumno,
+  asignarAlumnoAlViaje,
+  crearAlumno,
+  crearViaje,
+  pasoAlumno,
+  pdfMinimo,
+} from "./helpers";
 
 test("sube un documento al paso A1 y queda linkeado", async ({ page }) => {
   const alumno = await crearAlumno(page);
   await crearViaje(page);
-  await selectorElegibles(page).selectOption({ label: alumno.label });
-  await panelAlumnosAsignados(page)
-    .getByRole("button", { name: "Asignar" })
-    .click();
-  await page.getByRole("link", { name: `${alumno.apellido}, ${alumno.nombre}` }).first().click();
-  await page.waitForURL("**/alumnos/**");
+  await asignarAlumnoAlViaje(page, alumno);
+  await abrirFichaDesdeViaje(page, alumno);
 
-  const a1 = page.locator('[data-paso="a1"]');
+  const a1 = pasoAlumno(page, "a1");
   await expect(a1.getByText("Sin documento")).toBeVisible();
 
-  // PDF mínimo válido en memoria
-  await a1.locator('input[type="file"]').setInputFiles({
-    name: "application-form-firmado.pdf",
-    mimeType: "application/pdf",
-    buffer: Buffer.from("%PDF-1.4\n1 0 obj <</Type /Catalog>> endobj\ntrailer <<>>\n%%EOF"),
-  });
+  await adjuntoPasoAlumno(page, "a1").setInputFiles(pdfMinimo("application-form-firmado.pdf"));
 
   const link = a1.getByRole("link", { name: /Ver documento/ });
   await expect(link).toBeVisible();

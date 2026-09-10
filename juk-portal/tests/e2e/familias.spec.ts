@@ -34,6 +34,9 @@ test("el breadcrumb refleja el alumno y la sección", async ({ page }) => {
 
 test("navega entre los módulos desde la sidebar", async ({ page }) => {
   await page.goto(`/familias/${DNI}`);
+  // En desktop la tira de tabs mobile (también "Secciones") está oculta y fuera
+  // del árbol de accesibilidad: esta nav es la de la sidebar.
+  const secciones = page.getByRole("navigation", { name: "Secciones", exact: true });
 
   for (const [label, heading] of [
     ["Documentación", "Documentación"],
@@ -41,7 +44,7 @@ test("navega entre los módulos desde la sidebar", async ({ page }) => {
     ["Viaje", "Viaje"],
     ["Mis datos", "Mis datos"],
   ] as const) {
-    await page.getByRole("link", { name: label, exact: true }).first().click();
+    await secciones.getByRole("link", { name: label, exact: true }).click();
     await expect(page.getByRole("heading", { name: heading, level: 1 })).toBeVisible();
   }
 });

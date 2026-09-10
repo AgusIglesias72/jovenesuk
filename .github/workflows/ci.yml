@@ -1,24 +1,43 @@
 name: CI
 
+# Gate de calidad del JUK Portal. Nada llega a main sin:
+#   check → typecheck, lint, unit + piso de cobertura, test compañero, audit de prod, next build
+#   e2e   → integración + Playwright sobre `next dev`, contra una branch efímera de Neon
+# Configuración que necesita el repo: ver .claude/docs/04-operacion-y-handoff.md (sección CI).
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+# Un push nuevo a la misma rama/PR cancela la corrida vieja (la branch de Neon
+# se borra igual: el paso de borrado corre con always()).
+concurrency:
+  group: ci-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   check:
-    name: typecheck + lint + unit
+    name: check
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: juk-portal
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Historia completa: check:tests calcula el merge-base contra la base.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: juk-portal/.nvmrc
           cache: npm
           cache-dependency-path: juk-portal/package-lock.json
 
@@ -31,5 +50,207 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Unit tests
-        run: npm run test
+      - name: Unit tests + cobertura (falla si baja del piso de vitest.config.ts)
+        run: npm run test:coverage
+
+      - name: Test compañero (lógica nueva o modificada sin test)
+        env:
+          BASE_PR: ${{ github.event.pull_request.base.sha }}
+          BASE_PUSH: ${{ github.event.before }}
+        run: |
+          base="HEAD~1"
+          if [ -n "$BASE_PR" ]; then
+            base="$BASE_PR"
+          else
+            case "$BASE_PUSH" in
+              *[!0]*) base="$BASE_PUSH" ;;
+            esac
+          fi
+          echo "Comparando contra $base"
+          node scripts/check-test-companions.mjs --base "$base"
+
+      # Criterio: bloquea solo vulnerabilidades ALTAS o CRÍTICAS en dependencias
+      # que llegan a producción (--omit=dev). Las moderadas/bajas de hoy son
+      # transitivas sin fix publicado (o con fix solo vía salto mayor del padre):
+      # quedan visibles en el log pero no frenan un merge que no puede hacer
+      # nada al respecto. El audit completo NO gatea: sus altas/crítica vienen de
+      # react-email (devDependency, solo el preview local de mails).
+      # Nunca `npm audit fix` / `npm update` acá: crashean en este repo (arborist).
+      - name: Audit de dependencias de producción (altas y críticas)
+        run: npm audit --omit=dev --audit-level=high
+
+      # Valores dummy SOLO para compilar: src/lib/db/index.ts tira al importarse
+      # sin DATABASE_URL (neon() no conecta al construirse) y Better-Auth pide
+      # secret en producción. Ninguno es un secreto real ni apunta a nada.
+      - name: Build de producción
+        env:
+          DATABASE_URL: postgresql://ci-build:ci-build@ci-build.invalid/ci?sslmode=require
+          BETTER_AUTH_SECRET: ci-build-only-dummy-secret-0123456789abcdef
+          BETTER_AUTH_URL: http://localhost:3000
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run build
+
+      - name: Subir cobertura y junit
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-coverage
+          path: |
+            juk-portal/coverage/
+            juk-portal/test-results/vitest-junit.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # Los secrets no se pueden usar en un `if:` de job: este job los mira y expone
+  # un output. Sin Neon configurado el e2e queda "skipped" con un aviso, no en rojo.
+  e2e-gate:
+    name: e2e · ¿Neon configurado?
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      enabled: ${{ steps.neon.outputs.enabled }}
+    steps:
+      - id: neon
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID || vars.NEON_PROJECT_ID }}
+          SEED_TEST_PASSWORD: ${{ secrets.SEED_TEST_PASSWORD }}
+        run: |
+          if [ -n "$NEON_API_KEY" ] && [ -n "$NEON_PROJECT_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            if [ -z "$SEED_TEST_PASSWORD" ]; then
+              echo "::notice title=SEED_TEST_PASSWORD sin configurar::Se usa una password al azar. Sirve solo si la branch padre de Neon NO tiene ya las cuentas test.* (el seed no les cambia la password)."
+            fi
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=E2E salteados::Faltan los secrets NEON_API_KEY y/o NEON_PROJECT_ID: no corrieron integración ni Playwright. Configuralos en Settings > Secrets and variables > Actions."
+            {
+              echo "### E2E salteados"
+              echo
+              echo "Faltan los secrets \`NEON_API_KEY\` y/o \`NEON_PROJECT_ID\`, así que este run **no** corrió los tests de integración ni la suite de Playwright."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  e2e:
+    name: e2e
+    needs: [check, e2e-gate]
+    if: needs.e2e-gate.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    defaults:
+      run:
+        working-directory: juk-portal
+    env:
+      NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID || vars.NEON_PROJECT_ID }}
+      NEON_BRANCH: ci-${{ github.run_id }}-${{ github.run_attempt }}
+      PW_PORT: "3001"
+      BETTER_AUTH_URL: http://localhost:3001
+      NEXT_PUBLIC_APP_URL: http://localhost:3001
+      EMAIL_DRY_RUN: "1"
+      NEXT_TELEMETRY_DISABLED: "1"
+      # dev a propósito. En modo producción rigen el rate limit real de login
+      # (5 cada 15 min; la suite necesita más) y el storage exige R2. Aflojar
+      # eso con un flag en el código de producción sería un bypass de seguridad
+      # activable por variable de entorno. El build ya se valida en el job
+      # check. Con la variable de repo E2E_SERVER=start se prueba contra
+      # `next start` a mano.
+      E2E_SERVER: ${{ vars.E2E_SERVER || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: juk-portal/.nvmrc
+          cache: npm
+          cache-dependency-path: juk-portal/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Secretos de la corrida: el server y los tests leen el mismo env, así que
+      # no hace falta guardarlos en GitHub. SEED_TEST_PASSWORD usa el secret si
+      # existe (la branch padre puede traer las cuentas test.* con esa password).
+      - name: Secretos efímeros
+        env:
+          SEED_TEST_PASSWORD_SECRET: ${{ secrets.SEED_TEST_PASSWORD }}
+        run: |
+          for var in BETTER_AUTH_SECRET GOOGLE_FORM_WEBHOOK_SECRET; do
+            valor="$(openssl rand -hex 32)"
+            echo "::add-mask::$valor"
+            echo "$var=$valor" >> "$GITHUB_ENV"
+          done
+          password="${SEED_TEST_PASSWORD_SECRET:-Ci9-$(openssl rand -hex 16)}"
+          echo "::add-mask::$password"
+          echo "SEED_TEST_PASSWORD=$password" >> "$GITHUB_ENV"
+          echo "NEON_EXPIRES_AT=$(date -u -d '+3 hours' +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - name: Crear branch efímera de Neon
+        id: neon
+        uses: neondatabase/create-branch-action@v6
+        with:
+          api_key: ${{ secrets.NEON_API_KEY }}
+          project_id: ${{ env.NEON_PROJECT_ID }}
+          branch_name: ${{ env.NEON_BRANCH }}
+          parent_branch: ${{ vars.NEON_PARENT_BRANCH }}
+          database: ${{ vars.NEON_DATABASE || 'neondb' }}
+          role: ${{ vars.NEON_ROLE || 'neondb_owner' }}
+          # Red de seguridad si el borrado del final no llega a correr.
+          expires_at: ${{ env.NEON_EXPIRES_AT }}
+
+      - name: Apuntar la app a la branch
+        env:
+          URL_POOLED: ${{ steps.neon.outputs.db_url_pooled }}
+          URL_DIRECTA: ${{ steps.neon.outputs.db_url }}
+        run: |
+          echo "::add-mask::$URL_POOLED"
+          echo "::add-mask::$URL_DIRECTA"
+          {
+            echo "DATABASE_URL=$URL_POOLED"
+            echo "DATABASE_URL_UNPOOLED=$URL_DIRECTA"
+            echo "INTEGRATION_DATABASE_URL=$URL_POOLED"
+          } >> "$GITHUB_ENV"
+
+      - name: Migraciones
+        run: npm run db:migrate
+
+      - name: Seeds (super_admin + cuentas test + dataset demo)
+        id: seed
+        run: |
+          npm run db:seed
+          npm run db:seed:demo
+
+      - name: Tests de integración
+        run: npm run test:integration
+
+      - name: Build de producción
+        if: ${{ !cancelled() && steps.seed.outcome == 'success' && env.E2E_SERVER == 'start' }}
+        run: npm run build
+
+      - name: Instalar Chromium
+        if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright
+        if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
+        run: npx playwright test
+
+      - name: Subir reporte y traces de Playwright
+        if: ${{ !cancelled() && steps.seed.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            juk-portal/playwright-report/
+            juk-portal/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Borrar branch de Neon
+        if: ${{ always() && steps.neon.outcome != 'skipped' }}
+        continue-on-error: true
+        uses: neondatabase/delete-branch-action@v3
+        with:
+          api_key: ${{ secrets.NEON_API_KEY }}
+          project_id: ${{ env.NEON_PROJECT_ID }}
+          branch: ${{ env.NEON_BRANCH }}

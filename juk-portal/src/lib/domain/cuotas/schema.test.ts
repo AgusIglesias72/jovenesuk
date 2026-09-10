@@ -112,14 +112,62 @@ describe("confirmarPagoPresencialSchema", () => {
 });
 
 describe("planCuotasSchema", () => {
+  const plan = {
+    asignacionId: CUOTA_ID,
+    cantidadCuotas: "3",
+    montoPorCuota: "500",
+    primerVencimiento: "2026-12-01",
+  };
+
+  function paths(input: unknown): string[] {
+    const r = planCuotasSchema.safeParse(input);
+    return r.success ? [] : r.error.issues.map((i) => i.path.join("."));
+  }
+
   it("la moneda defaultea a USD (CRIT-05)", () => {
-    const r = planCuotasSchema.parse({
-      asignacionId: CUOTA_ID,
-      cantidadCuotas: "3",
-      montoPorCuota: "500",
-      primerVencimiento: "2026-12-01",
-    });
+    const r = planCuotasSchema.parse(plan);
     expect(r.moneda).toBe("USD");
+  });
+
+  it("coerciona los números del form y deja el vencimiento en medianoche UTC", () => {
+    const r = planCuotasSchema.parse({ ...plan, moneda: "GBP" });
+    expect(r.cantidadCuotas).toBe(3);
+    expect(r.montoPorCuota).toBe(500);
+    expect(r.moneda).toBe("GBP");
+    expect(r.primerVencimiento.toISOString()).toBe("2026-12-01T00:00:00.000Z");
+  });
+
+  it("cantidad de cuotas entre 1 y 24, entera", () => {
+    expect(paths({ ...plan, cantidadCuotas: "1" })).toEqual([]);
+    expect(paths({ ...plan, cantidadCuotas: "24" })).toEqual([]);
+    expect(paths({ ...plan, cantidadCuotas: "0" })).toEqual(["cantidadCuotas"]);
+    expect(paths({ ...plan, cantidadCuotas: "25" })).toEqual(["cantidadCuotas"]);
+    expect(paths({ ...plan, cantidadCuotas: "2.5" })).toEqual(["cantidadCuotas"]);
+  });
+
+  it("el monto por cuota tiene que ser positivo y acotado", () => {
+    expect(paths({ ...plan, montoPorCuota: "0" })).toEqual(["montoPorCuota"]);
+    expect(paths({ ...plan, montoPorCuota: "-10" })).toEqual(["montoPorCuota"]);
+    expect(paths({ ...plan, montoPorCuota: "1000001" })).toEqual(["montoPorCuota"]);
+    expect(paths({ ...plan, montoPorCuota: "abc" })).toEqual(["montoPorCuota"]);
+    expect(planCuotasSchema.parse({ ...plan, montoPorCuota: "450.75" }).montoPorCuota).toBe(450.75);
+  });
+
+  it("rechaza monedas fuera de USD/GBP/ARS", () => {
+    expect(paths({ ...plan, moneda: "EUR" })).toEqual(["moneda"]);
+  });
+
+  it("el primer vencimiento es obligatorio", () => {
+    const r = planCuotasSchema.safeParse({ ...plan, primerVencimiento: "" });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues[0]?.path).toEqual(["primerVencimiento"]);
+      expect(r.error.issues[0]?.message).toBe("Ingresá la fecha");
+    }
+  });
+
+  it("exige una asignación uuid", () => {
+    expect(paths({ ...plan, asignacionId: "asig-1" })).toEqual(["asignacionId"]);
   });
 });
 
@@ -127,5 +175,11 @@ describe("formatMonto", () => {
   it("formatea con el símbolo de la moneda y dos decimales es-AR", () => {
     expect(formatMonto(1250, "GBP")).toBe("£ 1.250,00");
     expect(formatMonto("500", "USD")).toBe("US$ 500,00");
+  });
+
+  it("separa miles con punto y decimales con coma, redondeando a dos", () => {
+    expect(formatMonto(1234.5, "USD")).toBe("US$ 1.234,50");
+    expect(formatMonto("1500000.456", "ARS")).toBe("$ 1.500.000,46");
+    expect(formatMonto(0, "ARS")).toBe("$ 0,00");
   });
 });

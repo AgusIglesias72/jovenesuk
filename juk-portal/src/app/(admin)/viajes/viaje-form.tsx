@@ -533,7 +533,7 @@ export function ViajeForm({
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          {mode === "edit" && initial && initial.estado !== "cancelado" && (
+          {mode === "edit" && initial && initial.estado !== "cancelado" && initial.estado !== "finalizado" && (
             <Button
               type="button"
               variant="danger"

@@ -46,6 +46,18 @@ function tipoEditableValido(tipo: string): tipo is EditablePasoTipo {
   return Object.prototype.hasOwnProperty.call(METADATA_SCHEMAS, tipo);
 }
 
+function estadosPorTipo(pasos: ReadonlyArray<{ tipo: string; estado: string }>): EstadosPorTipo {
+  const estados: EstadosPorTipo = {};
+  for (const p of pasos) estados[p.tipo as PasoViajeTipo] = p.estado as PasoViajeEstado;
+  return estados;
+}
+
+function errorDependencia(tipo: PasoViajeTipo, requiere: PasoViajeTipo | null): string {
+  return `No podés avanzar ${PASO_VIAJE_LABELS[tipo]} hasta completar ${
+    requiere ? PASO_VIAJE_LABELS[requiere] : "el paso previo"
+  }.`;
+}
+
 export async function cambiarEstadoPasoViajeAction(
   viajeId: string,
   tipo: PasoViajeTipo,
@@ -73,16 +85,9 @@ export async function cambiarEstadoPasoViajeAction(
   }
 
   // Dependencia (PRD M7): la misma regla que filtra el selector del panel.
-  const estados: EstadosPorTipo = {};
-  for (const p of pasos) estados[p.tipo as PasoViajeTipo] = p.estado as PasoViajeEstado;
+  const estados = estadosPorTipo(pasos);
   if (!puedeAvanzarConDependencias(tipo, estado, estados)) {
-    const requiere = dependenciaPendiente(tipo, estados);
-    return {
-      ok: false,
-      error: `No podés avanzar ${PASO_VIAJE_LABELS[tipo]} hasta completar ${
-        requiere ? PASO_VIAJE_LABELS[requiere] : "el paso previo"
-      }.`,
-    };
+    return { ok: false, error: errorDependencia(tipo, dependenciaPendiente(tipo, estados)) };
   }
 
   try {
@@ -200,6 +205,14 @@ export async function marcarAlumnoPasoViajeAction(
     const activas = await listAsignacionesByViaje(viajeId);
     if (!activas.some((a) => a.asignacionId === asignacionId)) {
       return { ok: false, error: "La asignación no pertenece a este viaje." };
+    }
+
+    // Marcar cobertura auto-avanza el paso (en progreso / completado), así que
+    // exige la misma dependencia que el selector: sin esto, Transfers se
+    // completaba con Pasajes pendiente. Desmarcar siempre se puede.
+    if (cubierto) {
+      const requiere = dependenciaPendiente(tipoPaso, estadosPorTipo(pasos));
+      if (requiere) return { ok: false, error: errorDependencia(tipoPaso, requiere) };
     }
 
     const metadata = paso.metadata as Record<string, unknown>;

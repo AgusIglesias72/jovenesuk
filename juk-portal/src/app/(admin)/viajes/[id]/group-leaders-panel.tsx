@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 
 import {
   Badge,
@@ -53,6 +53,7 @@ export function GroupLeadersPanel({
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [sel, setSel] = useState("");
+  const tituloId = useId();
 
   function asignar() {
     if (!sel) return;
@@ -110,8 +111,10 @@ export function GroupLeadersPanel({
   }
 
   return (
-    <section className="mt-10">
-      <SectionTitle className="mb-3">Group Leaders del viaje</SectionTitle>
+    <section aria-labelledby={tituloId} className="mt-10">
+      <SectionTitle id={tituloId} className="mb-3">
+        Group Leaders del viaje
+      </SectionTitle>
 
       {viajeCancelado ? (
         <p className="mb-4 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">

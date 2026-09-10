@@ -42,6 +42,22 @@ describe("coincideSecreto", () => {
     expect(coincideSecreto("d".repeat(LARGO_MINIMO_SECRETO), SECRETO)).toBe(false);
   });
 
+  it("vacío contra vacío nunca matchea (defensa si falta el chequeo de secretoUsable)", () => {
+    expect(coincideSecreto("", "")).toBe(false);
+    expect(coincideSecreto("x", "")).toBe(false);
+  });
+
+  it("no recorta: el secreto con espacios alrededor no matchea", () => {
+    expect(coincideSecreto(` ${SECRETO}`, SECRETO)).toBe(false);
+    expect(coincideSecreto(`${SECRETO.slice(1)} `, SECRETO)).toBe(false);
+  });
+
+  it("un secreto corto también se compara exacto (no por prefijo)", () => {
+    expect(coincideSecreto("abc", "abcd")).toBe(false);
+    expect(coincideSecreto("abcd", "abc")).toBe(false);
+    expect(coincideSecreto("abc", "abc")).toBe(true);
+  });
+
   it("compara bytes, no caracteres: distinto multibyte no matchea", () => {
     const conAcento = `${"c".repeat(LARGO_MINIMO_SECRETO - 1)}á`;
     expect(coincideSecreto(conAcento, SECRETO)).toBe(false);

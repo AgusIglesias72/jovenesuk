@@ -1,16 +1,6 @@
-import { readFileSync } from "node:fs";
 import { test, expect } from "@playwright/test";
 
-import { codigoViajeUnico, crearViaje } from "./helpers";
-
-// El secret vive en .env.local (dev) o en el env del CI.
-function webhookSecret(): string {
-  if (process.env.GOOGLE_FORM_WEBHOOK_SECRET) return process.env.GOOGLE_FORM_WEBHOOK_SECRET;
-  const env = readFileSync(".env.local", "utf8");
-  const m = env.match(/^GOOGLE_FORM_WEBHOOK_SECRET=(.+)$/m);
-  if (!m) throw new Error("GOOGLE_FORM_WEBHOOK_SECRET no configurado");
-  return m[1]!.trim().replace(/^"|"$/g, "");
-}
+import { codigoViajeUnico, crearViaje, expectEstadoPasoAlumno, webhookSecret } from "./helpers";
 
 function payloadAlumno(dni: string, codigoViaje?: string) {
   return {
@@ -60,9 +50,7 @@ test("crea el alumno pre-inscripto y lo asigna al viaje del link", async ({ page
   await page.goto(`/alumnos/${dni}`);
   await expect(page.getByText(`Test ${dni}, Webhook`)).toBeVisible();
   await expect(page.getByText("Inscripción y programa")).toBeVisible();
-  await expect(
-    page.locator('[data-paso="paso_0"]').getByText("Completado").first()
-  ).toBeVisible();
+  await expectEstadoPasoAlumno(page, "paso_0", "Completado");
   // Acceso de familia generado pero NO enviado
   await expect(page.getByText(/Acceso .*no enviado/)).toBeVisible();
 });

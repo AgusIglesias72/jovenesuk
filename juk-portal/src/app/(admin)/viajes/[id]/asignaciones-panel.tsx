@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 
 import {
   Badge,
@@ -48,6 +48,7 @@ export function AsignacionesPanel({
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [sel, setSel] = useState("");
+  const tituloId = useId();
 
   const sinCupo = cupoUsado >= cupoMax;
 
@@ -112,9 +113,9 @@ export function AsignacionesPanel({
   }
 
   return (
-    <section>
+    <section aria-labelledby={tituloId}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <SectionTitle>Alumnos asignados</SectionTitle>
+        <SectionTitle id={tituloId}>Alumnos asignados</SectionTitle>
         <span className="font-mono text-[length:var(--t-small)] tabular-nums text-[var(--c-ink-muted)]">
           {cupoUsado} / {cupoMax} cupos
         </span>

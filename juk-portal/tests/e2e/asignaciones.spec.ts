@@ -1,26 +1,20 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 
-import { confirmarModal, crearAlumno, crearViaje, panelAlumnosAsignados } from "./helpers";
-
-// El panel de asignación de alumnos (hay otros paneles con botón "Asignar" en la
-// misma página, como el de Group Leaders, así que scopeamos por la sección).
-// El <select> de alumnos elegibles (único con esa opción).
-function selectorElegibles(page: Page) {
-  return page.locator("select", {
-    has: page.locator('option:text-is("Elegí un alumno…")'),
-  });
-}
+import {
+  asignarAlumnoAlViaje,
+  confirmarModal,
+  crearAlumno,
+  crearViaje,
+  panelAlumnosAsignados,
+} from "./helpers";
 
 test("asigna un alumno a un viaje y descuenta el cupo", async ({ page }) => {
   const alumno = await crearAlumno(page);
   await crearViaje(page);
-  const panel = panelAlumnosAsignados(page);
 
-  await selectorElegibles(page).selectOption({ label: alumno.label });
-  await panel.getByRole("button", { name: "Asignar" }).click();
+  await asignarAlumnoAlViaje(page, alumno);
 
-  await expect(page.getByText(`${alumno.apellido}, ${alumno.nombre}`).first()).toBeVisible();
-  await expect(page.getByText(/^1 \/ \d+ cupos$/)).toBeVisible();
+  await expect(panelAlumnosAsignados(page).getByText(/^1 \/ \d+ cupos$/)).toBeVisible();
 });
 
 // Regresión del bug crítico: la unique constraint (alumno, viaje) no incluye el
@@ -30,22 +24,17 @@ test("permite re-asignar un alumno que fue desasignado del mismo viaje", async (
   const alumno = await crearAlumno(page);
   await crearViaje(page);
   const panel = panelAlumnosAsignados(page);
-  const elegibles = selectorElegibles(page);
 
   // 1) Asignar
-  await elegibles.selectOption({ label: alumno.label });
-  await panel.getByRole("button", { name: "Asignar" }).click();
-  await expect(page.getByText(`${alumno.apellido}, ${alumno.nombre}`).first()).toBeVisible();
+  const fila = await asignarAlumnoAlViaje(page, alumno);
 
   // 2) Quitar (soft-cancel: la fila queda en "cancelada", no se borra)
   await panel.getByRole("button", { name: "Quitar" }).click();
   await confirmarModal(page, "Sí, quitar");
-  await expect(page.getByText("Todavía no hay alumnos asignados.")).toBeVisible();
+  await expect(fila).toHaveCount(0);
+  await expect(panel.getByText("Todavía no hay alumnos asignados.")).toBeVisible();
 
   // 3) Re-asignar el mismo alumno al mismo viaje
-  await elegibles.selectOption({ label: alumno.label });
-  await panel.getByRole("button", { name: "Asignar" }).click();
-
-  await expect(page.getByText(`${alumno.apellido}, ${alumno.nombre}`).first()).toBeVisible();
+  await asignarAlumnoAlViaje(page, alumno);
   await expect(page.getByText("El alumno ya está asignado a este viaje.")).toHaveCount(0);
 });
