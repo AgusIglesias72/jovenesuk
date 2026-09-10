@@ -16,6 +16,10 @@ import { LogoutButton } from "./logout-button";
  * chip del tutor abajo) pero adaptado al portal del alumno: NO importa el
  * AdminShell (es del back-office). En desktop es una sidebar fija; en mobile
  * un header + una tira de tabs scrolleable.
+ *
+ * Dos cosas acompañan TODAS las pantallas (PRD 04): el acceso a Ayuda
+ * (US-10.1) y el aviso de cuota vencida (US-3.1.3), que se oculta en Pagos
+ * porque ahí el listado ya marca cada cuota.
  */
 
 type AlumnoLite = { dni: string; nombre: string; apellido: string };
@@ -23,7 +27,10 @@ type AlumnoLite = { dni: string; nombre: string; apellido: string };
 interface FamiliaShellProps {
   dniActual: string;
   nombreAlumno: string;
+  /** Nombre de pila del alumno, para el copy del aviso de cuota vencida. */
+  nombrePila: string;
   nombreTutor: string;
+  cuotasVencidas: number;
   alumnos: AlumnoLite[];
   children: ReactNode;
 }
@@ -46,6 +53,9 @@ const MODULOS: Modulo[] = [
   { label: "Encuesta", icon: <IconStar />, soon: true },
 ];
 
+/** Ayuda va aparte de los módulos: fija abajo en la sidebar y en el header mobile. */
+const AYUDA: Modulo = { label: "Ayuda", sub: "ayuda", icon: <IconHelp /> };
+
 function hrefDe(base: string, mod: Modulo): string {
   return mod.sub ? `${base}/${mod.sub}` : base;
 }
@@ -58,7 +68,7 @@ function esActivo(pathname: string, base: string, mod: Modulo): boolean {
 function seccionLabel(pathname: string, base: string): string | null {
   if (pathname === base) return null;
   const sub = pathname.slice(base.length + 1).split("/")[0] ?? "";
-  const mod = MODULOS.find((m) => m.sub === sub);
+  const mod = [...MODULOS, AYUDA].find((m) => m.sub === sub);
   return mod?.label ?? null;
 }
 
@@ -73,7 +83,9 @@ function breadcrumb(pathname: string, base: string, nombreAlumno: string): Crumb
 export function FamiliaShell({
   dniActual,
   nombreAlumno,
+  nombrePila,
   nombreTutor,
+  cuotasVencidas,
   alumnos,
   children,
 }: FamiliaShellProps) {
@@ -100,6 +112,8 @@ export function FamiliaShell({
     .toUpperCase();
 
   const hayVariosAlumnos = alumnos.length > 1;
+  const enAyuda = esActivo(pathname, base, AYUDA);
+  const enPagos = pathname.startsWith(`${base}/pagos`);
 
   return (
     <div className="min-h-screen bg-[var(--c-page)] text-[var(--c-ink)] lg:grid lg:h-screen lg:grid-cols-[264px_1fr] lg:overflow-hidden">
@@ -160,6 +174,16 @@ export function FamiliaShell({
           )}
         </nav>
 
+        {/* Ayuda fija, siempre a la vista aunque la lista de módulos scrollee. */}
+        <div className="mt-3 border-t border-white/10 pt-3">
+          <SidebarItem
+            icon={AYUDA.icon}
+            label="Ayuda y contacto"
+            href={hrefDe(base, AYUDA)}
+            active={enAyuda}
+          />
+        </div>
+
         {/* Chip del tutor + Salir */}
         <div className="mt-3 flex items-center gap-3 rounded-[var(--r-lg)] bg-white/10 p-3">
           <span
@@ -185,7 +209,7 @@ export function FamiliaShell({
       {/* ---------- Header + tabs (mobile) ---------- */}
       <div className="lg:hidden">
         <header className="sticky top-0 z-10 bg-[image:var(--grad-brand)] text-[var(--c-ink-onbrand)]">
-          <div className="flex items-center justify-between gap-3 px-4 py-3 pl-[calc(1rem+var(--safe-left))] pr-[calc(1rem+var(--safe-right))] pt-[calc(0.75rem+var(--safe-top))]">
+          <div className="flex items-center justify-between gap-2 px-4 py-3 pl-[calc(1rem+var(--safe-left))] pr-[calc(1rem+var(--safe-right))] pt-[calc(0.75rem+var(--safe-top))]">
             <div className="flex min-w-0 items-center gap-2.5">
               <span
                 className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--r-md)] bg-[image:var(--grad-warm)] text-[var(--c-ink-onaccent)] shadow-[shadow:var(--shadow-accent)]"
@@ -202,7 +226,24 @@ export function FamiliaShell({
                 </p>
               </div>
             </div>
-            <LogoutButton />
+            <div className="flex shrink-0 items-center gap-1">
+              <Link
+                href={hrefDe(base, AYUDA)}
+                aria-current={enAyuda ? "page" : undefined}
+                className={cn(
+                  "flex min-h-[var(--tap)] items-center gap-1.5 rounded-[var(--r-pill)] px-3 text-[length:var(--t-small)] font-semibold transition-colors",
+                  enAyuda
+                    ? "bg-white/15 text-[var(--c-ink-onbrand)]"
+                    : "bg-white/10 text-[var(--c-ink-onbrand)] hover:bg-white/15"
+                )}
+              >
+                <span className="h-4 w-4" aria-hidden>
+                  {AYUDA.icon}
+                </span>
+                Ayuda
+              </Link>
+              <LogoutButton />
+            </div>
           </div>
 
           {hayVariosAlumnos && (
@@ -237,11 +278,65 @@ export function FamiliaShell({
           <FamiliaBreadcrumb items={breadcrumb(pathname, base, nombreAlumno)} />
         </div>
         <div className="mx-auto w-full max-w-3xl px-4 py-6 pb-[calc(1.5rem+var(--safe-bottom))] lg:mx-0 lg:max-w-none lg:flex-1 lg:overflow-auto lg:px-8 lg:py-8 lg:pb-8">
+          {cuotasVencidas > 0 && !enPagos && (
+            <AvisoCuotaVencida
+              cantidad={cuotasVencidas}
+              nombrePila={nombrePila}
+              href={`${base}/pagos`}
+            />
+          )}
           <ConfirmProvider>
             <ToastProvider>{children}</ToastProvider>
           </ConfirmProvider>
         </div>
       </main>
+    </div>
+  );
+}
+
+/* ============================================================
+   Aviso de cuota vencida (todas las pantallas menos Pagos)
+   ============================================================ */
+
+/**
+ * Tono de aviso (miel), no de error: es una familia con un pago atrasado, no
+ * un moroso. No bloquea nada (PRD 04 · 3.4) y lleva directo a Pagos.
+ */
+function AvisoCuotaVencida({
+  cantidad,
+  nombrePila,
+  href,
+}: {
+  cantidad: number;
+  nombrePila: string;
+  href: string;
+}) {
+  const texto =
+    cantidad === 1
+      ? `Tenés una cuota vencida. Cuando puedas, regularizala para asegurar el viaje de ${nombrePila}.`
+      : `Tenés ${cantidad} cuotas vencidas. Cuando puedas, regularizalas para asegurar el viaje de ${nombrePila}.`;
+
+  return (
+    <div
+      role="status"
+      aria-label="Aviso de cuota vencida"
+      className="mb-6 flex flex-col gap-2 rounded-[var(--r-lg)] border border-[color-mix(in_srgb,var(--c-warning)_30%,transparent)] bg-[var(--c-warning-bg)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+    >
+      <p className="flex items-start gap-2.5 text-[length:var(--t-small)] leading-[var(--lh-snug)] text-[var(--c-ink)]">
+        <span
+          className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-[var(--r-pill)] bg-[var(--c-warning)] text-[length:var(--t-label)] font-bold text-[var(--c-surface)]"
+          aria-hidden
+        >
+          !
+        </span>
+        <span>{texto}</span>
+      </p>
+      <Link
+        href={href}
+        className="inline-flex min-h-[var(--tap)] shrink-0 items-center self-start rounded-[var(--r-pill)] px-1 text-[length:var(--t-small)] font-bold text-[var(--c-ink)] underline decoration-[var(--c-warning)] decoration-2 underline-offset-4 hover:text-[var(--c-brand)] sm:self-auto"
+      >
+        Ver mis pagos →
+      </Link>
     </div>
   );
 }
@@ -511,6 +606,15 @@ function IconStar() {
   return (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6}>
       <path d="M8 1.5l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.3l-3.8 2 .7-4.3-3.1-3 4.3-.6z" />
+    </svg>
+  );
+}
+function IconHelp() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6}>
+      <circle cx={8} cy={8} r={6.5} />
+      <path d="M6.2 6.2a1.9 1.9 0 013.6.8c0 1.3-1.8 1.6-1.8 2.8" />
+      <path d="M8 11.8v.2" />
     </svg>
   );
 }

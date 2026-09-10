@@ -8,7 +8,7 @@ import { cuotas } from "@/lib/db/schema/cuotas";
 import { groupLeaders } from "@/lib/db/schema/grupos-leaders";
 import { pasosAlumno } from "@/lib/db/schema/pasos-alumno";
 import { groupLeadersViaje } from "@/lib/db/schema/pasos-viaje";
-import { viajes } from "@/lib/db/schema/viajes";
+import { viajes, type Viaje } from "@/lib/db/schema/viajes";
 import { calcularAlertas, type Alerta } from "@/lib/domain/alertas";
 import { diaCalendarioUTC } from "@/lib/utils/date";
 
@@ -16,9 +16,23 @@ export type { Alerta };
 
 export type AlertasOpciones = {
   hoy?: Date;
-  /** Restringe el cálculo a un viaje (detalle de viaje); por default, todos. */
+  /**
+   * Restringe el cálculo a un viaje (detalle de viaje); por default, todos.
+   * Con viaje, el Parental Consent se evalúa solo para SU colegio destino.
+   */
   viajeId?: string;
 };
+
+/** Viajes sobre los que se calculan alertas: los finalizados y cancelados no alertan. */
+export const VIAJE_ESTADOS_CON_ALERTAS = [
+  "inscripcion_abierta",
+  "confirmado",
+  "en_curso",
+] as const satisfies readonly Viaje["estado"][];
+
+export function viajeTieneAlertas(estado: Viaje["estado"]): boolean {
+  return (VIAJE_ESTADOS_CON_ALERTAS as readonly Viaje["estado"][]).includes(estado);
+}
 
 /**
  * Alertas del dashboard (PRD M2). Las REGLAS viven en domain/alertas; acá solo
@@ -31,6 +45,8 @@ export async function getAlertas(opciones: AlertasOpciones = {}): Promise<Alerta
   const hoy = opciones.hoy ?? new Date();
   const { viajeId } = opciones;
 
+  const estadosConAlertas = [...VIAJE_ESTADOS_CON_ALERTAS];
+
   const [destinos, viajesActivos] = await Promise.all([
     db
       .select({
@@ -39,13 +55,29 @@ export async function getAlertas(opciones: AlertasOpciones = {}): Promise<Alerta
         parentalConsentUpdatedAt: colegios.parentalConsentUpdatedAt,
       })
       .from(colegios)
-      .where(and(eq(colegios.tipo, "destino"), eq(colegios.estado, "activo"))),
+      .where(
+        and(
+          eq(colegios.tipo, "destino"),
+          eq(colegios.estado, "activo"),
+          // Sin este corte el detalle de UN viaje listaría el Parental Consent
+          // de todos los colegios de la agencia.
+          viajeId
+            ? inArray(
+                colegios.id,
+                db
+                  .select({ id: viajes.colegioDestinoId })
+                  .from(viajes)
+                  .where(and(eq(viajes.id, viajeId), inArray(viajes.estado, estadosConAlertas)))
+              )
+            : undefined
+        )
+      ),
     db
       .select({ id: viajes.id, codigo: viajes.codigo, fechaInicio: viajes.fechaInicio })
       .from(viajes)
       .where(
         and(
-          inArray(viajes.estado, ["inscripcion_abierta", "confirmado", "en_curso"]),
+          inArray(viajes.estado, estadosConAlertas),
           viajeId ? eq(viajes.id, viajeId) : undefined
         )
       ),

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
-import { Cta, CtaFinal, Kicker, PageHeader, SectionTitle } from "../sections";
+import { Cta, Kicker, PublicPageHeader, SectionTitle } from "../_components/primitives";
+import { CtaFinal } from "../_sections";
 import { JsonLd, breadcrumbSchema, courseListSchema, langAlternates } from "../seo";
 
 export const metadata: Metadata = {
@@ -245,7 +246,7 @@ export default function ProgramasPage() {
     <>
       <JsonLd data={breadcrumbSchema([{ name: "Programas", path: "/programas" }])} />
       <JsonLd data={courseListSchema(CURSOS)} />
-      <PageHeader
+      <PublicPageHeader
         kicker="Programas"
         title="Un programa para cada etapa de tu inglés"
         sub="Adolescentes, jóvenes, adultos y profesionales: todos nuestros programas se eligen junto a vos, según tu nivel, tus intereses y tus objetivos."

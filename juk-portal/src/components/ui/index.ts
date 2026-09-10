@@ -70,6 +70,5 @@ export {
   FormPageSkeleton,
   FichaAlumnoSkeleton,
   ViajeDetalleSkeleton,
-  DashboardSkeleton,
   ConfigSkeleton,
 } from "./skeleton";

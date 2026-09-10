@@ -1,11 +1,10 @@
 import Link from "next/link";
 
-import { listCuotasByAsignaciones } from "@/lib/db/queries/cuotas";
 import { listPasosByAsignaciones } from "@/lib/db/queries/pasos-alumno";
-import { estaVencida, formatMonto, saldoPendiente, type Moneda } from "@/lib/domain/cuotas";
+import { formatMonto, saldoPendiente, type Moneda } from "@/lib/domain/cuotas";
 import { agruparPor } from "@/lib/utils/agrupar";
 
-import { asignacionesActivas, cargarAlumnoFamilia } from "./_data";
+import { asignacionesActivas, cargarAlumnoFamilia, cuotasActivas } from "./_data";
 import {
   completitud,
   EstadoVacio,
@@ -32,13 +31,13 @@ export default async function ResumenPage({ params }: { params: Promise<{ dni: s
     );
   }
 
-  const hoy = new Date();
   const base = `/familias/${dni}`;
 
-  const ids = activas.map((a) => a.asignacionId);
+  // Las cuotas ya las pidió el layout para el aviso global: `cuotasActivas`
+  // está memoizada por request, así que acá no hay round-trip extra.
   const [todosLosPasos, todasLasCuotas] = await Promise.all([
-    listPasosByAsignaciones(ids),
-    listCuotasByAsignaciones(ids),
+    listPasosByAsignaciones(activas.map((a) => a.asignacionId)),
+    cuotasActivas(alumno.id),
   ]);
   const pasosPorAsignacion = agruparPor(todosLosPasos, (p) => p.asignacionId);
   const cuotasPorAsignacion = agruparPor(todasLasCuotas, (c) => c.asignacionId);
@@ -46,21 +45,20 @@ export default async function ResumenPage({ params }: { params: Promise<{ dni: s
   const viajes = activas.map((a) => {
     const pasos = pasosPorAsignacion.get(a.asignacionId) ?? [];
     const cuotas = cuotasPorAsignacion.get(a.asignacionId) ?? [];
-    const cuotasVencidas = cuotas.filter((c) => estaVencida(c, hoy)).length;
     return {
       a,
       doc: completitud(pasos),
       docAccion: pasos.filter((p) => p.estado === "vencido").length,
-      cuotasVencidas,
       saldo: saldoPendiente(cuotas),
       tieneCuotas: cuotas.length > 0,
       moneda: (cuotas[0]?.moneda ?? "USD") as Moneda,
     };
   });
 
+  // Las cuotas vencidas no se repiten acá: el shell ya muestra el aviso en
+  // todas las pantallas, con el link a Pagos.
   const totalDocAccion = viajes.reduce((acc, v) => acc + v.docAccion, 0);
-  const totalCuotasVencidas = viajes.reduce((acc, v) => acc + v.cuotasVencidas, 0);
-  const hayAlertas = totalDocAccion > 0 || totalCuotasVencidas > 0;
+  const hayAlertas = totalDocAccion > 0;
 
   return (
     <div className="space-y-6">
@@ -78,32 +76,17 @@ export default async function ResumenPage({ params }: { params: Promise<{ dni: s
             Necesita tu atención
           </p>
           <ul className="space-y-1.5">
-            {totalDocAccion > 0 && (
-              <li>
-                <Link
-                  href={`${base}/documentacion`}
-                  className="text-[length:var(--t-small)] font-semibold text-[var(--c-danger)] underline-offset-2 hover:underline"
-                >
-                  {totalDocAccion === 1
-                    ? "1 trámite requiere tu acción"
-                    : `${totalDocAccion} trámites requieren tu acción`}{" "}
-                  →
-                </Link>
-              </li>
-            )}
-            {totalCuotasVencidas > 0 && (
-              <li>
-                <Link
-                  href={`${base}/pagos`}
-                  className="text-[length:var(--t-small)] font-semibold text-[var(--c-danger)] underline-offset-2 hover:underline"
-                >
-                  {totalCuotasVencidas === 1
-                    ? "1 cuota vencida"
-                    : `${totalCuotasVencidas} cuotas vencidas`}{" "}
-                  →
-                </Link>
-              </li>
-            )}
+            <li>
+              <Link
+                href={`${base}/documentacion`}
+                className="text-[length:var(--t-small)] font-semibold text-[var(--c-danger)] underline-offset-2 hover:underline"
+              >
+                {totalDocAccion === 1
+                  ? "1 trámite requiere tu acción"
+                  : `${totalDocAccion} trámites requieren tu acción`}{" "}
+                →
+              </Link>
+            </li>
           </ul>
         </section>
       )}

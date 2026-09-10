@@ -2,10 +2,31 @@ import { describe, expect, it } from "vitest";
 
 import { grupoDePaso, PASO_CODIGOS, PASO_NUMERACION_VIEJA } from "./codigos";
 import {
+  PASO_ESTADOS,
+  admiteFechaLimite,
   cuentaParaCompletitud,
   puedeTransicionarPasoAlumno,
+  transicionRequiereNota,
   transicionesPasoAlumno,
 } from "./estados";
+
+describe("transicionRequiereNota", () => {
+  it("bloquear exige motivo; el resto de las transiciones no", () => {
+    expect(transicionRequiereNota("bloqueado")).toBe(true);
+    for (const estado of PASO_ESTADOS.filter((e) => e !== "bloqueado")) {
+      expect(transicionRequiereNota(estado)).toBe(false);
+    }
+  });
+});
+
+describe("admiteFechaLimite", () => {
+  it("solo A1 tiene fecha límite editable", () => {
+    expect(admiteFechaLimite("a1")).toBe(true);
+    for (const codigo of PASO_CODIGOS.filter((c) => c !== "a1")) {
+      expect(admiteFechaLimite(codigo)).toBe(false);
+    }
+  });
+});
 
 describe("puedeTransicionarPasoAlumno", () => {
   it("el Paso 0 no se puede transicionar nunca", () => {

@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 
 import { LinkButton, PageHeader, TripBadge } from "@/components/ui";
 import { getAlumnoByDni } from "@/lib/db/queries/alumnos";
-import { listAsignacionesByAlumno } from "@/lib/db/queries/asignaciones";
+import {
+  listAsignacionesByAlumno,
+  viajesAsignables,
+  type ViajeAsignable,
+} from "@/lib/db/queries/asignaciones";
 import { listCuotasByAsignacion } from "@/lib/db/queries/cuotas";
 import { listPasosByAsignacion } from "@/lib/db/queries/pasos-alumno";
 import { ALUMNO_ESTADO_LABELS } from "@/lib/domain/alumnos";
@@ -13,6 +17,7 @@ import type { ViajeOrigen } from "@/lib/domain/viajes";
 import { formatFecha } from "@/lib/utils/date";
 
 import { AccesoFamilia } from "./acceso-familia";
+import { AsignarViajePanel } from "./asignar-viaje-panel";
 import { CuotasPanel, type CuotaView } from "./cuotas-panel";
 import { TableroM6, type PasoView } from "./tablero-m6";
 
@@ -38,7 +43,13 @@ export default async function AlumnoDetailPage({
   const alumno = await getAlumnoByDni(id);
   if (!alumno) notFound();
 
-  const asignacionesAlumno = await listAsignacionesByAlumno(alumno.id);
+  const puedeAsignarse = alumno.estado !== "baja";
+  const sinViajes: ViajeAsignable[] = [];
+  // Independientes entre sí: en paralelo, el panel de asignación no suma latencia.
+  const [asignacionesAlumno, viajesDisponibles] = await Promise.all([
+    listAsignacionesByAlumno(alumno.id),
+    puedeAsignarse ? viajesAsignables(alumno.id) : sinViajes,
+  ]);
   const activas = asignacionesAlumno.filter((a) => a.estado === "activa");
 
   const tableros = await Promise.all(
@@ -60,6 +71,7 @@ export default async function AlumnoDetailPage({
             metadata: p.metadata,
             notas: p.notas,
             fechaCompletado: p.fechaCompletado,
+            fechaLimite: p.fechaLimite,
           })
         ),
         cuotas: cuotas.map(
@@ -129,16 +141,23 @@ export default async function AlumnoDetailPage({
         />
       </section>
 
+      {/* Sin viaje, asignar ES la próxima acción: el panel va arriba en lugar del vacío. */}
+      {tableros.length === 0 && puedeAsignarse && (
+        <AsignarViajePanel alumnoId={alumno.id} viajes={viajesDisponibles} tieneViaje={false} />
+      )}
+
       {tableros.length === 0 ? (
-        <div className="mt-8 rounded-[var(--r-lg)] border border-dashed border-[var(--c-border-strong)] bg-transparent p-10 text-center">
-          <p className="text-[length:var(--t-body)] font-semibold text-[var(--c-ink)]">
-            Sin viaje asignado
-          </p>
-          <p className="mt-1 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
-            El tablero de seguimiento se crea al asignar el alumno a un viaje (desde el
-            detalle del viaje).
-          </p>
-        </div>
+        !puedeAsignarse && (
+          <div className="mt-8 rounded-[var(--r-lg)] border border-dashed border-[var(--c-border-strong)] bg-transparent p-10 text-center">
+            <p className="text-[length:var(--t-body)] font-semibold text-[var(--c-ink)]">
+              Sin viaje asignado
+            </p>
+            <p className="mt-1 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
+              El alumno está dado de baja: reactivalo desde “Editar datos” para asignarlo a un
+              viaje.
+            </p>
+          </div>
+        )
       ) : (
         tableros.map(({ asignacion, pasos, cuotas }) => (
           <div key={asignacion.asignacionId}>
@@ -170,6 +189,11 @@ export default async function AlumnoDetailPage({
             />
           </div>
         ))
+      )}
+
+      {/* Con tableros, lo operativo va primero: sumar otro viaje queda al pie. */}
+      {tableros.length > 0 && puedeAsignarse && (
+        <AsignarViajePanel alumnoId={alumno.id} viajes={viajesDisponibles} tieneViaje />
       )}
     </>
   );

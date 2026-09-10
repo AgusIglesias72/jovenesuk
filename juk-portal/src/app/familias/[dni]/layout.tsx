@@ -2,7 +2,7 @@ import { requireFamilia } from "@/lib/auth/helpers";
 import { getAlumnosDeFamilia } from "@/lib/db/queries/familias";
 
 import { FamiliaShell } from "../_shell";
-import { cargarAlumnoFamilia } from "./_data";
+import { cargarAlumnoFamilia, contarCuotasVencidas } from "./_data";
 
 /*
  * OJO: no agregar un `loading.tsx` en `familias/` (el segmento padre). Ese
@@ -28,12 +28,17 @@ export default async function AlumnoLayout({
     cargarAlumnoFamilia(dni),
     getAlumnosDeFamilia(session.user.id),
   ]);
+  // El aviso de cuota vencida va en TODAS las pantallas (PRD 04 · US-3.1.3). Las
+  // cuotas quedan memoizadas por request: Pagos y Resumen no las vuelven a pedir.
+  const cuotasVencidas = await contarCuotasVencidas(alumno.id);
 
   return (
     <FamiliaShell
       dniActual={dni}
       nombreAlumno={`${alumno.nombre} ${alumno.apellido}`}
+      nombrePila={alumno.nombre}
       nombreTutor={session.user.name}
+      cuotasVencidas={cuotasVencidas}
       alumnos={alumnos.map((a) => ({
         dni: a.dni,
         nombre: a.nombre,

@@ -72,6 +72,21 @@ export function transicionesPasoAlumno(
 }
 
 /**
+ * Un paso bloqueado sin motivo no le sirve al próximo operador ni a la alerta
+ * del dashboard (que muestra la nota como detalle): bloquear exige nota.
+ */
+export function transicionRequiereNota(nuevo: PasoEstado): boolean {
+  return nuevo === "bloqueado";
+}
+
+/** US-20: A1 hereda la fecha límite del viaje y se puede ajustar por alumno. */
+const PASOS_CON_FECHA_LIMITE: ReadonlySet<PasoCodigo> = new Set(["a1"]);
+
+export function admiteFechaLimite(codigo: PasoCodigo): boolean {
+  return PASOS_CON_FECHA_LIMITE.has(codigo);
+}
+
+/**
  * MIN-13/MIN-06: un paso cuenta para la completitud y las alertas de
  * "obligatorios" solo si está activo y NO es opcional según la config del
  * colegio. El llamador indica si el paso quedó marcado opcional al inicializar.

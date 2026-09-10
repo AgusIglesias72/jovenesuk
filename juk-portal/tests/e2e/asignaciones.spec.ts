@@ -1,13 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
 
-import { confirmarModal, crearAlumno, crearViaje } from "./helpers";
+import { confirmarModal, crearAlumno, crearViaje, panelAlumnosAsignados } from "./helpers";
 
 // El panel de asignación de alumnos (hay otros paneles con botón "Asignar" en la
 // misma página, como el de Group Leaders, así que scopeamos por la sección).
-function alumnosPanel(page: Page) {
-  return page.locator("section").filter({ hasText: "Alumnos asignados" });
-}
-
 // El <select> de alumnos elegibles (único con esa opción).
 function selectorElegibles(page: Page) {
   return page.locator("select", {
@@ -18,7 +14,7 @@ function selectorElegibles(page: Page) {
 test("asigna un alumno a un viaje y descuenta el cupo", async ({ page }) => {
   const alumno = await crearAlumno(page);
   await crearViaje(page);
-  const panel = alumnosPanel(page);
+  const panel = panelAlumnosAsignados(page);
 
   await selectorElegibles(page).selectOption({ label: alumno.label });
   await panel.getByRole("button", { name: "Asignar" }).click();
@@ -33,7 +29,7 @@ test("asigna un alumno a un viaje y descuenta el cupo", async ({ page }) => {
 test("permite re-asignar un alumno que fue desasignado del mismo viaje", async ({ page }) => {
   const alumno = await crearAlumno(page);
   await crearViaje(page);
-  const panel = alumnosPanel(page);
+  const panel = panelAlumnosAsignados(page);
   const elegibles = selectorElegibles(page);
 
   // 1) Asignar

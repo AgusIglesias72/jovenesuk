@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { Cta, Kicker } from "../../sections";
+import { Cta, Kicker } from "../../_components/primitives";
 import { JsonLd, SITE_URL, breadcrumbSchema, langAlternates } from "../../seo";
 import { NOTAS, fechaCorta, getNota } from "../notas-data";
 

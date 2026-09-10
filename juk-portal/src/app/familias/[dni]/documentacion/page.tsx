@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { listPasosByAsignaciones } from "@/lib/db/queries/pasos-alumno";
 import { type PasoAlumno } from "@/lib/db/schema/pasos-alumno";
 import { PASO_CODIGOS, type PasoCodigo } from "@/lib/domain/pasos";
@@ -41,13 +43,22 @@ export default async function DocumentacionPage({ params }: { params: Promise<{ 
     <div className="space-y-6">
       <FamiliaPageHeader
         title="Documentación"
-        subtitle="Subí los documentos que te pidamos y reportá el avance de los que dependen de vos. Te avisamos por email cuando alguno necesite tu acción."
+        subtitle="Todos los trámites del viaje, ordenados por etapa. Cada uno te cuenta qué es y quién se ocupa: los que dicen «Lo hacés vos» tienen el botón para avanzar."
       />
-      <div className="space-y-8">
+      <div className="space-y-10">
         {viajes.map(({ a, pasos }) => (
           <DocumentacionPasos key={a.asignacionId} titulo={a.viajeNombre} pasos={pasos} />
         ))}
       </div>
+      <p className="rounded-[var(--r-lg)] border border-dashed border-[var(--c-border-strong)] px-4 py-3 text-center text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
+        ¿Algún trámite no te queda claro?{" "}
+        <Link
+          href={`/familias/${dni}/ayuda`}
+          className="font-semibold text-[var(--c-brand)] underline decoration-[var(--c-brand-300)] underline-offset-4 hover:decoration-[var(--c-brand)]"
+        >
+          Mirá las preguntas frecuentes o escribinos
+        </Link>
+      </p>
     </div>
   );
 }

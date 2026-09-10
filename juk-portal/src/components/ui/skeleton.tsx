@@ -431,36 +431,3 @@ export function FamiliaDatosSkeleton() {
   );
 }
 
-export function DashboardSkeleton() {
-  return (
-    <div role="status" aria-label="Cargando…">
-      <PageHeaderSkeleton withAction={false} />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <CardShell key={i}>
-            <Skeleton className="h-3 w-24" />
-            <Skeleton className="mt-3 h-9 w-16" />
-          </CardShell>
-        ))}
-      </div>
-      <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <CardShell>
-          <Skeleton className="h-5 w-48" />
-          <div className="mt-4 space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full" />
-            ))}
-          </div>
-        </CardShell>
-        <CardShell>
-          <Skeleton className="h-5 w-32" />
-          <div className="mt-4 space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
-        </CardShell>
-      </div>
-    </div>
-  );
-}

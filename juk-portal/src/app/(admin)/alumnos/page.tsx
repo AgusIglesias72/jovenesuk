@@ -1,5 +1,6 @@
 import { LinkButton, PageHeader, Pagination } from "@/components/ui";
 import { listAlumnos } from "@/lib/db/queries/alumnos";
+import { listViajesParaFiltro } from "@/lib/db/queries/viajes";
 import { alumnoFiltersSchema } from "@/lib/domain/alumnos";
 import { pagina } from "@/lib/utils/paginate";
 
@@ -19,18 +20,19 @@ export default async function AlumnosPage({
   const str = (v: string | string[] | undefined) =>
     typeof v === "string" ? v : undefined;
 
-  const parsed = alumnoFiltersSchema.safeParse({
+  // Cada filtro inválido se descarta por separado (ver alumnoFiltersSchema).
+  const filters = alumnoFiltersSchema.parse({
     q: str(sp.q),
     estado: str(sp.estado),
     alerta: str(sp.alerta),
+    viajeId: str(sp.viaje),
+    paso: str(sp.paso),
   });
-  const filters = parsed.success ? parsed.data : {};
-  const {
-    items: alumnos,
-    total,
-    page,
-    pages,
-  } = await listAlumnos(filters, pagina(str(sp.page)));
+
+  const [{ items: alumnos, total, page, pages }, viajes] = await Promise.all([
+    listAlumnos(filters, pagina(str(sp.page))),
+    listViajesParaFiltro(),
+  ]);
 
   return (
     <>
@@ -41,10 +43,13 @@ export default async function AlumnosPage({
       />
 
       <div className="mb-4">
-        <AlumnosFilters />
+        <AlumnosFilters viajes={viajes} />
       </div>
 
-      <AlumnosTable alumnos={alumnos} hayFiltros={Object.values(filters).some(Boolean)} />
+      <AlumnosTable
+        alumnos={alumnos}
+        hayFiltros={Object.values(filters).some((v) => v !== undefined)}
+      />
       <Pagination total={total} page={page} pages={pages} />
     </>
   );

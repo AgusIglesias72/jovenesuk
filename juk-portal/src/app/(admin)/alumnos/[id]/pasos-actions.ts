@@ -14,20 +14,34 @@ import {
   PASO_CODIGOS,
   PASO_ESTADOS,
   PC_SUBESTADOS,
+  admiteFechaLimite,
   estadoPasoDesdeEta,
   estadoPasoDesdePc,
   puedeTransicionarPasoAlumno,
+  transicionRequiereNota,
   type EtaSubEstado,
   type PasoCodigo,
   type PasoEstado,
   type PcSubEstado,
 } from "@/lib/domain/pasos";
+import { toDateInput } from "@/lib/utils/date";
+import { fieldErrorsFromZod } from "@/lib/utils/zod";
 
-const transicionSchema = z.object({
-  pasoId: z.string().uuid(),
-  nuevoEstado: z.enum(PASO_ESTADOS),
-  nota: z.string().trim().max(2000).optional(),
-});
+const transicionSchema = z
+  .object({
+    pasoId: z.string().uuid(),
+    nuevoEstado: z.enum(PASO_ESTADOS),
+    nota: z.string().trim().max(2000).optional(),
+  })
+  .superRefine((d, ctx) => {
+    if (transicionRequiereNota(d.nuevoEstado) && !d.nota) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["nota"],
+        message: "Contá el motivo del bloqueo.",
+      });
+    }
+  });
 
 export async function transicionarPasoAlumnoAction(
   input: unknown
@@ -35,7 +49,14 @@ export async function transicionarPasoAlumnoAction(
   const session = await requireAdminJuk();
 
   const parsed = transicionSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: "Datos inválidos." };
+  if (!parsed.success) {
+    const motivo = parsed.error.issues.find((i) => i.path[0] === "nota");
+    return {
+      ok: false,
+      error: motivo?.message ?? "Datos inválidos.",
+      fieldErrors: fieldErrorsFromZod(parsed.error),
+    };
+  }
   const { pasoId, nuevoEstado, nota } = parsed.data;
 
   const paso = await getPasoAlumnoById(pasoId);
@@ -75,7 +96,12 @@ export async function transicionarPasoAlumnoAction(
       entidadTipo: "paso_alumno",
       entidadId: pasoId,
       usuarioId: session.user.id,
-      metadata: { codigo, estadoAnterior: actual, estado: nuevoEstado },
+      metadata: {
+        codigo,
+        estadoAnterior: actual,
+        estado: nuevoEstado,
+        ...(nota ? { nota } : {}),
+      },
     });
 
     revalidatePath("/alumnos/[id]", "page");
@@ -83,6 +109,66 @@ export async function transicionarPasoAlumnoAction(
   } catch (err) {
     Sentry.captureException(err);
     return { ok: false, error: "No pudimos actualizar el paso." };
+  }
+}
+
+const fechaLimiteSchema = z.object({
+  pasoId: z.string().uuid(),
+  fechaLimite: z.preprocess(
+    (v) => (v === "" || v == null ? undefined : new Date(v as string)),
+    z.date({ required_error: "Elegí la fecha límite", invalid_type_error: "Fecha inválida" })
+  ),
+});
+
+/**
+ * US-20: la fecha límite de A1 nace del viaje (inicio − 30 días) y se ajusta
+ * por alumno. Es la que usa scan-recordatorios para marcar el paso Vencido.
+ */
+export async function actualizarFechaLimiteA1Action(
+  input: unknown
+): Promise<ActionResult<{ id: string; fechaLimite: string }>> {
+  const session = await requireAdminJuk();
+
+  const parsed = fechaLimiteSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Datos inválidos.",
+      fieldErrors: fieldErrorsFromZod(parsed.error),
+    };
+  }
+  const { pasoId, fechaLimite } = parsed.data;
+
+  const paso = await getPasoAlumnoById(pasoId);
+  if (!paso) return { ok: false, error: "El paso no existe." };
+
+  const alumnoId = await alumnoIdDeAsignacion(paso.asignacionId);
+  if (!alumnoId) return { ok: false, error: "La asignación del paso no existe." };
+
+  const codigo = paso.codigo as PasoCodigo;
+  if (!admiteFechaLimite(codigo)) {
+    return { ok: false, error: "Este paso no tiene fecha límite." };
+  }
+
+  const antes = paso.fechaLimite ? toDateInput(paso.fechaLimite) : null;
+  const despues = toDateInput(fechaLimite);
+
+  try {
+    await updatePasoAlumno(pasoId, { fechaLimite }, session.user.id);
+    await safeAudit({
+      accion: "update",
+      entidadTipo: "paso_alumno",
+      entidadId: pasoId,
+      usuarioId: session.user.id,
+      cambios: { before: { fechaLimite: antes }, after: { fechaLimite: despues } },
+      metadata: { codigo },
+    });
+
+    revalidatePath("/alumnos/[id]", "page");
+    return { ok: true, data: { id: pasoId, fechaLimite: despues } };
+  } catch (err) {
+    Sentry.captureException(err);
+    return { ok: false, error: "No pudimos actualizar la fecha límite." };
   }
 }
 

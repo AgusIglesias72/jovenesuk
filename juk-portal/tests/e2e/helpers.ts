@@ -186,3 +186,15 @@ export function selectorEstadoPaso(page: Page) {
 export async function confirmarModal(page: Page, boton: string | RegExp) {
   await page.getByRole("dialog").getByRole("button", { name: boton }).click();
 }
+
+/**
+ * Panel "Alumnos asignados" del detalle del viaje, ubicado por su heading y no
+ * por texto: el estado vacío del panel de pagos también menciona "Alumnos
+ * asignados", y en un viaje sin inscriptos un filtro por hasText resolvía dos
+ * secciones (strict mode violation).
+ */
+export function panelAlumnosAsignados(page: Page) {
+  return page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Alumnos asignados", exact: true }) });
+}

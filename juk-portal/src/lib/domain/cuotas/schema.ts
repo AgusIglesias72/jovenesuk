@@ -65,7 +65,57 @@ export function generarVencimientos(primerVencimiento: Date, cantidad: number): 
   });
 }
 
-export const registrarPagoSchema = z.object({
+/**
+ * Una fecha de pago es futura si cae después del día calendario (UTC) de `hoy`.
+ * Se compara por día y no por instante: el DateInput manda medianoche UTC, y
+ * "hoy" tiene que valer a cualquier hora.
+ */
+export function esFechaPagoFutura(fecha: Date, hoy: Date = new Date()): boolean {
+  const finDeHoy = Date.UTC(
+    hoy.getUTCFullYear(),
+    hoy.getUTCMonth(),
+    hoy.getUTCDate(),
+    23,
+    59,
+    59,
+    999
+  );
+  return fecha.getTime() > finDeHoy;
+}
+
+export const OBSERVACIONES_PAGO_MAX = 500;
+
+/** US-22: fecha efectiva del pago (retroactiva sí, futura no). Vacía = hoy. */
+const fechaPagoSchema = z.preprocess(
+  (v) => (v === "" || v == null ? undefined : v instanceof Date ? v : new Date(v as string)),
+  z
+    .date({ invalid_type_error: "Fecha inválida" })
+    .refine((d) => !esFechaPagoFutura(d), "La fecha del pago no puede ser futura")
+    .optional()
+);
+
+const observacionesPagoSchema = z.preprocess(
+  (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+  z
+    .string()
+    .trim()
+    .max(OBSERVACIONES_PAGO_MAX, `Máximo ${OBSERVACIONES_PAGO_MAX} caracteres`)
+    .optional()
+);
+
+/** Lo que se carga al registrar cualquier pago (el diálogo valida con esto antes de enviar). */
+export const datosPagoSchema = z.object({
+  fechaPago: fechaPagoSchema,
+  observaciones: observacionesPagoSchema,
+});
+
+export const registrarPagoSchema = datosPagoSchema.extend({
   cuotaId: z.string().uuid(),
-  observaciones: z.string().trim().max(500).optional(),
+});
+
+export type RegistrarPagoData = z.output<typeof registrarPagoSchema>;
+
+/** B2 (US-35): confirmar la última cuota presencial, con los mismos datos del pago. */
+export const confirmarPagoPresencialSchema = datosPagoSchema.extend({
+  asignacionId: z.string().uuid(),
 });

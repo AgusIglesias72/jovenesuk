@@ -12,8 +12,12 @@ import {
   Salidas,
   StatsBand,
   Testimonios,
-} from "./sections";
+} from "./_sections";
 import { langAlternates } from "./seo";
+
+// El banner de próxima salida depende de la fecha: se regenera una vez por día
+// y la home sigue sirviéndose estática.
+export const revalidate = 86400;
 
 export const metadata: Metadata = {
   title: {

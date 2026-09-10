@@ -562,7 +562,7 @@ export function DesignTweaker() {
                   </label>
                 ))}
                 <p className="text-[length:var(--t-label)] leading-snug text-[var(--c-ink-subtle)]">
-                  Para fijarlos, llevá el texto final al componente en src/app/(public)/sections.tsx.
+                  Para fijarlos, llevá el texto final a su sección en src/app/(public)/_sections/.
                 </p>
               </div>
             )}

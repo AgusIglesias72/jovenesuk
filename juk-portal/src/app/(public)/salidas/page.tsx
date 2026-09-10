@@ -6,14 +6,14 @@ import {
   Bandera,
   CheckItem,
   Cta,
-  CtaFinal,
   DESTINOS,
   Kicker,
-  PageHeader,
+  PublicPageHeader,
   SectionTitle,
-  WHATSAPP_URL,
   WhatsAppIcon,
-} from "../sections";
+} from "../_components/primitives";
+import { CtaFinal } from "../_sections";
+import { WHATSAPP_URL } from "../contact";
 import { JsonLd, SITE_URL, breadcrumbSchema, langAlternates, serviceSchema } from "../seo";
 
 export const metadata: Metadata = {
@@ -149,7 +149,7 @@ export default function SalidasPage() {
     <>
       <JsonLd data={breadcrumbSchema([{ name: "Salidas", path: "/salidas" }])} />
       <JsonLd data={SALIDAS_LIST_SCHEMA} />
-      <PageHeader
+      <PublicPageHeader
         kicker="Salidas"
         title="Tres maneras de viajar, un mismo acompañamiento"
         sub="Variedad de cursos, destinos y modalidades para perfeccionar tu inglés. Cualquiera sea la que elijas, viajás con la misma red de contención de JUK."

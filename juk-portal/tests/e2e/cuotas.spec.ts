@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
-import { confirmarModal, crearAlumno, crearViaje } from "./helpers";
+import { confirmarModal, crearAlumno, crearViaje, panelAlumnosAsignados } from "./helpers";
 
 function selectorElegibles(page: Page) {
   return page.locator("select", {
@@ -15,9 +15,7 @@ test("plan de cuotas end-to-end: pagos completan B1, desbloquean C2 y B2 cierra 
   const alumno = await crearAlumno(page);
   await crearViaje(page);
   await selectorElegibles(page).selectOption({ label: alumno.label });
-  await page
-    .locator("section")
-    .filter({ hasText: "Alumnos asignados" })
+  await panelAlumnosAsignados(page)
     .getByRole("button", { name: "Asignar" })
     .click();
   await page.getByRole("link", { name: `${alumno.apellido}, ${alumno.nombre}` }).first().click();
@@ -36,6 +34,7 @@ test("plan de cuotas end-to-end: pagos completan B1, desbloquean C2 y B2 cierra 
 
   // Pagar la cuota 1 (vía agencia) → B1 en progreso
   await panel.getByRole("button", { name: "Registrar pago" }).first().click();
+  await confirmarModal(page, "Registrar pago");
   const b1 = page.locator('[data-paso="b1"]');
   await expect(b1.locator("span").filter({ hasText: "En progreso" }).first()).toBeVisible();
   await expect(b1.getByText("1 de 2 cuotas acreditadas")).toBeVisible();

@@ -13,17 +13,22 @@ import {
   updateEstadoPasoViaje,
   updateMetadataPasoViaje,
 } from "@/lib/db/queries/pasos-viaje";
+import { getViajeById } from "@/lib/db/queries/viajes";
 import {
   METADATA_SCHEMAS,
-  PASO_VIAJE_DEPENDENCIAS,
   PASO_VIAJE_ESTADOS,
   PASO_VIAJE_LABELS,
   PASO_VIAJE_TIPOS,
   PASOS_POR_ALUMNO,
   coberturaPorAlumno,
+  dependenciaPendiente,
+  esPasajeSubEstadoDe,
   esPasoDerivado,
+  normalizarPasajeSubEstado,
+  puedeAvanzarConDependencias,
   puedeTransicionarPaso,
   type EditablePasoTipo,
+  type EstadosPorTipo,
   type PasoPorAlumno,
   type PasoViajeEstado,
   type PasoViajeTipo,
@@ -67,16 +72,17 @@ export async function cambiarEstadoPasoViajeAction(
     return { ok: false, error: "Esa transición de estado no está permitida." };
   }
 
-  // Dependencia (PRD M7): Transfers no avanza sin Pasajes completado.
-  const requiere = PASO_VIAJE_DEPENDENCIAS[tipo];
-  if (requiere && (estado === "en_progreso" || estado === "completado")) {
-    const dep = pasos.find((p) => p.tipo === requiere);
-    if (dep?.estado !== "completado") {
-      return {
-        ok: false,
-        error: `No podés avanzar ${PASO_VIAJE_LABELS[tipo]} hasta completar ${PASO_VIAJE_LABELS[requiere]}.`,
-      };
-    }
+  // Dependencia (PRD M7): la misma regla que filtra el selector del panel.
+  const estados: EstadosPorTipo = {};
+  for (const p of pasos) estados[p.tipo as PasoViajeTipo] = p.estado as PasoViajeEstado;
+  if (!puedeAvanzarConDependencias(tipo, estado, estados)) {
+    const requiere = dependenciaPendiente(tipo, estados);
+    return {
+      ok: false,
+      error: `No podés avanzar ${PASO_VIAJE_LABELS[tipo]} hasta completar ${
+        requiere ? PASO_VIAJE_LABELS[requiere] : "el paso previo"
+      }.`,
+    };
   }
 
   try {
@@ -113,6 +119,22 @@ export async function guardarMetadataPasoViajeAction(
   if (!parsed.success) {
     return { ok: false, error: "Hay datos inválidos en el formulario." };
   }
+  const datos = parsed.data as Record<string, unknown>;
+
+  // Pasajes: Grupal e Individual tienen sub-estados distintos (PRD M7 P1).
+  if (tipo === "pasajes") {
+    const subEstado = normalizarPasajeSubEstado(datos.subEstado);
+    if (subEstado) {
+      const viaje = await getViajeById(viajeId);
+      if (!viaje) return { ok: false, error: "El viaje no existe." };
+      if (!esPasajeSubEstadoDe(subEstado, viaje.tipo)) {
+        return {
+          ok: false,
+          error: `Ese sub-estado de Pasajes no corresponde a un viaje ${viaje.tipo}.`,
+        };
+      }
+    }
+  }
 
   const pasos = await listOrInitPasosViaje(viajeId);
   const pasoActual = pasos.find((p) => p.tipo === tipo);
@@ -124,7 +146,7 @@ export async function guardarMetadataPasoViajeAction(
     // cobertura marcada por alumno.
     const metadataMerged = {
       ...(pasoActual?.metadata ?? {}),
-      ...(parsed.data as Record<string, unknown>),
+      ...datos,
     };
     const row = await updateMetadataPasoViaje(
       viajeId,
@@ -137,7 +159,7 @@ export async function guardarMetadataPasoViajeAction(
       entidadTipo: "paso_viaje",
       entidadId: row.id,
       usuarioId: session.user.id,
-      cambios: { after: parsed.data as Record<string, unknown> },
+      cambios: { after: datos },
       metadata: { viajeId, tipo },
     });
     revalidatePath("/viajes/[id]", "page");

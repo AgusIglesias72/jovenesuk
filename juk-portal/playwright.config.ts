@@ -53,7 +53,7 @@ export default defineConfig({
     { name: "setup-familia", testMatch: /familia\.setup\.ts/ },
     {
       name: "chromium",
-      testIgnore: /(public|familias)\.spec\.ts/,
+      testIgnore: /(public|familias|familias-ux)\.spec\.ts/,
       // Lo etiquetado @mobile corre en el proyecto "mobile" (viewport de
       // teléfono): sin este grepInvert correría dos veces, y en desktop los
       // asserts de overflow/tap no significan nada.
@@ -75,7 +75,7 @@ export default defineConfig({
     },
     {
       name: "familias",
-      testMatch: /familias\.spec\.ts/,
+      testMatch: /familias(-ux)?\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], storageState: "tests/e2e/.auth/familia.json" },
       dependencies: ["setup-familia"],
     },

@@ -1,6 +1,6 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
 
-import { confirmarModal, crearAlumno, crearViaje } from "./helpers";
+import { confirmarModal, crearAlumno, crearViaje, panelAlumnosAsignados } from "./helpers";
 
 /**
  * @mobile — los listados en un teléfono.
@@ -68,9 +68,7 @@ test("@mobile /pagos muestra las cuotas como tarjetas y 'Registrar pago' es tape
   await page
     .locator("select", { has: page.locator('option:text-is("Elegí un alumno…")') })
     .selectOption({ label: alumno.label });
-  await page
-    .locator("section")
-    .filter({ hasText: "Alumnos asignados" })
+  await panelAlumnosAsignados(page)
     .getByRole("button", { name: "Asignar" })
     .click();
 

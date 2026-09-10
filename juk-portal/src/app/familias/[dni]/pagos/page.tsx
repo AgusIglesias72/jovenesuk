@@ -1,13 +1,15 @@
-import { listCuotasByAsignaciones } from "@/lib/db/queries/cuotas";
-import { estaVencida } from "@/lib/domain/cuotas";
 import { agruparPor } from "@/lib/utils/agrupar";
 
-import { cargarAlumnoFamilia, asignacionesActivas } from "../_data";
+import { asignacionesActivas, cargarAlumnoFamilia, cuotasActivas } from "../_data";
 import { EstadoVacio, FamiliaPageHeader } from "../../_ui";
 import { PagosDetalle } from "./pagos-detalle";
 
 export const metadata = { title: "Pagos · JUK" };
 
+/*
+ * El aviso de cuota vencida NO se repite acá: lo pinta el shell en todas las
+ * pantallas menos esta, donde el propio listado ya marca cada cuota vencida.
+ */
 export default async function PagosPage({ params }: { params: Promise<{ dni: string }> }) {
   const { dni } = await params;
   const { alumno } = await cargarAlumnoFamilia(dni);
@@ -22,7 +24,7 @@ export default async function PagosPage({ params }: { params: Promise<{ dni: str
     );
   }
 
-  const todasLasCuotas = await listCuotasByAsignaciones(activas.map((a) => a.asignacionId));
+  const todasLasCuotas = await cuotasActivas(alumno.id);
   const cuotasPorAsignacion = agruparPor(todasLasCuotas, (c) => c.asignacionId);
   const viajes = activas.map((a) => ({
     asignacionId: a.asignacionId,
@@ -31,26 +33,12 @@ export default async function PagosPage({ params }: { params: Promise<{ dni: str
     cuotas: cuotasPorAsignacion.get(a.asignacionId) ?? [],
   }));
 
-  const hoy = new Date();
-  const cantVencidas = viajes.reduce((acc, v) => acc + v.cuotas.filter((c) => estaVencida(c, hoy)).length, 0);
-
   return (
     <div className="space-y-6">
       <FamiliaPageHeader
         title="Pagos"
-        subtitle="Estado de cada cuota de tu plan. Los pagos los registra JUK; este panel es informativo (no se paga desde acá)."
+        subtitle="Estado de cada cuota de tu plan. Los pagos los registramos nosotros cuando nos llegan; desde acá no se paga, es para que siempre sepas cómo venís."
       />
-
-      {cantVencidas > 0 && (
-        <div
-          role="status"
-          className="rounded-[var(--r-lg)] border border-[var(--c-danger)] bg-[var(--c-danger-bg)] px-4 py-3 text-[length:var(--t-small)] font-medium text-[var(--c-danger)]"
-        >
-          {cantVencidas === 1
-            ? "Tenés una cuota vencida. Regularizá tu situación para asegurar el viaje."
-            : `Tenés ${cantVencidas} cuotas vencidas. Regularizá tu situación para asegurar el viaje.`}
-        </div>
-      )}
 
       <PagosDetalle viajes={viajes} />
     </div>

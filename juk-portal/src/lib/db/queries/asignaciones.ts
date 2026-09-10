@@ -1,4 +1,5 @@
-import { and, asc, count, desc, eq, ne, notExists, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, ne, notExists, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import { db } from "@/lib/db";
 import { alumnos, type Alumno } from "@/lib/db/schema/alumnos";
@@ -113,6 +114,68 @@ export async function alumnosElegibles(viajeId: string): Promise<AlumnoElegible[
       )
     )
     .orderBy(asc(alumnos.apellido), asc(alumnos.nombre));
+}
+
+/** Lo que la ficha del alumno necesita para elegir viaje: label + cupo. */
+export type ViajeAsignable = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  estado: Viaje["estado"];
+  fechaInicio: Date;
+  fechaFin: Date;
+  capacidadMaxima: number;
+  cupoUsado: number;
+};
+
+/**
+ * Espejo de `alumnosElegibles`, desde el lado del alumno: viajes que admiten
+ * altas (US-11/MIN-12: Inscripción abierta o Confirmado) y donde el alumno no
+ * está ya inscripto. Una asignación CANCELADA no excluye al viaje: el alta la
+ * reactiva (ver asignar-alumno.ts).
+ *
+ * El cupo viaja en la misma query (leftJoin agregado) para que la opción del
+ * select muestre "X/Y cupos" sin un round-trip por viaje.
+ */
+export async function viajesAsignables(alumnoId: string): Promise<ViajeAsignable[]> {
+  const ocupacion = alias(asignaciones, "ocupacion");
+  const propias = alias(asignaciones, "propias");
+
+  return db
+    .select({
+      id: viajes.id,
+      codigo: viajes.codigo,
+      nombre: viajes.nombre,
+      estado: viajes.estado,
+      fechaInicio: viajes.fechaInicio,
+      fechaFin: viajes.fechaFin,
+      capacidadMaxima: viajes.capacidadMaxima,
+      cupoUsado: count(ocupacion.id),
+    })
+    .from(viajes)
+    .leftJoin(
+      ocupacion,
+      and(eq(ocupacion.viajeId, viajes.id), ne(ocupacion.estado, "cancelada"))
+    )
+    .where(
+      and(
+        inArray(viajes.estado, ["inscripcion_abierta", "confirmado"]),
+        notExists(
+          db
+            .select({ x: sql`1` })
+            .from(propias)
+            .where(
+              and(
+                eq(propias.alumnoId, alumnoId),
+                eq(propias.viajeId, viajes.id),
+                ne(propias.estado, "cancelada")
+              )
+            )
+        )
+      )
+    )
+    .groupBy(viajes.id)
+    .orderBy(asc(viajes.fechaInicio));
 }
 
 export type AsignacionConViaje = {

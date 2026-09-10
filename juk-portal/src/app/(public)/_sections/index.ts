@@ -1,0 +1,11 @@
+export { Acompanamiento } from "./acompanamiento";
+export { Acreditaciones } from "./acreditaciones";
+export { CtaFinal } from "./cta-final";
+export { Faq } from "./faq";
+export { Hero } from "./hero";
+export { LeadSection } from "./lead-section";
+export { Programas } from "./programas";
+export { QuienesSomos } from "./quienes-somos";
+export { Salidas } from "./salidas";
+export { StatsBand } from "./stats-band";
+export { Testimonios } from "./testimonios";

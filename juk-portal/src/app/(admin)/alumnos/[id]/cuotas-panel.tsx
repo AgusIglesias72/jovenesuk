@@ -20,7 +20,6 @@ import {
   THead,
   TableWrap,
   TR,
-  useConfirm,
   useToast,
 } from "@/components/ui";
 import {
@@ -35,6 +34,7 @@ import {
   type Moneda,
 } from "@/lib/domain/cuotas";
 import { aplicaUltimoPagoPresencial, type ViajeOrigen } from "@/lib/domain/viajes";
+import { RegistrarPagoDialog } from "@/app/(admin)/pagos/registrar-pago-dialog";
 import { formatFecha } from "@/lib/utils/date";
 
 import {
@@ -48,6 +48,8 @@ export type CuotaView = CuotaLike & {
   moneda: Moneda;
   observaciones: string | null;
 };
+
+type PagoEnCurso = { tipo: "cuota"; cuota: CuotaView } | { tipo: "presencial"; cuota: CuotaView };
 
 function BadgeCuota({ cuota, hoy }: { cuota: CuotaView; hoy: Date }) {
   if (cuota.estado === "pagada") return <Badge tone="success">Pagada</Badge>;
@@ -95,11 +97,11 @@ export function CuotasPanel({
   cuotas: CuotaView[];
 }) {
   const router = useRouter();
-  const confirm = useConfirm();
   const toast = useToast();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
   const [isPending, startTransition] = useTransition();
   const [plan, setPlan] = useState({ cantidadCuotas: "5", montoPorCuota: "", moneda: "USD", primerVencimiento: "" });
+  const [pagando, setPagando] = useState<PagoEnCurso | null>(null);
 
   const hoy = new Date();
   const moneda = cuotas[0]?.moneda ?? (plan.moneda as Moneda);
@@ -120,52 +122,6 @@ export function CuotasPanel({
         }
       } catch {
         toast.error("No pudimos crear el plan. Reintentá en unos segundos.");
-      }
-    });
-  }
-
-  function pagar(cuotaId: string) {
-    startTransition(async () => {
-      try {
-        let r = await registrarPagoCuotaAction({ cuotaId });
-        // Pago fuera de orden (cuotas anteriores impagas): confirmable.
-        if (!r.ok && r.requiereConfirmacion) {
-          const { confirmado } = await confirm({
-            titulo: "Pago fuera de orden",
-            detalle: r.error,
-            tone: "warning",
-            confirmLabel: "Registrar igual",
-          });
-          if (!confirmado) return;
-          r = await registrarPagoCuotaAction({ cuotaId }, { confirmar: true });
-        }
-        if (r.ok) {
-          toast.success("Pago registrado");
-          router.refresh();
-        } else toast.error(r.error);
-      } catch {
-        toast.error("No pudimos registrar el pago. Reintentá en unos segundos.");
-      }
-    });
-  }
-
-  async function confirmarB2() {
-    const { confirmado } = await confirm({
-      titulo: "¿Confirmar el pago presencial?",
-      detalle: `La última cuota (n° ${ultima?.numero}) queda marcada como pagada, cobrada presencialmente en JUK.`,
-      tone: "brand",
-      confirmLabel: "Sí, confirmar pago",
-    });
-    if (!confirmado) return;
-    startTransition(async () => {
-      try {
-        const r = await confirmarUltimoPagoPresencialAction(asignacionId);
-        if (r.ok) {
-          toast.success("Pago presencial confirmado");
-          router.refresh();
-        } else toast.error(r.error);
-      } catch {
-        toast.error("No pudimos confirmar el pago presencial. Reintentá en unos segundos.");
       }
     });
   }
@@ -276,17 +232,16 @@ export function CuotasPanel({
             />
           </div>
 
-          {b2Pendiente && (
+          {b2Pendiente && ultima && (
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-md)] border border-[var(--c-honey)] bg-[var(--c-honey-soft)] px-4 py-3">
               <p className="text-[length:var(--t-small)] font-medium text-[var(--c-ink)]">
-                <strong>B2:</strong> la última cuota (n° {ultima?.numero}) se cobra{" "}
+                <strong>B2:</strong> la última cuota (n° {ultima.numero}) se cobra{" "}
                 <strong>presencialmente en JUK</strong>.
               </p>
               <Button
                 type="button"
                 variant="secondary"
-                disabled={isPending}
-                onClick={confirmarB2}
+                onClick={() => setPagando({ tipo: "presencial", cuota: ultima })}
                 className="w-full sm:w-auto"
               >
                 Confirmar pago presencial
@@ -341,6 +296,11 @@ export function CuotasPanel({
                           el {formatFecha(c.fechaPagoEfectivo)}
                         </span>
                       )}
+                      {c.observaciones && (
+                        <span className="block max-w-[32ch] break-words text-[length:var(--t-label)] text-[var(--c-ink-muted)]">
+                          {c.observaciones}
+                        </span>
+                      )}
                     </TD>
                     <TD className="max-sm:justify-end">
                       <div className="flex justify-end">
@@ -350,8 +310,7 @@ export function CuotasPanel({
                               type="button"
                               variant="secondary"
                               size="sm"
-                              disabled={isPending}
-                              onClick={() => pagar(c.id)}
+                              onClick={() => setPagando({ tipo: "cuota", cuota: c })}
                             >
                               Registrar pago
                             </Button>
@@ -364,6 +323,29 @@ export function CuotasPanel({
             </Table>
           </TableWrap>
         </>
+      )}
+
+      {pagando?.tipo === "cuota" && (
+        <RegistrarPagoDialog
+          key={pagando.cuota.id}
+          titulo="Registrar pago"
+          detalle={`Cuota ${pagando.cuota.numero} de ${formatMonto(Number(pagando.cuota.monto), pagando.cuota.moneda)} · vence el ${formatFecha(pagando.cuota.fechaVencimiento)}.`}
+          registrar={(datos, opts) =>
+            registrarPagoCuotaAction({ cuotaId: pagando.cuota.id, ...datos }, opts)
+          }
+          onCerrar={() => setPagando(null)}
+        />
+      )}
+      {pagando?.tipo === "presencial" && (
+        <RegistrarPagoDialog
+          key={`b2-${pagando.cuota.id}`}
+          titulo="¿Confirmar el pago presencial?"
+          detalle={`La última cuota (n° ${pagando.cuota.numero}, ${formatMonto(Number(pagando.cuota.monto), pagando.cuota.moneda)}) queda pagada, cobrada presencialmente en JUK.`}
+          confirmLabel="Sí, confirmar pago"
+          mensajeExito="Pago presencial confirmado"
+          registrar={(datos) => confirmarUltimoPagoPresencialAction({ asignacionId, ...datos })}
+          onCerrar={() => setPagando(null)}
+        />
       )}
     </section>
   );

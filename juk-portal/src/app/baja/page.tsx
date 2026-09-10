@@ -18,7 +18,7 @@ export default async function BajaPage({
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-16">
-      <div className="w-full max-w-md rounded-[var(--r-xl)] border border-[var(--c-line)] bg-[var(--c-surface)] p-8 text-center shadow-[var(--shadow-2)] sm:p-10">
+      <div className="w-full max-w-md rounded-[var(--r-xl)] border border-[var(--c-border)] bg-[var(--c-surface)] p-8 text-center shadow-[shadow:var(--shadow-2)] sm:p-10">
         <p className="font-[family-name:var(--font-display)] text-[length:var(--t-small)] font-bold uppercase tracking-[0.14em] text-[var(--c-brand)]">
           Jóvenes en UK
         </p>

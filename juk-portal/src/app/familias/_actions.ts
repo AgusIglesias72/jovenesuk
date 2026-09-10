@@ -19,11 +19,13 @@ import {
   validarDocumento,
 } from "@/lib/domain/documentos";
 import {
+  ETA_PROBLEMAS,
   ETA_SUBESTADOS,
   estadoPasoDesdeEta,
   type EtaSubEstado,
   type PasoCodigo,
 } from "@/lib/domain/pasos";
+import { sendReporteDatoEmail } from "@/lib/email/send-reporte-dato";
 import { putDocumento } from "@/lib/storage";
 
 /** Las acciones del portal de familias devuelven la URL del documento subido. */
@@ -151,11 +153,16 @@ export async function subirDocumentoFamiliaAction(formData: FormData): Promise<F
 export async function reportarEtaFamiliaAction(input: {
   pasoId: string;
   subEstado: string;
+  /** "Tuve un problema con el ETA" (PRD 04 · US-1.6): solo junto a `rechazado`. */
+  tipoProblema?: string;
+  comentario?: string;
 }): Promise<FamiliaResult> {
   const parsed = z
     .object({
       pasoId: z.string().uuid(),
       subEstado: z.enum(ETA_SUBESTADOS),
+      tipoProblema: z.enum(ETA_PROBLEMAS).optional(),
+      comentario: z.string().trim().max(2000).optional(),
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false, error: "Datos inválidos." };
@@ -169,13 +176,22 @@ export async function reportarEtaFamiliaAction(input: {
   }
 
   const subEstado: EtaSubEstado = parsed.data.subEstado;
+  // El detalle del problema solo se guarda con el rechazo; al reintentar se
+  // conserva el último reportado (el historial completo queda en auditoría).
+  const problema =
+    subEstado === "rechazado" && parsed.data.tipoProblema
+      ? {
+          tipoProblema: parsed.data.tipoProblema,
+          comentarioProblema: parsed.data.comentario || null,
+        }
+      : {};
 
   try {
     await updatePasoAlumno(
       paso.id,
       {
         estado: estadoPasoDesdeEta(subEstado),
-        metadata: { ...(paso.metadata as Record<string, unknown>), subEstado },
+        metadata: { ...(paso.metadata as Record<string, unknown>), subEstado, ...problema },
       },
       session.user.id
     );
@@ -185,7 +201,7 @@ export async function reportarEtaFamiliaAction(input: {
       entidadTipo: "paso_alumno",
       entidadId: paso.id,
       usuarioId: session.user.id,
-      metadata: { codigo: "c1", subEstado, origen: "familia" },
+      metadata: { codigo: "c1", subEstado, ...problema, origen: "familia" },
     });
 
     revalidarFamilia();
@@ -244,7 +260,7 @@ export async function reportarDatoFamiliaAction(input: {
   const parsed = z
     .object({
       alumnoDni: z.string().min(1),
-      campo: z.string().min(1),
+      campo: z.string().trim().min(1).max(80),
       comentario: z.string().trim().max(2000).optional(),
     })
     .safeParse(input);
@@ -268,6 +284,21 @@ export async function reportarDatoFamiliaAction(input: {
       origen: "familia",
     },
   });
+
+  // Sin este aviso el reporte quedaba enterrado en auditoría (US-2.3.3). Si
+  // Resend cae, el reporte igual quedó registrado: no se le falla a la familia.
+  try {
+    await sendReporteDatoEmail({
+      alumnoNombre: alumno.nombre,
+      alumnoApellido: alumno.apellido,
+      alumnoDni: alumno.dni,
+      campo: parsed.data.campo,
+      comentario: parsed.data.comentario || null,
+      reportadoPor: session.user.email,
+    });
+  } catch (err) {
+    Sentry.captureException(err);
+  }
 
   revalidarFamilia();
   return { ok: true, data: {} };

@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
-import { z } from "zod";
 
 import type { ActionResult } from "@/lib/actions/result";
 import { safeAudit } from "@/lib/actions/safe-audit";
@@ -13,7 +12,9 @@ import {
   registrarPagoCuota,
   sincronizarPasosPago,
 } from "@/lib/db/queries/cuotas";
-import { CuotaNotFoundError } from "@/lib/domain/cuotas";
+import { CuotaNotFoundError, registrarPagoSchema } from "@/lib/domain/cuotas";
+import { toDateInput } from "@/lib/utils/date";
+import { fieldErrorsFromZod } from "@/lib/utils/zod";
 
 /** Registrar pago desde el módulo Pagos (misma lógica que en la ficha del alumno). */
 export async function registrarPagoDesdePagosAction(
@@ -22,20 +23,26 @@ export async function registrarPagoDesdePagosAction(
 ): Promise<ActionResult<{ id: string }>> {
   const session = await requireAdminJuk();
 
-  const parsed = z
-    .object({ cuotaId: z.string().uuid(), observaciones: z.string().max(500).optional() })
-    .safeParse(input);
-  if (!parsed.success) return { ok: false, error: "Datos inválidos." };
+  const parsed = registrarPagoSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Revisá los datos del pago.",
+      fieldErrors: fieldErrorsFromZod(parsed.error),
+    };
+  }
+  const { cuotaId, fechaPago, observaciones } = parsed.data;
 
   if (!opts?.confirmar) {
-    const advertencia = await advertenciaPagoFueraDeOrden(parsed.data.cuotaId);
+    const advertencia = await advertenciaPagoFueraDeOrden(cuotaId);
     if (advertencia) return { ok: false, requiereConfirmacion: true, error: advertencia };
   }
 
   try {
     const cuota = await registrarPagoCuota({
-      cuotaId: parsed.data.cuotaId,
-      observaciones: parsed.data.observaciones,
+      cuotaId,
+      fechaPagoEfectivo: fechaPago,
+      observaciones,
       registradoPor: session.user.id,
     });
     await sincronizarPasosPago(cuota.asignacionId, session.user.id);
@@ -44,7 +51,13 @@ export async function registrarPagoDesdePagosAction(
       entidadTipo: "cuota",
       entidadId: cuota.id,
       usuarioId: session.user.id,
-      metadata: { numero: cuota.numero, canal: cuota.canal, desde: "modulo_pagos" },
+      metadata: {
+        numero: cuota.numero,
+        canal: cuota.canal,
+        desde: "modulo_pagos",
+        ...(fechaPago ? { fechaPago: toDateInput(fechaPago) } : {}),
+        ...(observaciones ? { observaciones } : {}),
+      },
     });
     revalidatePath("/pagos");
     const alumnoId = await alumnoIdDeAsignacion(cuota.asignacionId);

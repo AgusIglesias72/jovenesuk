@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
-import { CtaFinal, PageHeader } from "../sections";
+import { PublicPageHeader } from "../_components/primitives";
+import { CtaFinal } from "../_sections";
 import { JsonLd, breadcrumbSchema, langAlternates } from "../seo";
 import { NOTAS, fechaCorta } from "./notas-data";
 
@@ -17,7 +18,7 @@ export default function NotasPage() {
   return (
     <>
       <JsonLd data={breadcrumbSchema([{ name: "Notas", path: "/notas" }])} />
-      <PageHeader
+      <PublicPageHeader
         kicker="Notas"
         title="Guías y consejos para estudiar inglés en el exterior"
         sub="Lo que aprendimos en más de 10 años organizando viajes de estudio, contado en simple: destinos, trámites, programas y tips para que tu experiencia salga redonda."

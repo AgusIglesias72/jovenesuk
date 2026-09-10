@@ -3,7 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 
-import { Button, Input, LinkButton, SectionTitle, Select, useToast } from "@/components/ui";
+import {
+  Button,
+  DateInput,
+  Field,
+  Input,
+  LinkButton,
+  SectionTitle,
+  Select,
+  useConfirm,
+  useToast,
+} from "@/components/ui";
 import {
   ETA_SUBESTADO_LABELS,
   ETA_SUBESTADOS,
@@ -12,17 +22,23 @@ import {
   PASO_LABELS,
   PC_SUBESTADO_LABELS,
   PC_SUBESTADOS,
+  admiteFechaLimite,
   esPasoEditable,
   grupoDePaso,
+  transicionRequiereNota,
   transicionesPasoAlumno,
   type GrupoPaso,
   type PasoCodigo,
   type PasoEstado,
 } from "@/lib/domain/pasos";
-import { formatFecha } from "@/lib/utils/date";
+import { formatFecha, toDateInput } from "@/lib/utils/date";
 
 import { subirDocumentoPasoAction } from "./documentos-actions";
-import { actualizarSubEstadoPasoAction, transicionarPasoAlumnoAction } from "./pasos-actions";
+import {
+  actualizarFechaLimiteA1Action,
+  actualizarSubEstadoPasoAction,
+  transicionarPasoAlumnoAction,
+} from "./pasos-actions";
 
 /** Pasos que llevan documento adjunto (AF, PC, captura ETA, letters, escribano, psicofísico). */
 const PASOS_CON_DOCUMENTO: ReadonlySet<PasoCodigo> = new Set([
@@ -42,6 +58,8 @@ export type PasoView = {
   metadata: Record<string, unknown>;
   notas: string | null;
   fechaCompletado: Date | null;
+  /** Solo A1 (US-20). */
+  fechaLimite?: Date | null;
 };
 
 // "_" escapado: en arbitrary values de Tailwind v3 el underscore es espacio.
@@ -89,6 +107,7 @@ function notaDelPaso(p: PasoView): string | null {
     };
     return motivos[p.metadata.motivo] ?? null;
   }
+  if (p.estado === "vencido" && p.fechaLimite) return `Venció el ${formatFecha(p.fechaLimite)}`;
   if (p.codigo === "a3" && typeof p.metadata.version === "string")
     return p.metadata.version === "menor_16" ? "Versión: menor de 16" : "Versión: 16–17 años";
   if (p.codigo === "b1" && typeof p.metadata.cuotasPagadas === "number")
@@ -107,14 +126,22 @@ function PasoCard({
 }) {
   const router = useRouter();
   const toast = useToast();
+  const confirm = useConfirm();
   const [isPending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
   const [subiendo, setSubiendo] = useState<string | null>(null);
+  const fechaLimiteGuardada = paso.fechaLimite ? toDateInput(paso.fechaLimite) : "";
+  const [fechaLimite, setFechaLimite] = useState(fechaLimiteGuardada);
   const c = ESTADO_CLASSES[paso.estado];
   const apagado = paso.estado === "na";
   const editable = esPasoEditable(paso.codigo);
   const opciones = transicionesPasoAlumno(paso.codigo, paso.estado);
   const nota = notaDelPaso(paso);
+  const conFechaLimite =
+    editable &&
+    admiteFechaLimite(paso.codigo) &&
+    paso.estado !== "na" &&
+    paso.estado !== "completado";
 
   // C1 (US-31) y A3 (US-29): el estado se deriva del sub-estado del trámite.
   const conSubEstado = (paso.codigo === "c1" || paso.codigo === "a3") && paso.estado !== "na";
@@ -126,17 +153,55 @@ function PasoCard({
   const numeroAutorizacion =
     typeof paso.metadata.numeroAutorizacion === "string" ? paso.metadata.numeroAutorizacion : "";
 
-  function transicionar(nuevo: PasoEstado) {
+  async function transicionar(nuevo: PasoEstado) {
     if (nuevo === paso.estado) return;
+
+    let motivo: string | undefined;
+    if (transicionRequiereNota(nuevo)) {
+      const { confirmado, valor } = await confirm({
+        titulo: `¿Bloquear ${PASO_LABELS[paso.codigo]}?`,
+        detalle:
+          "Contá qué lo frena. El motivo queda en la card y en la alerta del dashboard, así quien lo retome sabe qué destrabar.",
+        tone: "warning",
+        confirmLabel: "Bloquear paso",
+        campo: {
+          label: "Motivo del bloqueo",
+          placeholder: "Ej.: falta la firma del segundo tutor",
+        },
+      });
+      if (!confirmado) return;
+      if (!valor) {
+        toast.error("Para bloquear el paso contá el motivo.");
+        return;
+      }
+      motivo = valor;
+    }
+
     startTransition(async () => {
       const r = await transicionarPasoAlumnoAction({
         pasoId: paso.id,
         nuevoEstado: nuevo,
+        ...(motivo ? { nota: motivo } : {}),
       });
       if (r.ok) {
-        toast.success("Paso actualizado");
+        toast.success(motivo ? "Paso bloqueado" : "Paso actualizado");
         router.refresh();
       } else toast.error(r.error);
+    });
+  }
+
+  function guardarFechaLimite(iso: string) {
+    setFechaLimite(iso);
+    if (!iso || iso === fechaLimiteGuardada) return;
+    startTransition(async () => {
+      const r = await actualizarFechaLimiteA1Action({ pasoId: paso.id, fechaLimite: iso });
+      if (r.ok) {
+        toast.success("Fecha límite actualizada");
+        router.refresh();
+      } else {
+        setFechaLimite(fechaLimiteGuardada);
+        toast.error(r.error);
+      }
     });
   }
 
@@ -252,7 +317,7 @@ function PasoCard({
             value={paso.estado}
             disabled={isPending}
             aria-label={`Estado de ${PASO_LABELS[paso.codigo]}`}
-            onChange={(e) => transicionar(e.target.value as PasoEstado)}
+            onChange={(e) => void transicionar(e.target.value as PasoEstado)}
           >
             {opciones.map((o) => (
               <option key={o} value={o}>
@@ -261,6 +326,20 @@ function PasoCard({
             ))}
           </Select>
         </div>
+      )}
+
+      {conFechaLimite && (
+        <Field
+          label="Fecha límite"
+          help="Si pasa sin completarse, el paso figura Vencido."
+          className="mt-2"
+        >
+          <DateInput
+            value={fechaLimite}
+            disabled={isPending}
+            onChange={(e) => guardarFechaLimite(e.target.value)}
+          />
+        </Field>
       )}
 
       {aceptaDocumento && (

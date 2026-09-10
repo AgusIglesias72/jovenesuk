@@ -1,17 +1,9 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 
-import {
-  Acreditaciones,
-  CheckItem,
-  Cta,
-  CtaFinal,
-  Kicker,
-  PageHeader,
-  SectionTitle,
-  StatsBand,
-  WHATSAPP_URL,
-} from "../sections";
+import { CheckItem, Cta, Kicker, PublicPageHeader, SectionTitle } from "../_components/primitives";
+import { Acreditaciones, CtaFinal, StatsBand } from "../_sections";
+import { WHATSAPP_URL } from "../contact";
 import { JsonLd, breadcrumbSchema, langAlternates } from "../seo";
 
 export const metadata: Metadata = {
@@ -43,7 +35,7 @@ export default function QuienesSomosPage() {
   return (
     <>
       <JsonLd data={breadcrumbSchema([{ name: "Quiénes somos", path: "/quienes-somos" }])} />
-      <PageHeader
+      <PublicPageHeader
         kicker="Quiénes somos"
         title="Referentes de educación internacional de calidad"
         sub="Somos una agencia argentina especializada en programas de idiomas en el exterior. Hace más de una década que ayudamos a estudiantes de todas las edades a aprender inglés viviendo la experiencia."

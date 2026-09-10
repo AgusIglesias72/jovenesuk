@@ -111,11 +111,26 @@ export const viajeUpdateSchema = viajeBase
   .refine(clienteOk, CLIENTE_MSG)
   .refine(glOk, GL_MSG);
 
+const vacioAUndefined = (v: unknown) =>
+  typeof v === "string" && v.trim() === "" ? undefined : v;
+
+/**
+ * Los filtros llegan desde la URL: un valor inválido (un link viejo, un param
+ * editado a mano) se descarta solo, en vez de invalidar el objeto entero y
+ * tirar abajo el resto de los filtros.
+ */
+const filtroUrl = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess(vacioAUndefined, schema.optional()).catch(undefined);
+
+/** US-12: año, país, colegio, tipo de viaje y estado (+ búsqueda y origen). */
 export const viajeFiltersSchema = z.object({
-  q: z.string().trim().optional(),
-  estado: viajeEstadoEnum.optional(),
-  origen: viajeOrigenEnum.optional(),
-  tipo: viajeTipoEnum.optional(),
+  q: filtroUrl(z.string().trim()),
+  estado: filtroUrl(viajeEstadoEnum),
+  origen: filtroUrl(viajeOrigenEnum),
+  tipo: filtroUrl(viajeTipoEnum),
+  anio: filtroUrl(z.coerce.number().int().min(2000).max(2100)),
+  pais: filtroUrl(paisEnum),
+  colegioDestinoId: filtroUrl(z.string().uuid()),
 });
 
 export type ViajeCreateData = z.output<typeof viajeCreateSchema>;
@@ -132,4 +147,36 @@ export function capacidadMaxima(
 ): number {
   if (tipo === "individual") return 1;
   return cantidadGroupLeaders * 12;
+}
+
+/** Porcentaje entero acotado a 0..100 (sin total, 0%). */
+export function porcentaje(parte: number, total: number): number {
+  if (total <= 0) return 0;
+  return Math.min(100, Math.max(0, Math.round((parte / total) * 100)));
+}
+
+export type OcupacionViaje = {
+  /** Para la barra: 0..100, acotado aunque haya sobre-cupo. */
+  pct: number;
+  vacantes: number;
+  /** Alumnos por encima de la capacidad (US-11: advierte pero no bloquea). */
+  sobreCupo: number;
+  /** Faltan para el mínimo. Solo Grupal: el Individual no tiene regla de 5 alumnos. */
+  faltanParaMinimo: number;
+};
+
+/** Inscriptos vs. capacidad del viaje (US-11/US-12: inscriptos / capacidad / vacantes). */
+export function ocupacionViaje(v: {
+  inscriptos: number;
+  capacidadMaxima: number;
+  capacidadMinima: number;
+  tipo: "grupal" | "individual";
+}): OcupacionViaje {
+  const { inscriptos, capacidadMaxima, capacidadMinima, tipo } = v;
+  return {
+    pct: capacidadMaxima > 0 ? porcentaje(inscriptos, capacidadMaxima) : inscriptos > 0 ? 100 : 0,
+    vacantes: Math.max(0, capacidadMaxima - inscriptos),
+    sobreCupo: Math.max(0, inscriptos - capacidadMaxima),
+    faltanParaMinimo: tipo === "grupal" ? Math.max(0, capacidadMinima - inscriptos) : 0,
+  };
 }

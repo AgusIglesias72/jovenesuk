@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
-import { z } from "zod";
 
 import type { ActionResult } from "@/lib/actions/result";
 import { safeAudit } from "@/lib/actions/safe-audit";
@@ -18,9 +17,11 @@ import {
 import {
   CuotaNotFoundError,
   PlanConPagosError,
+  confirmarPagoPresencialSchema,
   planCuotasSchema,
   registrarPagoSchema,
 } from "@/lib/domain/cuotas";
+import { toDateInput } from "@/lib/utils/date";
 import { fieldErrorsFromZod } from "@/lib/utils/zod";
 
 export async function crearPlanCuotasAction(
@@ -76,17 +77,25 @@ export async function registrarPagoCuotaAction(
   const session = await requireAdminJuk();
 
   const parsed = registrarPagoSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: "Datos inválidos." };
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Revisá los datos del pago.",
+      fieldErrors: fieldErrorsFromZod(parsed.error),
+    };
+  }
+  const { cuotaId, fechaPago, observaciones } = parsed.data;
 
   if (!opts?.confirmar) {
-    const advertencia = await advertenciaPagoFueraDeOrden(parsed.data.cuotaId);
+    const advertencia = await advertenciaPagoFueraDeOrden(cuotaId);
     if (advertencia) return { ok: false, requiereConfirmacion: true, error: advertencia };
   }
 
   try {
     const cuota = await registrarPagoCuota({
-      cuotaId: parsed.data.cuotaId,
-      observaciones: parsed.data.observaciones,
+      cuotaId,
+      fechaPagoEfectivo: fechaPago,
+      observaciones,
       registradoPor: session.user.id,
     });
     await sincronizarPasosPago(cuota.asignacionId, session.user.id);
@@ -95,7 +104,12 @@ export async function registrarPagoCuotaAction(
       entidadTipo: "cuota",
       entidadId: cuota.id,
       usuarioId: session.user.id,
-      metadata: { numero: cuota.numero, canal: cuota.canal },
+      metadata: {
+        numero: cuota.numero,
+        canal: cuota.canal,
+        ...(fechaPago ? { fechaPago: toDateInput(fechaPago) } : {}),
+        ...(observaciones ? { observaciones } : {}),
+      },
     });
     // El dueño se deriva de la cuota (nunca del cliente).
     const alumnoId = await alumnoIdDeAsignacion(cuota.asignacionId);
@@ -112,12 +126,19 @@ export async function registrarPagoCuotaAction(
 
 /** B2 (US-35): confirma que la ÚLTIMA cuota se cobró presencialmente en JUK. */
 export async function confirmarUltimoPagoPresencialAction(
-  asignacionId: string
+  input: unknown
 ): Promise<ActionResult<{ id: string }>> {
   const session = await requireAdminJuk();
 
-  const ids = z.object({ asignacionId: z.string().uuid() }).safeParse({ asignacionId });
-  if (!ids.success) return { ok: false, error: "Datos inválidos." };
+  const parsed = confirmarPagoPresencialSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Revisá los datos del pago.",
+      fieldErrors: fieldErrorsFromZod(parsed.error),
+    };
+  }
+  const { asignacionId, fechaPago, observaciones } = parsed.data;
 
   const alumnoId = await alumnoIdDeAsignacion(asignacionId);
   if (!alumnoId) return { ok: false, error: "La asignación no existe." };
@@ -135,6 +156,8 @@ export async function confirmarUltimoPagoPresencialAction(
   try {
     const cuota = await registrarPagoCuota({
       cuotaId: ultima.id,
+      fechaPagoEfectivo: fechaPago,
+      observaciones,
       registradoPor: session.user.id,
       canalPresencial: true,
     });
@@ -144,7 +167,13 @@ export async function confirmarUltimoPagoPresencialAction(
       entidadTipo: "cuota",
       entidadId: cuota.id,
       usuarioId: session.user.id,
-      metadata: { numero: cuota.numero, canal: "presencial", b2: true },
+      metadata: {
+        numero: cuota.numero,
+        canal: "presencial",
+        b2: true,
+        ...(fechaPago ? { fechaPago: toDateInput(fechaPago) } : {}),
+        ...(observaciones ? { observaciones } : {}),
+      },
     });
     revalidatePath("/alumnos/[id]", "page");
     return { ok: true, data: { id: cuota.id } };

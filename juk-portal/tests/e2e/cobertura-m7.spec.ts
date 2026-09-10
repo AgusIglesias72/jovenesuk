@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
-import { crearAlumno, crearViaje } from "./helpers";
+import { crearAlumno, crearViaje, panelAlumnosAsignados } from "./helpers";
 
 function selectorElegibles(page: Page) {
   return page.locator("select", {
@@ -12,9 +12,7 @@ test("tarjeta de transporte por alumno: marcar a todos completa el paso", async 
   const alumno = await crearAlumno(page);
   await crearViaje(page);
   await selectorElegibles(page).selectOption({ label: alumno.label });
-  await page
-    .locator("section")
-    .filter({ hasText: "Alumnos asignados" })
+  await panelAlumnosAsignados(page)
     .getByRole("button", { name: "Asignar" })
     .click();
   await expect(page.getByText(`${alumno.apellido}, ${alumno.nombre}`).first()).toBeVisible();

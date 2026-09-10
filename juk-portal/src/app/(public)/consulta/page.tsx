@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
-import { LeadForm } from "../LeadForm";
-import { CheckItem, PageHeader } from "../sections";
+import { CheckItem, PublicPageHeader } from "../_components/primitives";
+import { LeadForm } from "../lead-form";
 import { JsonLd, breadcrumbSchema, langAlternates } from "../seo";
 
 export const metadata: Metadata = {
@@ -15,7 +15,7 @@ export default function ConsultaPage() {
   return (
     <>
       <JsonLd data={breadcrumbSchema([{ name: "Pedí tu propuesta", path: "/consulta" }])} />
-      <PageHeader
+      <PublicPageHeader
         kicker="Pedí tu propuesta"
         title="Armemos juntos tu viaje de estudio"
         sub="Contanos qué tenés en mente y te respondemos con una propuesta a tu medida —destino, curso, alojamiento y fechas— sin compromiso."

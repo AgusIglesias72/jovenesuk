@@ -1,10 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
-import { crearAlumno, crearViaje } from "./helpers";
-
-function alumnosPanel(page: Page) {
-  return page.locator("section").filter({ hasText: "Alumnos asignados" });
-}
+import { crearAlumno, crearViaje, panelAlumnosAsignados } from "./helpers";
 
 function selectorElegibles(page: Page) {
   return page.locator("select", {
@@ -19,7 +15,7 @@ test("al asignar un alumno se crea su tablero M6 y se pueden transicionar pasos"
   const alumno = await crearAlumno(page);
   await crearViaje(page);
   await selectorElegibles(page).selectOption({ label: alumno.label });
-  await alumnosPanel(page).getByRole("button", { name: "Asignar" }).click();
+  await panelAlumnosAsignados(page).getByRole("button", { name: "Asignar" }).click();
   await expect(page.getByText(`${alumno.apellido}, ${alumno.nombre}`).first()).toBeVisible();
 
   // Ir al detalle del alumno desde el roster

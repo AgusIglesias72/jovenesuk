@@ -9,18 +9,21 @@ import { useToast } from "@/components/ui/toast";
 import { reportarDatoFamiliaAction } from "../../_actions";
 
 /**
- * Permite a la familia avisar que un dato del alumno está mal. No edita la
- * ficha: registra un reporte (auditoría) para que JUK lo corrija. Campo +
- * comentario opcional → reportarDatoFamiliaAction.
+ * Permite a la familia avisar que un dato del alumno está mal (PRD 04 ·
+ * US-2.3). No edita la ficha: el reporte queda registrado y le llega por email
+ * al equipo de JUK, que lo corrige desde el portal interno. Después de enviar
+ * queda a la vista una confirmación (el toast se va solo a los segundos).
  */
 
 const CAMPOS = [
-  "Nombre",
+  "Nombre y apellido",
   "DNI",
   "Fecha de nacimiento",
   "Pasaporte",
   "Email",
-  "Salud/alergias",
+  "Salud / alergias",
+  "Datos del tutor",
+  "Otro dato",
 ] as const;
 
 export function ReportarDato({ alumnoDni }: { alumnoDni: string }) {
@@ -28,6 +31,7 @@ export function ReportarDato({ alumnoDni }: { alumnoDni: string }) {
   const [abierto, setAbierto] = useState(false);
   const [campo, setCampo] = useState<string>(CAMPOS[0]);
   const [comentario, setComentario] = useState("");
+  const [enviadoCampo, setEnviadoCampo] = useState<string | null>(null);
   const [pendiente, startTransition] = useTransition();
 
   function enviar() {
@@ -38,9 +42,10 @@ export function ReportarDato({ alumnoDni }: { alumnoDni: string }) {
         comentario: comentario.trim() || undefined,
       });
       if (res.ok) {
-        toast.success("Recibimos tu aviso", {
+        toast.success("Le avisamos al equipo de JUK", {
           descripcion: "Lo revisamos y corregimos el dato a la brevedad.",
         });
+        setEnviadoCampo(campo);
         setComentario("");
         setCampo(CAMPOS[0]);
         setAbierto(false);
@@ -52,9 +57,25 @@ export function ReportarDato({ alumnoDni }: { alumnoDni: string }) {
 
   if (!abierto) {
     return (
-      <Button variant="secondary" onClick={() => setAbierto(true)}>
-        Reportar un dato incorrecto
-      </Button>
+      <div className="space-y-3">
+        {enviadoCampo && (
+          <div
+            role="status"
+            className="rounded-[var(--r-lg)] border border-[color-mix(in_srgb,var(--c-success)_30%,transparent)] bg-[var(--c-success-bg)] px-4 py-3"
+          >
+            <p className="text-[length:var(--t-small)] font-bold text-[var(--c-ink)]">
+              Recibimos tu aviso sobre «{enviadoCampo}»
+            </p>
+            <p className="mt-0.5 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
+              Ya le llegó al equipo de JUK por email y lo vamos a corregir. Si necesitamos algo más, te
+              escribimos.
+            </p>
+          </div>
+        )}
+        <Button variant="secondary" onClick={() => setAbierto(true)}>
+          {enviadoCampo ? "Reportar otro dato" : "Reportar un dato incorrecto"}
+        </Button>
+      </div>
     );
   }
 
@@ -65,7 +86,8 @@ export function ReportarDato({ alumnoDni }: { alumnoDni: string }) {
           Reportar un dato incorrecto
         </h3>
         <p className="mt-1 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
-          Decinos qué dato está mal y, si querés, agregá un comentario. Lo revisamos y lo corregimos.
+          Decinos qué dato está mal y, si querés, cuál es el correcto. Le llega un aviso al equipo y lo
+          corregimos.
         </p>
       </div>
 

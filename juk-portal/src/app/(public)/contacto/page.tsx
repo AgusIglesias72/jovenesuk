@@ -1,14 +1,9 @@
 import type { Metadata } from "next";
 
+import { Cta, Kicker, PublicPageHeader, WhatsAppIcon } from "../_components/primitives";
+import { Acreditaciones } from "../_sections";
 import { EMAIL, MAIL_URL, PHONE_DISPLAY, SOCIALS, WHATSAPP_URL } from "../contact";
-import { LeadForm } from "../LeadForm";
-import {
-  Acreditaciones,
-  Cta,
-  Kicker,
-  PageHeader,
-  WhatsAppIcon,
-} from "../sections";
+import { LeadForm } from "../lead-form";
 import { JsonLd, breadcrumbSchema, langAlternates } from "../seo";
 
 export const metadata: Metadata = {
@@ -22,7 +17,7 @@ export default function ContactoPage() {
   return (
     <>
       <JsonLd data={breadcrumbSchema([{ name: "Contacto", path: "/contacto" }])} />
-      <PageHeader
+      <PublicPageHeader
         kicker="Contacto"
         title="Hablemos de tu próximo viaje"
         sub="Contanos qué querés lograr con tu inglés y te armamos una propuesta personalizada: destino, curso, alojamiento y fechas a tu medida."

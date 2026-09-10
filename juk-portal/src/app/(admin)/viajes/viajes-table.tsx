@@ -13,19 +13,44 @@ import {
   TR,
   TripBadge,
 } from "@/components/ui";
-import { formatFecha } from "@/lib/utils/date";
+import type { ViajeFila } from "@/lib/db/queries/viajes";
 import { PAIS_LABELS } from "@/lib/domain/colegios";
-import type { ViajeListItem } from "@/lib/db/queries/viajes";
+import { ocupacionViaje } from "@/lib/domain/viajes";
+import { formatFecha } from "@/lib/utils/date";
+
+import { BarraProgreso, tonoOcupacion } from "./barra-progreso";
 
 function rango(inicio: Date, fin: Date) {
   return `${formatFecha(inicio)} – ${formatFecha(fin)}`;
+}
+
+function CeldaOcupacion({ viaje }: { viaje: ViajeFila }) {
+  const o = ocupacionViaje(viaje);
+  return (
+    <span className="inline-flex w-28 flex-col gap-1.5 max-sm:items-end">
+      <span className="font-mono text-[length:var(--t-mono)] tabular-nums text-[var(--c-ink)]">
+        {viaje.inscriptos} / {viaje.capacidadMaxima}
+        {o.sobreCupo > 0 && (
+          <span className="ml-1 font-bold text-[var(--c-berry)]">
+            +{o.sobreCupo}
+            <span className="sr-only"> por encima del cupo</span>
+          </span>
+        )}
+      </span>
+      <BarraProgreso
+        pct={o.pct}
+        tono={tonoOcupacion(o)}
+        label={`Ocupación del cupo de ${viaje.codigo}`}
+      />
+    </span>
+  );
 }
 
 export function ViajesTable({
   viajes,
   hayFiltros = false,
 }: {
-  viajes: ViajeListItem[];
+  viajes: ViajeFila[];
   hayFiltros?: boolean;
 }) {
   if (viajes.length === 0) {
@@ -59,7 +84,7 @@ export function ViajesTable({
             <TH>Viaje</TH>
             <TH>Fechas</TH>
             <TH>Estado</TH>
-            <TH numeric>Cupo máx.</TH>
+            <TH>Inscriptos / cupo</TH>
             <TH className="w-[88px]">
               <span className="sr-only">Acciones</span>
             </TH>
@@ -90,8 +115,8 @@ export function ViajesTable({
               <TD label="Estado">
                 <TripBadge state={v.estado} />
               </TD>
-              <TD label="Cupo máx." numeric>
-                {v.capacidadMaxima}
+              <TD label="Inscriptos / cupo">
+                <CeldaOcupacion viaje={v} />
               </TD>
               <TD className="max-sm:justify-end">
                 <div className="flex justify-end">

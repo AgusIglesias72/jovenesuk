@@ -1,18 +1,7 @@
 /*
- * Datos de contacto de Jóvenes en UK — fuente única para la web pública.
- * Otros archivos (sections, contacto, seo) van a adoptar estas constantes.
+ * Los datos de contacto se mudaron a `src/lib/contact.ts` (los comparten la web
+ * pública y el Portal de Familias). Este archivo queda como re-export para no
+ * tocar a los consumidores de la web.
  */
 
-export const PHONE_DISPLAY = "+54 9 11 3378-3515";
-export const PHONE_E164 = "5491133783515";
-export const EMAIL = "info@jovenesenuk.com";
-
-export const WHATSAPP_URL = `https://wa.me/${PHONE_E164}`;
-export const MAIL_URL = `mailto:${EMAIL}`;
-
-export const SOCIALS = [
-  { label: "Instagram", handle: "@jovenesenuk", href: "https://www.instagram.com/jovenesenuk" },
-  { label: "Facebook", handle: "/jovenesenuk", href: "https://www.facebook.com/jovenesenuk" },
-  { label: "TikTok", handle: "@jovenesenuk", href: "https://www.tiktok.com/@jovenesenuk" },
-  { label: "X", handle: "@jovenesenuk", href: "https://x.com/jovenesenuk" },
-] as const;
+export * from "@/lib/contact";

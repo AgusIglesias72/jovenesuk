@@ -21,11 +21,10 @@ import {
   useConfirm,
   useToast,
 } from "@/components/ui";
+import { asignarAlumnoAction, desasignarAlumnoAction } from "@/lib/actions/asignaciones";
 import { ASIGNACION_ESTADO_LABELS, ASIGNACION_ESTADO_TONE } from "@/lib/domain/asignaciones";
 import { formatFecha } from "@/lib/utils/date";
 import type { AlumnoAsignado } from "@/lib/db/queries/asignaciones";
-
-import { asignarAlumnoAction, desasignarAlumnoAction } from "./actions";
 
 type Elegible = { id: string; nombre: string; apellido: string };
 

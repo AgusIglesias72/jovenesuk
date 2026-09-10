@@ -29,6 +29,8 @@ export type PasoAlumnoPatch = {
   metadata?: Record<string, unknown>;
   notas?: string | null;
   fechaCompletado?: Date | null;
+  /** Solo A1 la usa (dispara el "vencido" de scan-recordatorios). */
+  fechaLimite?: Date | null;
 };
 
 /**
@@ -47,6 +49,7 @@ export async function updatePasoAlumno(
       ...(patch.metadata !== undefined ? { metadata: patch.metadata } : {}),
       ...(patch.notas !== undefined ? { notas: patch.notas } : {}),
       ...(patch.fechaCompletado !== undefined ? { fechaCompletado: patch.fechaCompletado } : {}),
+      ...(patch.fechaLimite !== undefined ? { fechaLimite: patch.fechaLimite } : {}),
       updatedAt: new Date(),
       updatedBy,
     })

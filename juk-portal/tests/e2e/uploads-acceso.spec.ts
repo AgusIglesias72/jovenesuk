@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
-import { crearAlumno, crearViaje } from "./helpers";
+import { crearAlumno, crearViaje, panelAlumnosAsignados } from "./helpers";
 
 function selectorElegibles(page: Page) {
   return page.locator("select", {
@@ -24,9 +24,7 @@ test("/api/uploads sirve el documento al admin y nunca a un anónimo", async ({
   const alumno = await crearAlumno(page);
   await crearViaje(page);
   await selectorElegibles(page).selectOption({ label: alumno.label });
-  await page
-    .locator("section")
-    .filter({ hasText: "Alumnos asignados" })
+  await panelAlumnosAsignados(page)
     .getByRole("button", { name: "Asignar" })
     .click();
   await page.getByRole("link", { name: `${alumno.apellido}, ${alumno.nombre}` }).first().click();

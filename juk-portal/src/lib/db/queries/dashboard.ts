@@ -1,11 +1,31 @@
-import { and, asc, count, eq, gt, inArray, ne, notInArray, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  eq,
+  exists,
+  gt,
+  inArray,
+  lt,
+  ne,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { alumnos } from "@/lib/db/schema/alumnos";
 import { asignaciones } from "@/lib/db/schema/asignaciones";
+import { cuotas } from "@/lib/db/schema/cuotas";
 import { pasosAlumno } from "@/lib/db/schema/pasos-alumno";
 import { colegios } from "@/lib/db/schema/colegios";
 import { viajes, type Viaje } from "@/lib/db/schema/viajes";
+import {
+  calcularAlumnosUrgentes,
+  type AlumnoConAccionUrgente,
+  type PasoTrabadoParaAlerta,
+} from "@/lib/domain/alertas";
+import { diaCalendarioUTC } from "@/lib/utils/date";
 
 import type { ViajeListItem } from "./viajes";
 
@@ -157,4 +177,133 @@ export async function getViajesProximoAnio(hoy = new Date()): Promise<ViajeProxi
     capacidadMaxima: r.viaje.capacidadMaxima,
     capacidadMinima: r.viaje.capacidadMinima,
   }));
+}
+
+export type AlumnosConAccionUrgente = {
+  /** Los primeros `limit`, ya ordenados por urgencia. */
+  items: AlumnoConAccionUrgente[];
+  total: number;
+};
+
+const ESTADOS_VIAJE_ACTIVO: Viaje["estado"][] = ["inscripcion_abierta", "confirmado", "en_curso"];
+
+/**
+ * Alumnos con acción urgente (US-DX-03). SQL descarta a los alumnos que no
+ * pueden tener ninguna alerta; las REGLAS (qué alerta, severidad, orden) las
+ * decide domain/alertas, igual que en el panel de alertas. Dos round-trips:
+ * candidatas (con su viaje) → pasos y cuotas en paralelo.
+ */
+export async function getAlumnosConAccionUrgente(
+  opciones: { limit?: number; hoy?: Date } = {}
+): Promise<AlumnosConAccionUrgente> {
+  const limit = opciones.limit ?? 5;
+  const hoy = opciones.hoy ?? new Date();
+  // Mismo corte que getAlertas: la columna es `date` y lo que vence hoy no está en mora.
+  const inicioDeHoy = new Date(diaCalendarioUTC(hoy));
+
+  const pasoTrabado = db
+    .select({ uno: sql`1` })
+    .from(pasosAlumno)
+    .where(
+      and(
+        eq(pasosAlumno.asignacionId, asignaciones.id),
+        inArray(pasosAlumno.estado, ["bloqueado", "vencido"])
+      )
+    );
+  const cuotaVencida = db
+    .select({ uno: sql`1` })
+    .from(cuotas)
+    .where(
+      and(
+        eq(cuotas.asignacionId, asignaciones.id),
+        ne(cuotas.estado, "pagada"),
+        lt(cuotas.fechaVencimiento, inicioDeHoy)
+      )
+    );
+
+  const candidatas = await db
+    .select({
+      asignacionId: asignaciones.id,
+      viajeId: asignaciones.viajeId,
+      viajeCodigo: viajes.codigo,
+      viajeFechaInicio: viajes.fechaInicio,
+      dni: alumnos.dni,
+      nombre: alumnos.nombre,
+      apellido: alumnos.apellido,
+      vencimientoPasaporte: alumnos.fechaVencimientoPasaporte,
+    })
+    .from(asignaciones)
+    .innerJoin(viajes, eq(asignaciones.viajeId, viajes.id))
+    .innerJoin(alumnos, eq(asignaciones.alumnoId, alumnos.id))
+    .where(
+      and(
+        eq(asignaciones.estado, "activa"),
+        inArray(viajes.estado, ESTADOS_VIAJE_ACTIVO),
+        or(
+          exists(pasoTrabado),
+          exists(cuotaVencida),
+          // WHY 7 y no 6 meses: es solo un pre-filtro y tiene que ser SUPERCONJUNTO
+          // de pasaporteEnAlertaConservadora. Postgres recorta fin de mes
+          // (31/08 + 6 meses = 28/02) y el setUTCMonth del dominio desborda
+          // (03/03): con 6 se perderían esos bordes.
+          lt(alumnos.fechaVencimientoPasaporte, sql`${viajes.fechaInicio} + interval '7 months'`)
+        )
+      )
+    );
+  if (candidatas.length === 0) return { items: [], total: 0 };
+
+  const ids = candidatas.map((c) => c.asignacionId);
+  const [cuotasImpagas, pasos] = await Promise.all([
+    db
+      .select({
+        asignacionId: cuotas.asignacionId,
+        numero: cuotas.numero,
+        estado: cuotas.estado,
+        fechaVencimiento: cuotas.fechaVencimiento,
+      })
+      .from(cuotas)
+      .where(
+        and(
+          inArray(cuotas.asignacionId, ids),
+          ne(cuotas.estado, "pagada"),
+          lt(cuotas.fechaVencimiento, inicioDeHoy)
+        )
+      ),
+    db
+      .select({
+        asignacionId: pasosAlumno.asignacionId,
+        codigo: pasosAlumno.codigo,
+        estado: pasosAlumno.estado,
+        notas: pasosAlumno.notas,
+        metadata: pasosAlumno.metadata,
+      })
+      .from(pasosAlumno)
+      .where(
+        and(
+          inArray(pasosAlumno.asignacionId, ids),
+          inArray(pasosAlumno.estado, ["bloqueado", "vencido"])
+        )
+      ),
+  ]);
+
+  const viajesPorId = new Map(
+    candidatas.map((c) => [
+      c.viajeId,
+      { id: c.viajeId, codigo: c.viajeCodigo, fechaInicio: c.viajeFechaInicio },
+    ])
+  );
+  const pasosTrabados: PasoTrabadoParaAlerta[] = pasos.map((p) => ({
+    ...p,
+    estado: p.estado === "vencido" ? "vencido" : "bloqueado",
+  }));
+
+  const urgentes = calcularAlumnosUrgentes({
+    viajes: [...viajesPorId.values()],
+    asignaciones: candidatas,
+    cuotasImpagas,
+    pasosTrabados,
+    hoy,
+  });
+
+  return { items: urgentes.slice(0, limit), total: urgentes.length };
 }

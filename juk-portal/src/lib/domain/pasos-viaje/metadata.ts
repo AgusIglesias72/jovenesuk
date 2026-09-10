@@ -4,11 +4,87 @@ import { z } from "zod";
 const optionalUrl = z.union([z.string().trim().url().max(500), z.literal("")]).optional();
 const optionalText = (max: number) => z.string().trim().max(max).optional();
 
-export const PASAJE_SUBESTADOS = ["sin_iniciar", "reservado", "emitido"] as const;
-export const EXCURSION_ESTADOS = ["propuesta", "reservada", "pagada"] as const;
+export type TipoViajePasajes = "grupal" | "individual";
+
+/**
+ * PRD M7 Paso 1. Grupal: JUK coordina con la agencia. Individual: el alumno
+ * compra y JUK solo registra los datos del vuelo.
+ */
+export const PASAJE_SUBESTADOS_GRUPAL = [
+  "pendiente_cotizacion",
+  "cotizado",
+  "confirmado",
+  "emitido",
+] as const;
+export const PASAJE_SUBESTADOS_INDIVIDUAL = ["pendiente_datos", "datos_recibidos"] as const;
+export const PASAJE_SUBESTADOS = [
+  ...PASAJE_SUBESTADOS_GRUPAL,
+  ...PASAJE_SUBESTADOS_INDIVIDUAL,
+] as const;
+export type PasajeSubEstado = (typeof PASAJE_SUBESTADOS)[number];
+
+/** PRD M7 Paso 2 (US-38, CRIT-04 ⭐: el representante aprueba). */
+export const EXCURSION_ESTADOS = [
+  "propuesta",
+  "aprobada_representante",
+  "confirmada",
+  "cancelada",
+] as const;
+export type ExcursionEstado = (typeof EXCURSION_ESTADOS)[number];
+
+/**
+ * Valores que guardaba la primera versión del M7 → su equivalente del PRD. Se
+ * traducen al leer (no hay migración SQL) para que el cambio sea revertible
+ * mientras CRIT-04 siga "a validar con el equipo".
+ */
+export const PASAJE_SUBESTADO_LEGACY: Readonly<Record<string, PasajeSubEstado>> = {
+  sin_iniciar: "pendiente_cotizacion",
+  reservado: "confirmado",
+};
+export const EXCURSION_ESTADO_LEGACY: Readonly<Record<string, ExcursionEstado>> = {
+  reservada: "confirmada",
+  pagada: "confirmada",
+};
+
+function traducirLegacy<T extends string>(
+  legacy: Readonly<Record<string, T>>
+): (v: unknown) => unknown {
+  return (v) =>
+    typeof v === "string" && Object.prototype.hasOwnProperty.call(legacy, v) ? legacy[v] : v;
+}
+
+function normalizar<T extends string>(
+  validos: readonly T[],
+  legacy: Readonly<Record<string, T>>,
+  v: unknown
+): T | undefined {
+  if (typeof v !== "string" || v === "") return undefined;
+  if ((validos as readonly string[]).includes(v)) return v as T;
+  return Object.prototype.hasOwnProperty.call(legacy, v) ? legacy[v] : undefined;
+}
+
+/** Sub-estado vigente de un valor guardado (legacy incluido). Desconocido → undefined, nunca error. */
+export function normalizarPasajeSubEstado(v: unknown): PasajeSubEstado | undefined {
+  return normalizar(PASAJE_SUBESTADOS, PASAJE_SUBESTADO_LEGACY, v);
+}
+
+export function normalizarExcursionEstado(v: unknown): ExcursionEstado | undefined {
+  return normalizar(EXCURSION_ESTADOS, EXCURSION_ESTADO_LEGACY, v);
+}
+
+export function pasajeSubEstadosDe(tipoViaje: TipoViajePasajes): readonly PasajeSubEstado[] {
+  return tipoViaje === "individual" ? PASAJE_SUBESTADOS_INDIVIDUAL : PASAJE_SUBESTADOS_GRUPAL;
+}
+
+export function esPasajeSubEstadoDe(subEstado: string, tipoViaje: TipoViajePasajes): boolean {
+  return (pasajeSubEstadosDe(tipoViaje) as readonly string[]).includes(subEstado);
+}
 
 export const pasajesMetadataSchema = z.object({
-  subEstado: z.enum(PASAJE_SUBESTADOS).optional(),
+  subEstado: z.preprocess(
+    traducirLegacy(PASAJE_SUBESTADO_LEGACY),
+    z.enum(PASAJE_SUBESTADOS).optional()
+  ),
   aerolinea: optionalText(120),
   numeroVuelo: optionalText(40),
   fechaSalida: optionalText(40),
@@ -22,7 +98,10 @@ export const excursionItemSchema = z.object({
   fecha: optionalText(40),
   proveedor: optionalText(160),
   costoGbp: z.number().nonnegative().optional(),
-  estado: z.enum(EXCURSION_ESTADOS).optional(),
+  estado: z.preprocess(
+    traducirLegacy(EXCURSION_ESTADO_LEGACY),
+    z.enum(EXCURSION_ESTADOS).optional()
+  ),
 });
 
 export const excursionesMetadataSchema = z.object({

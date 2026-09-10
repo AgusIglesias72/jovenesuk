@@ -78,6 +78,7 @@ test("recorrido completo: del colegio al dashboard", async ({ page, request }) =
   await expect(cuotas.getByText("US$ 1.600,00")).toBeVisible();
 
   await cuotas.getByRole("button", { name: "Registrar pago" }).first().click();
+  await confirmarModal(page, "Registrar pago");
   await expect(
     page.locator('[data-paso="b1"]').getByText("1 de 2 cuotas acreditadas")
   ).toBeVisible();

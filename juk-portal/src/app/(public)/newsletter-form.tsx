@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect } from "react";
 
-import { track } from "./Analytics";
+import { track } from "./analytics";
 import { subscribeNewsletter } from "./leads/actions";
 
 export function NewsletterForm() {

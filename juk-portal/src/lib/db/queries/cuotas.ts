@@ -102,6 +102,8 @@ export async function crearPlanCuotas(opts: {
 
 export async function registrarPagoCuota(opts: {
   cuotaId: string;
+  /** US-22: la fecha en que la familia pagó (puede ser anterior a hoy). */
+  fechaPagoEfectivo?: Date;
   observaciones?: string;
   registradoPor: string;
   /** B2: confirma la recepción presencial (fuerza canal presencial). */
@@ -111,7 +113,7 @@ export async function registrarPagoCuota(opts: {
     .update(cuotas)
     .set({
       estado: "pagada",
-      fechaPagoEfectivo: new Date(),
+      fechaPagoEfectivo: opts.fechaPagoEfectivo ?? new Date(),
       ...(opts.canalPresencial ? { canal: "presencial" as const } : {}),
       ...(opts.observaciones ? { observaciones: opts.observaciones } : {}),
       registradoPor: opts.registradoPor,

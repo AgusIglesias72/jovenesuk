@@ -23,8 +23,8 @@ function sentryCspReportUri(dsn: string | undefined): string | null {
 /*
  * CSP en modo Report-Only: no bloquea nada, solo reporta violaciones a Sentry.
  * Está así porque el sitio público y el back-office todavía dependen de
- * `'unsafe-inline'` (JSON-LD de seo.tsx/sections.tsx, el init de GA4 en
- * Analytics.tsx, `style={{}}` en SSR y el srcDoc del preview de emails), y
+ * `'unsafe-inline'` (JSON-LD de seo.tsx y _sections/faq.tsx, el init de GA4 en
+ * analytics.tsx, `style={{}}` en SSR y el srcDoc del preview de emails), y
  * el <script> inline de public/globe-loader.html no puede llevar nonce por
  * ser estático. Para pasarla a enforce (renombrar el header a
  * Content-Security-Policy): 1-2 semanas sin violaciones en Sentry, y

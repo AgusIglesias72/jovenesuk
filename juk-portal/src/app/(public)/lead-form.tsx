@@ -5,7 +5,7 @@ import { useActionState, useEffect, useState } from "react";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field";
 import { CUANDO, DESTINO, MODALIDAD, PARA_QUIEN } from "@/lib/domain/leads";
 
-import { track } from "./Analytics";
+import { track } from "./analytics";
 import { submitLead } from "./leads/actions";
 
 export function LeadForm() {

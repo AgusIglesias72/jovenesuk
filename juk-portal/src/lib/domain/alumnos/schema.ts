@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { PASO_CODIGOS } from "@/lib/domain/pasos/codigos";
+
 export const alumnoEstadoEnum = z.enum([
   "pre_inscripto",
   "inscripto",
@@ -90,10 +92,27 @@ export const alumnoUpdateSchema = alumnoCreateSchema.extend({
   estado: alumnoEstadoEnum,
 });
 
+const vacioAUndefined = (v: unknown) =>
+  typeof v === "string" && v.trim() === "" ? undefined : v;
+
+/**
+ * Los filtros llegan desde la URL: un valor inválido se descarta solo, en vez
+ * de invalidar el objeto entero y tirar abajo el resto de los filtros.
+ */
+const filtroUrl = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess(vacioAUndefined, schema.optional()).catch(undefined);
+
+/** El Paso 0 es de solo lectura (lo setea el sistema): nunca queda "pendiente". */
+export const pasoFiltrableEnum = z.enum(PASO_CODIGOS).exclude(["paso_0"]);
+export const PASOS_FILTRABLES = pasoFiltrableEnum.options;
+
+/** US-17: viaje, estado general, alertas activas y paso de trámite pendiente. */
 export const alumnoFiltersSchema = z.object({
-  q: z.string().trim().optional(),
-  estado: alumnoEstadoEnum.optional(),
-  alerta: z.enum(["pasos_bloqueados"]).optional(),
+  q: filtroUrl(z.string().trim()),
+  estado: filtroUrl(alumnoEstadoEnum),
+  alerta: filtroUrl(z.enum(["pasos_bloqueados"])),
+  viajeId: filtroUrl(z.string().uuid()),
+  paso: filtroUrl(pasoFiltrableEnum),
 });
 
 export type AlumnoCreateData = z.output<typeof alumnoCreateSchema>;

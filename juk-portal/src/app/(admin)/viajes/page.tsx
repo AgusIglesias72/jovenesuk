@@ -1,5 +1,5 @@
 import { LinkButton, PageHeader, Pagination } from "@/components/ui";
-import { listViajes } from "@/lib/db/queries/viajes";
+import { listViajes, opcionesFiltroViajes } from "@/lib/db/queries/viajes";
 import { viajeFiltersSchema } from "@/lib/domain/viajes";
 import { pagina } from "@/lib/utils/paginate";
 
@@ -19,19 +19,21 @@ export default async function ViajesPage({
   const str = (v: string | string[] | undefined) =>
     typeof v === "string" ? v : undefined;
 
-  const parsed = viajeFiltersSchema.safeParse({
+  // Cada filtro inválido se descarta por separado (ver viajeFiltersSchema).
+  const filters = viajeFiltersSchema.parse({
     q: str(sp.q),
     estado: str(sp.estado),
     origen: str(sp.origen),
     tipo: str(sp.tipo),
+    anio: str(sp.anio),
+    pais: str(sp.pais),
+    colegioDestinoId: str(sp.colegio),
   });
-  const filters = parsed.success ? parsed.data : {};
-  const {
-    items: viajes,
-    total,
-    page,
-    pages,
-  } = await listViajes(filters, pagina(str(sp.page)));
+
+  const [{ items: viajes, total, page, pages }, opciones] = await Promise.all([
+    listViajes(filters, pagina(str(sp.page))),
+    opcionesFiltroViajes(),
+  ]);
 
   return (
     <>
@@ -42,10 +44,13 @@ export default async function ViajesPage({
       />
 
       <div className="mb-4">
-        <ViajesFilters />
+        <ViajesFilters anios={opciones.anios} colegios={opciones.colegios} />
       </div>
 
-      <ViajesTable viajes={viajes} hayFiltros={Object.values(filters).some(Boolean)} />
+      <ViajesTable
+        viajes={viajes}
+        hayFiltros={Object.values(filters).some((v) => v !== undefined)}
+      />
       <Pagination total={total} page={page} pages={pages} />
     </>
   );

@@ -6,18 +6,25 @@ import { useMemo, useState, useTransition } from "react";
 import { Badge, Button, Checkbox, DateInput, Field, Input, Select, StepBadge, Textarea, useToast } from "@/components/ui";
 import {
   EXCURSION_ESTADOS,
-  PASAJE_SUBESTADOS,
-  PASO_VIAJE_DEPENDENCIAS,
+  EXCURSION_ESTADO_LABELS,
+  PASAJE_SUBESTADO_LABELS,
   PASO_VIAJE_ESTADO_LABELS,
   PASO_VIAJE_LABELS,
   PASO_VIAJE_NUMERO,
   POLICE_CHECK_ESTADO_LABELS,
+  dependenciaPendiente,
+  esPasajeSubEstadoDe,
   esPasoDerivado,
-  transicionesPasoPermitidas,
+  normalizarExcursionEstado,
+  normalizarPasajeSubEstado,
+  pasajeSubEstadosDe,
+  transicionesPasoConDependencias,
   type EditablePasoTipo,
+  type EstadosPorTipo,
   type PasoViajeEstado,
   type PasoViajeTipo,
   type PoliceCheckEstado,
+  type TipoViajePasajes,
 } from "@/lib/domain/pasos-viaje";
 import { formatFecha } from "@/lib/utils/date";
 
@@ -53,12 +60,15 @@ export type RosterItem = { asignacionId: string; nombre: string; apellido: strin
 
 export function PasosViajePanel({
   viajeId,
+  tipoViaje = "grupal",
   pasos,
   policeEstado,
   policeGLs,
   roster,
 }: {
   viajeId: string;
+  /** Define los sub-estados de Pasajes (PRD M7 P1). */
+  tipoViaje?: TipoViajePasajes;
   pasos: PasoView[];
   policeEstado: PasoViajeEstado;
   policeGLs: PoliceGLView[];
@@ -66,26 +76,24 @@ export function PasosViajePanel({
 }) {
   const [selected, setSelected] = useState<PasoViajeTipo>("pasajes");
 
-  const estadoPorTipo = useMemo(() => {
-    const map = new Map<PasoViajeTipo, PasoViajeEstado>();
-    for (const p of pasos) map.set(p.tipo, esPasoDerivado(p.tipo) ? policeEstado : p.estado);
+  const estados = useMemo(() => {
+    const map: EstadosPorTipo = {};
+    for (const p of pasos) map[p.tipo] = esPasoDerivado(p.tipo) ? policeEstado : p.estado;
     return map;
   }, [pasos, policeEstado]);
 
-  const pasajesCompletado = estadoPorTipo.get("pasajes") === "completado";
   const selectedPaso = pasos.find((p) => p.tipo === selected);
 
   return (
     <section className="mt-10">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
+      <h2 className="mb-3 text-[length:var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-muted)]">
         Seguimiento del viaje · M7
       </h2>
 
       <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {pasos.map((p) => {
-          const estado = estadoPorTipo.get(p.tipo) ?? p.estado;
-          const bloqueadoPorDep =
-            PASO_VIAJE_DEPENDENCIAS[p.tipo] === "pasajes" && !pasajesCompletado;
+          const estado = estados[p.tipo] ?? p.estado;
+          const requiere = dependenciaPendiente(p.tipo, estados);
           const activo = p.tipo === selected;
           return (
             <button
@@ -94,21 +102,23 @@ export function PasosViajePanel({
               onClick={() => setSelected(p.tipo)}
               aria-pressed={activo}
               className={[
-                "flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition-colors",
+                "flex flex-col items-start gap-1.5 rounded-[var(--r-lg)] border p-3 text-left transition-colors",
                 activo
-                  ? "border-juk-navy-700 bg-juk-navy-50"
-                  : "border-gray-200 bg-white hover:border-gray-300",
+                  ? "border-[var(--c-brand)] bg-[var(--c-brand-50)]"
+                  : "border-[var(--c-border)] bg-[var(--c-surface)] hover:border-[var(--c-border-strong)]",
               ].join(" ")}
             >
               <span className="font-mono text-[length:var(--t-mono)] font-bold text-[var(--c-ink-subtle)]">
                 0{PASO_VIAJE_NUMERO[p.tipo]}
               </span>
-              <span className="text-sm font-semibold text-juk-navy-950">
+              <span className="text-[length:var(--t-small)] font-semibold text-[var(--c-ink)]">
                 {PASO_VIAJE_LABELS[p.tipo]}
               </span>
               <StepBadge state={estado} />
-              {bloqueadoPorDep && (
-                <span className="text-[length:var(--t-label)] text-[var(--c-warning)]">Requiere Pasajes</span>
+              {requiere && (
+                <span className="text-[length:var(--t-label)] text-[var(--c-warning)]">
+                  Requiere {PASO_VIAJE_LABELS[requiere]}
+                </span>
               )}
             </button>
           );
@@ -121,8 +131,9 @@ export function PasosViajePanel({
         <PasoEditor
           key={selectedPaso.tipo}
           viajeId={viajeId}
+          tipoViaje={tipoViaje}
           paso={selectedPaso}
-          pasajesCompletado={pasajesCompletado}
+          estados={estados}
           roster={roster}
         />
       ) : null}
@@ -132,13 +143,15 @@ export function PasosViajePanel({
 
 function PasoEditor({
   viajeId,
+  tipoViaje,
   paso,
-  pasajesCompletado,
+  estados,
   roster,
 }: {
   viajeId: string;
+  tipoViaje: TipoViajePasajes;
   paso: PasoView;
-  pasajesCompletado: boolean;
+  estados: EstadosPorTipo;
   roster: RosterItem[];
 }) {
   const router = useRouter();
@@ -170,26 +183,20 @@ function PasoEditor({
     });
   }
 
-  const dependenciaBloqueada =
-    PASO_VIAJE_DEPENDENCIAS[paso.tipo] === "pasajes" && !pasajesCompletado;
-
-  // Misma regla que la action: con la dependencia sin cumplir, no se ofrece
-  // avanzar a "en_progreso"/"completado" (siempre se conserva el estado actual).
-  const estadosOpciones = transicionesPasoPermitidas(paso.estado).filter(
-    (est) =>
-      !dependenciaBloqueada ||
-      est === paso.estado ||
-      (est !== "en_progreso" && est !== "completado")
-  );
+  const requiere = dependenciaPendiente(paso.tipo, estados);
+  const estadosOpciones = transicionesPasoConDependencias(paso.tipo, paso.estado, estados);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-5">
+    <div className="rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] p-5 shadow-[shadow:var(--shadow-1)]">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-base font-semibold text-juk-navy-950">{PASO_VIAJE_LABELS[paso.tipo]}</h3>
+        <h3 className="font-display text-[length:var(--t-h3)] font-bold text-[var(--c-ink)]">
+          {PASO_VIAJE_LABELS[paso.tipo]}
+        </h3>
         <div className="w-full sm:w-56">
           <Select
             value={paso.estado}
             disabled={isPending}
+            aria-label={`Estado de ${PASO_VIAJE_LABELS[paso.tipo]}`}
             onChange={(e) => cambiarEstado(e.target.value as PasoViajeEstado)}
           >
             {estadosOpciones.map((est) => (
@@ -201,14 +208,20 @@ function PasoEditor({
         </div>
       </div>
 
-      {dependenciaBloqueada && (
-        <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          Transfers depende de que <strong>Pasajes</strong> esté completado para poder avanzar.
+      {requiere && (
+        <p className="mb-4 rounded-[var(--r-md)] border border-[var(--c-honey)] bg-[var(--c-honey-soft)] px-3 py-2 text-[length:var(--t-small)] text-[var(--c-ink)]">
+          {PASO_VIAJE_LABELS[paso.tipo]} depende de que <strong>{PASO_VIAJE_LABELS[requiere]}</strong>{" "}
+          esté completado para poder avanzar.
         </p>
       )}
 
       {tipo === "pasajes" && (
-        <PasajesForm metadata={paso.metadata} disabled={isPending} onSave={guardar} />
+        <PasajesForm
+          metadata={paso.metadata}
+          tipoViaje={tipoViaje}
+          disabled={isPending}
+          onSave={guardar}
+        />
       )}
       {tipo === "excursiones" && (
         <ExcursionesForm metadata={paso.metadata} disabled={isPending} onSave={guardar} />
@@ -287,14 +300,14 @@ function RosterCobertura({
         </span>
       </div>
       {roster.length === 0 ? (
-        <p className="text-sm text-[var(--c-ink-subtle)]">
+        <p className="text-[length:var(--t-small)] text-[var(--c-ink-subtle)]">
           Sin alumnos asignados al viaje todavía.
         </p>
       ) : (
         <ul className="divide-y divide-[var(--c-border)] overflow-hidden rounded-[var(--r-md)] border border-[var(--c-border)] bg-[var(--c-surface)]">
           {roster.map((r) => (
             <li key={r.asignacionId} className="flex items-center justify-between px-4 py-2">
-              <span className="text-sm font-medium text-[var(--c-ink)]">
+              <span className="text-[length:var(--t-small)] font-medium text-[var(--c-ink)]">
                 {r.apellido}, {r.nombre}
               </span>
               <Checkbox
@@ -329,8 +342,22 @@ type FormProps = {
   onSave: (metadata: unknown) => void;
 };
 
-function PasajesForm({ metadata, disabled, onSave }: FormProps) {
-  const [subEstado, setSubEstado] = useState(str(metadata, "subEstado"));
+/**
+ * Un sub-estado guardado con la nomenclatura vieja se muestra traducido; uno
+ * desconocido o de otro tipo de viaje queda en "—" en vez de romper la pantalla.
+ */
+function subEstadoInicial(metadata: Record<string, unknown>, tipoViaje: TipoViajePasajes): string {
+  const s = normalizarPasajeSubEstado(metadata.subEstado);
+  return s && esPasajeSubEstadoDe(s, tipoViaje) ? s : "";
+}
+
+function PasajesForm({
+  metadata,
+  tipoViaje,
+  disabled,
+  onSave,
+}: FormProps & { tipoViaje: TipoViajePasajes }) {
+  const [subEstado, setSubEstado] = useState(() => subEstadoInicial(metadata, tipoViaje));
   const [aerolinea, setAerolinea] = useState(str(metadata, "aerolinea"));
   const [numeroVuelo, setNumeroVuelo] = useState(str(metadata, "numeroVuelo"));
   const [fechaSalida, setFechaSalida] = useState(str(metadata, "fechaSalida"));
@@ -340,13 +367,18 @@ function PasajesForm({ metadata, disabled, onSave }: FormProps) {
 
   return (
     <div className="flex flex-col gap-4">
+      {tipoViaje === "individual" && (
+        <p className="text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
+          El alumno gestiona sus propios pasajes — JUK registra los datos del vuelo.
+        </p>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Sub-estado">
           <Select value={subEstado} onChange={(e) => setSubEstado(e.target.value)} disabled={disabled}>
             <option value="">—</option>
-            {PASAJE_SUBESTADOS.map((s) => (
+            {pasajeSubEstadosDe(tipoViaje).map((s) => (
               <option key={s} value={s}>
-                {s === "sin_iniciar" ? "Sin iniciar" : s === "reservado" ? "Reservado" : "Emitido"}
+                {PASAJE_SUBESTADO_LABELS[s]}
               </option>
             ))}
           </Select>
@@ -397,7 +429,7 @@ type ExcursionRow = { id: string; nombre: string; fecha: string; proveedor: stri
 
 function ExcursionesForm({ metadata, disabled, onSave }: FormProps) {
   const inicial = Array.isArray(metadata.excursiones) ? (metadata.excursiones as unknown[]) : [];
-  const [rows, setRows] = useState<ExcursionRow[]>(
+  const [rows, setRows] = useState<ExcursionRow[]>(() =>
     inicial.map((e) => {
       const o = (e ?? {}) as Record<string, unknown>;
       return {
@@ -406,7 +438,7 @@ function ExcursionesForm({ metadata, disabled, onSave }: FormProps) {
         fecha: str(o, "fecha"),
         proveedor: str(o, "proveedor"),
         costoGbp: numStr(o, "costoGbp"),
-        estado: str(o, "estado"),
+        estado: normalizarExcursionEstado(o.estado) ?? "",
       };
     })
   );
@@ -419,10 +451,14 @@ function ExcursionesForm({ metadata, disabled, onSave }: FormProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      {rows.length === 0 && <p className="text-sm text-gray-500">Todavía no hay excursiones cargadas.</p>}
+      {rows.length === 0 && (
+        <p className="text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
+          Todavía no hay excursiones cargadas.
+        </p>
+      )}
 
       {rows.map((r, i) => (
-        <div key={r.id} className="grid gap-3 rounded-md border border-gray-200 p-3 sm:grid-cols-12">
+        <div key={r.id} className="grid gap-3 rounded-[var(--r-md)] border border-[var(--c-border)] p-3 sm:grid-cols-12">
           <Field label="Nombre" className="sm:col-span-4">
             <Input value={r.nombre} onChange={(e) => update(i, { nombre: e.target.value })} disabled={disabled} />
           </Field>
@@ -440,7 +476,7 @@ function ExcursionesForm({ metadata, disabled, onSave }: FormProps) {
               <option value="">—</option>
               {EXCURSION_ESTADOS.map((s) => (
                 <option key={s} value={s}>
-                  {s === "propuesta" ? "Propuesta" : s === "reservada" ? "Reservada" : "Pagada"}
+                  {EXCURSION_ESTADO_LABELS[s]}
                 </option>
               ))}
             </Select>
@@ -453,7 +489,7 @@ function ExcursionesForm({ metadata, disabled, onSave }: FormProps) {
         </div>
       ))}
 
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <Button type="button" variant="secondary" disabled={disabled} onClick={add}>
           Agregar excursión
         </Button>
@@ -575,32 +611,34 @@ function TarjetaForm({ metadata, disabled, onSave }: FormProps) {
 
 function PoliceChecksView({ estado, gls }: { estado: PasoViajeEstado; gls: PoliceGLView[] }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-5">
+    <div className="rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] p-5 shadow-[shadow:var(--shadow-1)]">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-base font-semibold text-juk-navy-950">Police Checks</h3>
+        <h3 className="font-display text-[length:var(--t-h3)] font-bold text-[var(--c-ink)]">Police Checks</h3>
         <StepBadge state={estado} />
       </div>
 
-      <p className="mb-4 text-sm text-gray-500">
+      <p className="mb-4 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
         Este paso se calcula automáticamente a partir del police check de cada Group Leader del viaje.
       </p>
 
       {gls.length === 0 ? (
-        <div className="rounded-md border border-dashed border-gray-300 p-6 text-center text-sm text-gray-600">
+        <div className="rounded-[var(--r-md)] border border-dashed border-[var(--c-border-strong)] p-6 text-center text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
           No hay Group Leaders asignados a este viaje todavía. La asignación de GLs al viaje llega en el
           próximo paso.
         </div>
       ) : (
-        <ul className="divide-y divide-gray-100">
+        <ul className="divide-y divide-[var(--c-border)]">
           {gls.map((gl) => (
-            <li key={gl.groupLeaderId} className="flex items-center justify-between py-2.5">
-              <div>
-                <span className="font-semibold text-juk-navy-950">
+            <li key={gl.groupLeaderId} className="flex items-center justify-between gap-3 py-2.5">
+              <div className="min-w-0">
+                <span className="font-semibold text-[var(--c-ink)]">
                   {gl.apellido}, {gl.nombre}
                 </span>
-                {gl.esPrincipal && <span className="ml-2 text-xs text-gray-500">(principal)</span>}
+                {gl.esPrincipal && (
+                  <span className="ml-2 text-[length:var(--t-label)] text-[var(--c-ink-subtle)]">(principal)</span>
+                )}
                 {gl.fechaVencimiento && (
-                  <span className="ml-2 font-mono text-xs text-gray-500">
+                  <span className="ml-2 font-mono text-[length:var(--t-label)] text-[var(--c-ink-subtle)]">
                     vence {formatFecha(gl.fechaVencimiento)}
                   </span>
                 )}

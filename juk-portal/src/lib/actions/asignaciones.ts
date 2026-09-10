@@ -21,6 +21,20 @@ import {
   pasaporteVigenteParaViaje,
 } from "@/lib/domain/asignaciones";
 
+/*
+ * Alta y baja de una asignación. Las disparan dos pantallas (el roster del
+ * viaje y la ficha del alumno), así que no viven en la carpeta de ninguna:
+ * una sola implementación, un solo par de revalidaciones. Tampoco van en
+ * src/app/(admin)/asignaciones: cada carpeta de (admin) es un módulo navegable
+ * registrado en routes.ts, y esto no es una ruta.
+ */
+
+/** Las dos pantallas que muestran la asignación quedan frescas tras cada alta/baja. */
+function revalidarAmbasFichas(): void {
+  revalidatePath("/viajes/[id]", "page");
+  revalidatePath("/alumnos/[id]", "page");
+}
+
 export async function asignarAlumnoAction(
   viajeId: string,
   alumnoId: string,
@@ -88,7 +102,7 @@ export async function asignarAlumnoAction(
       });
     }
 
-    revalidatePath("/viajes/[id]", "page");
+    revalidarAmbasFichas();
     return { ok: true, data: { id: resultado.asignacionId } };
   } catch (err) {
     if (esViolacionUnique(err)) {
@@ -137,7 +151,7 @@ export async function desasignarAlumnoAction(
       entidadId: asignacionId,
       usuarioId: session.user.id,
     });
-    revalidatePath("/viajes/[id]", "page");
+    revalidarAmbasFichas();
     return { ok: true, data: { id: asignacionId } };
   } catch (err) {
     if (err instanceof AsignacionNotFoundError) {

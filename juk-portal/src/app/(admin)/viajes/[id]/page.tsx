@@ -1,19 +1,36 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
-import { LinkButton, PageHeader } from "@/components/ui";
+import { LinkButton, PageHeader, PanelSkeleton } from "@/components/ui";
 import { getViajeByCodigo } from "@/lib/db/queries/viajes";
 
 import {
+  AlertasViajeSection,
   AsignacionesSection,
-  DatosViaje,
   GroupLeadersSection,
   PagosSection,
-  PanelSkeleton,
   PasosSection,
+  ResumenViaje,
 } from "./sections";
+import { SubnavViaje, type SeccionViaje } from "./subnav-viaje";
 
 export const metadata = { title: "Viaje" };
+
+const SECCIONES: SeccionViaje[] = [
+  { id: "alertas", label: "Alertas" },
+  { id: "alumnos", label: "Alumnos" },
+  { id: "group-leaders", label: "Group Leaders" },
+  { id: "pagos", label: "Pagos" },
+  { id: "seguimiento", label: "Seguimiento M7" },
+];
+
+/**
+ * Destino de un ancla: deja lugar para el header mobile + la subnav sticky.
+ * Es un <div> y no un <section> a propósito: los paneles ya son <section> y los
+ * E2E los localizan con `locator("section").filter(...)`; envolverlos en otra
+ * <section> haría que el filtro resuelva dos elementos.
+ */
+const ANCLA = "scroll-mt-[calc(8.5rem+var(--safe-top))] lg:scroll-mt-20";
 
 export default async function ViajeDetailPage({
   params,
@@ -37,25 +54,41 @@ export default async function ViajeDetailPage({
         }
       />
 
-      <Suspense fallback={<PanelSkeleton filas={2} />}>
-        <DatosViaje viaje={viaje} />
+      <Suspense fallback={<PanelSkeleton filas={3} />}>
+        <ResumenViaje viaje={viaje} />
       </Suspense>
 
-      <Suspense fallback={<PanelSkeleton />}>
-        <AsignacionesSection viaje={viaje} />
-      </Suspense>
+      <SubnavViaje secciones={SECCIONES} />
 
-      <Suspense fallback={<PanelSkeleton filas={2} />}>
-        <GroupLeadersSection viaje={viaje} />
-      </Suspense>
+      <div id="alertas" className={ANCLA}>
+        <Suspense fallback={<PanelSkeleton filas={2} />}>
+          <AlertasViajeSection viaje={viaje} />
+        </Suspense>
+      </div>
 
-      <Suspense fallback={<PanelSkeleton />}>
-        <PagosSection viajeId={viaje.id} />
-      </Suspense>
+      <div id="alumnos" className={ANCLA}>
+        <Suspense fallback={<PanelSkeleton />}>
+          <AsignacionesSection viaje={viaje} />
+        </Suspense>
+      </div>
 
-      <Suspense fallback={<PanelSkeleton filas={5} />}>
-        <PasosSection viajeId={viaje.id} />
-      </Suspense>
+      <div id="group-leaders" className={ANCLA}>
+        <Suspense fallback={<PanelSkeleton filas={2} />}>
+          <GroupLeadersSection viaje={viaje} />
+        </Suspense>
+      </div>
+
+      <div id="pagos" className={ANCLA}>
+        <Suspense fallback={<PanelSkeleton />}>
+          <PagosSection viajeId={viaje.id} />
+        </Suspense>
+      </div>
+
+      <div id="seguimiento" className={ANCLA}>
+        <Suspense fallback={<PanelSkeleton filas={5} />}>
+          <PasosSection viajeId={viaje.id} tipoViaje={viaje.tipo} />
+        </Suspense>
+      </div>
     </>
   );
 }

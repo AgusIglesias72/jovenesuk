@@ -56,6 +56,7 @@ export default async function PagosPage({
     alumnoApellido: c.alumnoApellido,
     viajeId: c.viajeId,
     viajeCodigo: c.viajeCodigo,
+    observaciones: c.observaciones,
   }));
 
   const { porMoneda: resumen, cuotasEnMora } = resumenGlobal;

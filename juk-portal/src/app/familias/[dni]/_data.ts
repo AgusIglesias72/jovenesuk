@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { requireFamilia } from "@/lib/auth/helpers";
 import { getAlumnoByDni } from "@/lib/db/queries/alumnos";
 import { listAsignacionesByAlumno } from "@/lib/db/queries/asignaciones";
+import { listCuotasByAsignaciones } from "@/lib/db/queries/cuotas";
+import { estaVencida } from "@/lib/domain/cuotas";
 
 /**
  * Resuelve el alumno por DNI (slug) y valida que pertenezca a la familia
@@ -32,3 +34,19 @@ export const asignacionesActivas = cache(async (alumnoId: string) => {
   const todas = await listAsignacionesByAlumno(alumnoId);
   return todas.filter((a) => a.estado !== "cancelada");
 });
+
+/**
+ * Cuotas de todas las asignaciones vigentes del alumno, en un solo round-trip.
+ * Memoizada por request: el layout la usa para el aviso global de cuota vencida
+ * y la page de Pagos/Resumen la reusa sin volver a pegarle a la base.
+ */
+export const cuotasActivas = cache(async (alumnoId: string) => {
+  const activas = await asignacionesActivas(alumnoId);
+  return listCuotasByAsignaciones(activas.map((a) => a.asignacionId));
+});
+
+/** Cantidad de cuotas vencidas del alumno hoy (misma regla que Pagos: `estaVencida`). */
+export async function contarCuotasVencidas(alumnoId: string, hoy: Date = new Date()): Promise<number> {
+  const cuotas = await cuotasActivas(alumnoId);
+  return cuotas.filter((c) => estaVencida(c, hoy)).length;
+}
