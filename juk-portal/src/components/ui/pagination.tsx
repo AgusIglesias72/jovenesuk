@@ -63,7 +63,7 @@ export function Pagination({
           onClick={() => ir(page - 1)}
           disabled={page <= 1}
           aria-label="página anterior"
-          className="grid h-9 w-9 place-items-center rounded-[var(--r-pill)] border border-[var(--c-border-strong)] bg-[var(--c-surface)] text-[var(--c-ink-muted)] transition-colors hover:border-[var(--c-brand-300)] hover:text-[var(--c-brand)] disabled:cursor-not-allowed disabled:opacity-45"
+          className="grid h-[var(--tap)] w-[var(--tap)] place-items-center rounded-[var(--r-pill)] border border-[var(--c-border-strong)] bg-[var(--c-surface)] text-[var(--c-ink-muted)] transition-colors hover:border-[var(--c-brand-300)] hover:text-[var(--c-brand)] disabled:cursor-not-allowed disabled:opacity-45 lg:[@media(pointer:fine)]:h-9 lg:[@media(pointer:fine)]:w-9"
         >
           ←
         </button>
@@ -79,7 +79,7 @@ export function Pagination({
               onClick={() => ir(n)}
               aria-current={n === page ? "page" : undefined}
               className={cn(
-                "grid h-9 min-w-9 place-items-center rounded-[var(--r-pill)] px-2 text-[length:var(--t-small)] font-semibold transition-colors",
+                "grid h-[var(--tap)] min-w-[var(--tap)] place-items-center rounded-[var(--r-pill)] px-2 text-[length:var(--t-small)] font-semibold transition-colors lg:[@media(pointer:fine)]:h-9 lg:[@media(pointer:fine)]:min-w-[36px]",
                 n === page
                   ? "bg-[var(--c-brand)] text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-brand)]"
                   : "text-[var(--c-ink-muted)] hover:bg-[var(--c-surface-2)] hover:text-[var(--c-ink)]"
@@ -94,7 +94,7 @@ export function Pagination({
           onClick={() => ir(page + 1)}
           disabled={page >= pages}
           aria-label="página siguiente"
-          className="grid h-9 w-9 place-items-center rounded-[var(--r-pill)] border border-[var(--c-border-strong)] bg-[var(--c-surface)] text-[var(--c-ink-muted)] transition-colors hover:border-[var(--c-brand-300)] hover:text-[var(--c-brand)] disabled:cursor-not-allowed disabled:opacity-45"
+          className="grid h-[var(--tap)] w-[var(--tap)] place-items-center rounded-[var(--r-pill)] border border-[var(--c-border-strong)] bg-[var(--c-surface)] text-[var(--c-ink-muted)] transition-colors hover:border-[var(--c-brand-300)] hover:text-[var(--c-brand)] disabled:cursor-not-allowed disabled:opacity-45 lg:[@media(pointer:fine)]:h-9 lg:[@media(pointer:fine)]:w-9"
         >
           →
         </button>

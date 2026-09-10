@@ -6,8 +6,10 @@ import { useState, useTransition } from "react";
 import {
   Badge,
   Button,
+  EmptyState,
   Field,
   Input,
+  LinkButton,
   Textarea,
   useToast,
 } from "@/components/ui";
@@ -130,11 +132,26 @@ export function ComunicacionesPanel({
         </h2>
 
         {outreachBloqueado ? (
-          <p className="mt-2 rounded-[var(--r-md)] border border-dashed border-[var(--c-border-strong)] bg-[var(--c-surface-3)] px-4 py-3 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
+          <EmptyState
+            compact
+            className="mt-3"
+            title={sinEmail ? "Sin email para escribirle" : "Se dio de baja de los correos"}
+            action={
+              sinEmail ? (
+                <LinkButton
+                  variant="secondary"
+                  size="sm"
+                  href={`/prospectos/${prospecto.id}/editar`}
+                >
+                  Agregar un email
+                </LinkButton>
+              ) : undefined
+            }
+          >
             {sinEmail
-              ? "El prospecto no tiene ningún email cargado. Agregá uno desde Editar para poder enviar outreach."
+              ? "El prospecto no tiene ningún email cargado: cargá uno para poder enviar outreach."
               : "El prospecto se dio de baja de los correos: no se le puede enviar outreach."}
-          </p>
+          </EmptyState>
         ) : (
           <form onSubmit={enviarMail} className="mt-4 flex flex-col gap-4">
             <Field label="Asunto" error={emailErrors?.asunto?.[0]}>
@@ -156,14 +173,14 @@ export function ComunicacionesPanel({
                 disabled={enviando}
               />
             </Field>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[length:var(--t-small)] text-[var(--c-ink-subtle)]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span className="min-w-0 text-[length:var(--t-small)] text-[var(--c-ink-subtle)]">
                 Se enviará a{" "}
-                <span className="font-mono text-[length:var(--t-mono)]">
+                <span className="break-all font-mono text-[length:var(--t-mono)]">
                   {prospecto.emails[0]}
                 </span>
               </span>
-              <Button type="submit" disabled={enviando}>
+              <Button type="submit" disabled={enviando} className="w-full sm:w-auto">
                 {enviando ? "Enviando…" : "Enviar correo"}
               </Button>
             </div>
@@ -185,7 +202,12 @@ export function ComunicacionesPanel({
             />
           </Field>
           <div className="mt-3 flex justify-end">
-            <Button type="submit" variant="secondary" disabled={guardandoNota}>
+            <Button
+              type="submit"
+              variant="secondary"
+              disabled={guardandoNota}
+              className="w-full sm:w-auto"
+            >
               {guardandoNota ? "Guardando…" : "Agregar nota"}
             </Button>
           </div>
@@ -198,9 +220,9 @@ export function ComunicacionesPanel({
         </h2>
 
         {comunicaciones.length === 0 ? (
-          <p className="mt-4 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
-            Todavía no hay comunicaciones registradas.
-          </p>
+          <EmptyState compact className="mt-4" title="Todavía no hay comunicaciones registradas.">
+            Los correos que mandes, las notas internas y los cambios de etapa se van a apilar acá.
+          </EmptyState>
         ) : (
           <ol className="mt-4 flex flex-col">
             {comunicaciones.map((c, i) => {
@@ -220,7 +242,7 @@ export function ComunicacionesPanel({
                     )}
                   </div>
 
-                  <div className={esUltima ? "pb-0" : "pb-5"}>
+                  <div className={esUltima ? "min-w-0 flex-1" : "min-w-0 flex-1 pb-5"}>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[length:var(--t-small)] font-semibold text-[var(--c-ink)]">
                         {TIPO_COMUNICACION_LABELS[c.tipo]}
@@ -251,7 +273,7 @@ export function ComunicacionesPanel({
                       </p>
                     )}
                     {c.destinatario && (
-                      <p className="mt-1 font-mono text-[length:var(--t-mono)] text-[var(--c-ink-subtle)]">
+                      <p className="mt-1 break-all font-mono text-[length:var(--t-mono)] text-[var(--c-ink-subtle)]">
                         {c.destinatario}
                       </p>
                     )}

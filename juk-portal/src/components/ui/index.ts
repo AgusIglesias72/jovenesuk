@@ -26,12 +26,25 @@ export {
 // Cards & alerts
 export { StatCard, Alert } from "./stat-card";
 export { TripCard } from "./trip-card";
+export { EmptyState } from "./empty-state";
 
 // Tables
-export { TableWrap, Table, THead, TBody, TR, TH, TD, CodeCell, DateCell } from "./data-table";
+export {
+  TableWrap,
+  Table,
+  THead,
+  TBody,
+  TR,
+  TH,
+  TD,
+  CodeCell,
+  DateCell,
+  CLASES_MODO_CARD,
+} from "./data-table";
 
-// Page header
+// Page header & section titles
 export { PageHeader } from "./page-header";
+export { SectionTitle, sectionTitleClasses } from "./section-title";
 
 // Pagination
 export { Pagination } from "./pagination";
@@ -50,7 +63,10 @@ export { GlobeLoader } from "./globe-loader";
 export {
   Skeleton,
   PageHeaderSkeleton,
+  FiltersSkeleton,
   ListPageSkeleton,
+  PagosPageSkeleton,
+  PanelSkeleton,
   FormPageSkeleton,
   FichaAlumnoSkeleton,
   ViajeDetalleSkeleton,

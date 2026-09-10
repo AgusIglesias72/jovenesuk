@@ -3,7 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Button, DateInput, Field, Input, Select, useConfirm, useToast } from "@/components/ui";
+import {
+  Button,
+  DateInput,
+  Field,
+  Input,
+  SectionTitle,
+  Select,
+  useConfirm,
+  useToast,
+} from "@/components/ui";
+import { AvisoErrores, useErroresDeFormulario } from "@/components/ui/form-errors";
 import {
   POLICE_CHECK_ESTADO_LABELS,
   POLICE_CHECK_ESTADOS,
@@ -56,7 +66,7 @@ export function GroupLeaderForm({
   const toast = useToast();
   const confirm = useConfirm();
   const [values, setValues] = useState<FormValues>(() => initialValues(initial));
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
+  const { formRef, fe, reportar, limpiar, aviso } = useErroresDeFormulario();
   const [dirty, setDirty] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -66,11 +76,10 @@ export function GroupLeaderForm({
     setDirty(true);
     setValues((v) => ({ ...v, [key]: value }));
   }
-  const fe = (k: string) => fieldErrors[k]?.[0];
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setFieldErrors({});
+    limpiar();
 
     const payload = {
       ...(mode === "edit" && initial ? { id: initial.id } : {}),
@@ -89,8 +98,7 @@ export function GroupLeaderForm({
         router.refresh();
       } else {
         toast.error(result.error);
-        if (result.fieldErrors) setFieldErrors(result.fieldErrors);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        reportar(result.fieldErrors);
       }
     });
   }
@@ -109,14 +117,21 @@ export function GroupLeaderForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-3xl">
+    <form ref={formRef} onSubmit={handleSubmit} className="max-w-3xl">
+      <AvisoErrores>{aviso}</AvisoErrores>
+
       <section className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
-          Datos
-        </h2>
+        <SectionTitle className="mb-3">Datos</SectionTitle>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Nombre" required error={fe("nombre")}>
-            <Input value={values.nombre} invalid={!!fe("nombre")} onChange={(e) => set("nombre", e.target.value)} />
+            <Input
+              value={values.nombre}
+              invalid={!!fe("nombre")}
+              // Solo en el alta: en un form vacío el primer campo es donde el
+              // usuario va a escribir (en edición sería un salto molesto).
+              autoFocus={mode === "create"}
+              onChange={(e) => set("nombre", e.target.value)}
+            />
           </Field>
           <Field label="Apellido" required error={fe("apellido")}>
             <Input value={values.apellido} invalid={!!fe("apellido")} onChange={(e) => set("apellido", e.target.value)} />
@@ -134,9 +149,7 @@ export function GroupLeaderForm({
       </section>
 
       <section className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
-          Police check
-        </h2>
+        <SectionTitle className="mb-3">Police check</SectionTitle>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Estado" required>
             <Select
@@ -160,11 +173,17 @@ export function GroupLeaderForm({
         </div>
       </section>
 
-      <div className="mt-6 flex items-center justify-end gap-3">
-        <Button type="button" variant="secondary" onClick={handleCancelar}>
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={isPending}
+          onClick={handleCancelar}
+          className="w-full sm:w-auto"
+        >
           Cancelar
         </Button>
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
           {isPending ? "Guardando…" : "Guardar"}
         </Button>
       </div>

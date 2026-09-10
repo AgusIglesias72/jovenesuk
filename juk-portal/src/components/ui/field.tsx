@@ -5,11 +5,21 @@ import {
   cloneElement,
   forwardRef,
   isValidElement,
+  useCallback,
   useEffect,
   useId,
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
+
+import {
+  clasesPopover,
+  medirPopover,
+  varsPopover,
+  type PosicionPopover,
+} from "@/components/ui/popover-position";
+import { unirIds } from "@/lib/utils/aria";
 import { cn } from "@/lib/utils/cn";
 
 /**
@@ -74,9 +84,10 @@ const controlState = {
 } as const;
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ invalid, className, ...props }, ref) => (
+  ({ invalid, className, "aria-invalid": ariaInvalid, ...props }, ref) => (
     <input
       ref={ref}
+      aria-invalid={invalid ? true : ariaInvalid}
       className={cn(
         controlBase,
         "min-h-[var(--tap)]",
@@ -98,9 +109,10 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 }
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ invalid, className, ...props }, ref) => (
+  ({ invalid, className, "aria-invalid": ariaInvalid, ...props }, ref) => (
     <textarea
       ref={ref}
+      aria-invalid={invalid ? true : ariaInvalid}
       className={cn(
         controlBase,
         "min-h-[96px] resize-y py-3 leading-[var(--lh-body)]",
@@ -165,15 +177,32 @@ function opcionesDe(children: React.ReactNode): Opcion[] {
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   (
-    { invalid, className, children, id, disabled, value, defaultValue, onChange, searchable, ...props },
+    {
+      invalid,
+      className,
+      children,
+      id,
+      disabled,
+      value,
+      defaultValue,
+      onChange,
+      searchable,
+      "aria-labelledby": ariaLabelledBy,
+      "aria-describedby": ariaDescribedBy,
+      "aria-invalid": ariaInvalid,
+      ...props
+    },
     ref
   ) => {
     const opciones = opcionesDe(children);
+    const uid = useId();
+    const listboxId = `${uid}-listbox`;
     const selectRef = useRef<HTMLSelectElement | null>(null);
     const botonRef = useRef<HTMLButtonElement>(null);
     const listaRef = useRef<HTMLUListElement>(null);
     const busquedaRef = useRef<HTMLInputElement>(null);
     const [open, setOpen] = useState(false);
+    const [pos, setPos] = useState<PosicionPopover | null>(null);
     const [busqueda, setBusqueda] = useState("");
     const [interno, setInterno] = useState<string>(() => {
       if (defaultValue != null) return String(defaultValue);
@@ -187,6 +216,25 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         ? opciones.filter((o) => normalizar(o.label).includes(normalizar(busqueda)))
         : opciones;
 
+    const medir = useCallback(() => {
+      if (botonRef.current) setPos(medirPopover(botonRef.current, { altoDeseado: 320 }));
+    }, []);
+
+    const cerrar = useCallback(() => {
+      setOpen(false);
+      botonRef.current?.focus();
+    }, []);
+
+    function alternar() {
+      if (open) {
+        cerrar();
+        return;
+      }
+      setBusqueda("");
+      medir();
+      setOpen(true);
+    }
+
     // Elegir desde la lista: se escribe en el select nativo y se emite `change`,
     // así el flujo (React onChange, forms, tests) es el mismo que el nativo.
     function elegir(v: string) {
@@ -196,9 +244,27 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         setter?.call(el, v);
         el.dispatchEvent(new Event("change", { bubbles: true }));
       }
-      setOpen(false);
-      botonRef.current?.focus();
+      cerrar();
     }
+
+    // El panel vive en un portal con posición fija: si algo scrollea o cambia el
+    // tamaño de la ventana hay que volver a medir para que siga pegado al campo.
+    // Escape se escucha en el documento porque el foco puede seguir en el botón.
+    useEffect(() => {
+      if (!open) return;
+      const reposicionar = () => medir();
+      const alTeclear = (e: KeyboardEvent) => {
+        if (e.key === "Escape") cerrar();
+      };
+      window.addEventListener("scroll", reposicionar, true);
+      window.addEventListener("resize", reposicionar);
+      document.addEventListener("keydown", alTeclear);
+      return () => {
+        window.removeEventListener("scroll", reposicionar, true);
+        window.removeEventListener("resize", reposicionar);
+        document.removeEventListener("keydown", alTeclear);
+      };
+    }, [open, medir, cerrar]);
 
     useEffect(() => {
       if (!open) return;
@@ -231,8 +297,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         e.preventDefault();
         botones[botones.length - 1]?.focus();
       } else if (e.key === "Escape" || e.key === "Tab") {
-        setOpen(false);
-        botonRef.current?.focus();
+        cerrar();
       }
     }
 
@@ -255,6 +320,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           }}
           tabIndex={-1}
           aria-hidden
+          aria-labelledby={ariaLabelledBy}
+          aria-describedby={ariaDescribedBy}
           className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
           {...props}
         >
@@ -265,16 +332,22 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           type="button"
           ref={botonRef}
           disabled={disabled}
+          role="combobox"
           aria-haspopup="listbox"
           aria-expanded={open}
+          aria-controls={open ? listboxId : undefined}
           aria-label={seleccionada?.label || undefined}
-          onClick={() => {
-            setBusqueda("");
-            setOpen((v) => !v);
-          }}
+          // El nombre del campo llega como descripción y no como `aria-labelledby`:
+          // el <select> nativo (fuente de verdad del form y de getByLabel) ya lo
+          // usa, y duplicar el nombre haría que un mismo label resuelva a dos
+          // elementos. `aria-describedby` suma la ayuda/el error sin ese choque.
+          aria-describedby={unirIds(ariaLabelledBy, ariaDescribedBy)}
+          aria-invalid={invalid ? true : ariaInvalid}
+          onClick={alternar}
           onKeyDown={(e) => {
             if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
               e.preventDefault();
+              medir();
               setOpen(true);
             }
           }}
@@ -316,103 +389,114 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           </svg>
         </button>
 
-        {open && (
-          <>
-            <button
-              type="button"
-              aria-label="cerrar opciones"
-              tabIndex={-1}
-              onClick={() => setOpen(false)}
-              className="fixed inset-0 z-40 cursor-default"
-            />
-            <div className="absolute z-50 mt-2 w-full rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] p-1.5 shadow-[shadow:var(--shadow-2)]">
-              {searchable && (
-                <div className="relative mb-1">
-                  <span
-                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--c-ink-subtle)]"
-                    aria-hidden
-                  >
-                    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.8}>
-                      <circle cx={9} cy={9} r={5.5} />
-                      <path d="m13.5 13.5 3 3" strokeLinecap="round" />
-                    </svg>
-                  </span>
-                  <input
-                    ref={busquedaRef}
-                    type="text"
-                    value={busqueda}
-                    onChange={(e) => setBusqueda(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") {
-                        setOpen(false);
-                        botonRef.current?.focus();
-                      } else if (e.key === "ArrowDown") {
-                        e.preventDefault();
-                        listaRef.current
-                          ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
-                          ?.focus();
-                      } else if (e.key === "Enter") {
-                        e.preventDefault();
-                        const primera = visibles.find((o) => !o.disabled);
-                        if (primera) elegir(primera.value);
-                      }
-                    }}
-                    placeholder="Escribí para filtrar…"
-                    aria-label="filtrar opciones"
-                    className="min-h-[36px] w-full rounded-[var(--r-md)] border border-[var(--c-border)] bg-[var(--c-surface-2)] pl-9 pr-3 text-[length:var(--t-small)] text-[var(--c-ink)] placeholder:text-[var(--c-ink-subtle)] focus:border-[var(--c-brand-300)] focus:outline-none"
-                  />
-                </div>
-              )}
-              <ul
-                ref={listaRef}
-                role="listbox"
-                onKeyDown={navegarLista}
-                className="flex max-h-64 flex-col gap-1 overflow-y-auto"
+        {/* El panel se monta en un portal sobre document.body: dentro del árbol
+            quedaba recortado por cualquier ancestro con overflow (TableWrap). */}
+        {open &&
+          pos &&
+          createPortal(
+            <>
+              <button
+                type="button"
+                aria-label="cerrar opciones"
+                tabIndex={-1}
+                onClick={cerrar}
+                className="fixed inset-0 z-40 cursor-default"
+              />
+              <div
+                style={varsPopover(pos)}
+                className={cn(
+                  clasesPopover(pos),
+                  "flex flex-col overflow-hidden rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] p-1.5 shadow-[shadow:var(--shadow-2)]"
+                )}
               >
-              {visibles.length === 0 && (
-                <li className="px-3 py-2.5 text-[length:var(--t-small)] text-[var(--c-ink-subtle)]">
-                  Sin resultados para “{busqueda}”
-                </li>
-              )}
-              {visibles.map((o) => {
-                const activa = o.value === actual;
-                return (
-                  <li key={o.value}>
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={activa}
-                      disabled={o.disabled}
-                      onClick={() => elegir(o.value)}
-                      className={cn(
-                        "flex w-full items-center justify-between gap-3 rounded-[var(--r-md)] px-3 py-2.5 text-left text-[length:var(--t-small)] transition-colors",
-                        "disabled:cursor-not-allowed disabled:opacity-50",
-                        activa
-                          ? "bg-[var(--c-brand-50)] font-semibold text-[var(--c-brand)]"
-                          : "font-medium text-[var(--c-ink)] hover:bg-[var(--c-surface-2)]"
-                      )}
+                {searchable && (
+                  <div className="relative mb-1">
+                    <span
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--c-ink-subtle)]"
+                      aria-hidden
                     >
-                      <span className="truncate">{o.label}</span>
-                      {activa && (
-                        <svg viewBox="0 0 20 20" aria-hidden className="h-4 w-4 shrink-0">
-                          <path
-                            d="M4 10.5 8 14.5 16 5.5"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth={2.2}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      )}
-                    </button>
+                      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                        <circle cx={9} cy={9} r={5.5} />
+                        <path d="m13.5 13.5 3 3" strokeLinecap="round" />
+                      </svg>
+                    </span>
+                    <input
+                      ref={busquedaRef}
+                      type="text"
+                      value={busqueda}
+                      onChange={(e) => setBusqueda(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                          cerrar();
+                        } else if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          listaRef.current
+                            ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+                            ?.focus();
+                        } else if (e.key === "Enter") {
+                          e.preventDefault();
+                          const primera = visibles.find((o) => !o.disabled);
+                          if (primera) elegir(primera.value);
+                        }
+                      }}
+                      placeholder="Escribí para filtrar…"
+                      aria-label="filtrar opciones"
+                      className="min-h-[36px] w-full rounded-[var(--r-md)] border border-[var(--c-border)] bg-[var(--c-surface-2)] pl-9 pr-3 text-[length:var(--t-small)] text-[var(--c-ink)] placeholder:text-[var(--c-ink-subtle)] focus:border-[var(--c-brand-300)] focus:outline-none"
+                    />
+                  </div>
+                )}
+                <ul
+                  ref={listaRef}
+                  id={listboxId}
+                  role="listbox"
+                  onKeyDown={navegarLista}
+                  className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto"
+                >
+                {visibles.length === 0 && (
+                  <li className="px-3 py-2.5 text-[length:var(--t-small)] text-[var(--c-ink-subtle)]">
+                    Sin resultados para “{busqueda}”
                   </li>
-                );
-              })}
-              </ul>
-            </div>
-          </>
-        )}
+                )}
+                {visibles.map((o) => {
+                  const activa = o.value === actual;
+                  return (
+                    <li key={o.value}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={activa}
+                        disabled={o.disabled}
+                        onClick={() => elegir(o.value)}
+                        className={cn(
+                          "flex w-full items-center justify-between gap-3 rounded-[var(--r-md)] px-3 py-2.5 text-left text-[length:var(--t-small)] transition-colors",
+                          "disabled:cursor-not-allowed disabled:opacity-50",
+                          activa
+                            ? "bg-[var(--c-brand-50)] font-semibold text-[var(--c-brand)]"
+                            : "font-medium text-[var(--c-ink)] hover:bg-[var(--c-surface-2)]"
+                        )}
+                      >
+                        <span className="truncate">{o.label}</span>
+                        {activa && (
+                          <svg viewBox="0 0 20 20" aria-hidden className="h-4 w-4 shrink-0">
+                            <path
+                              d="M4 10.5 8 14.5 16 5.5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2.2}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+                </ul>
+              </div>
+            </>,
+            document.body
+          )}
       </div>
     );
   }
@@ -423,17 +507,23 @@ Select.displayName = "Select";
    Help & Error text
    ============================================================ */
 
-export function HelpText({ children, className }: { children: React.ReactNode; className?: string }) {
+type TextoAuxiliarProps = { children: React.ReactNode; className?: string; id?: string };
+
+export function HelpText({ children, className, id }: TextoAuxiliarProps) {
   return (
-    <span className={cn("text-[length:var(--t-small)] text-[var(--c-ink-subtle)] mt-0.5", className)}>
+    <span
+      id={id}
+      className={cn("text-[length:var(--t-small)] text-[var(--c-ink-subtle)] mt-0.5", className)}
+    >
       {children}
     </span>
   );
 }
 
-export function ErrorText({ children, className }: { children: React.ReactNode; className?: string }) {
+export function ErrorText({ children, className, id }: TextoAuxiliarProps) {
   return (
     <span
+      id={id}
       className={cn("text-[length:var(--t-small)] font-medium text-[var(--c-danger)] mt-0.5", className)}
       role="alert"
     >
@@ -455,21 +545,39 @@ interface FieldProps {
   className?: string;
 }
 
+type PropsA11yControl = {
+  id?: string;
+  "aria-labelledby"?: string;
+  "aria-describedby"?: string;
+  "aria-invalid"?: boolean;
+};
+
 export function Field({ label, required, help, error, children, className }: FieldProps) {
   const id = useId();
-  // Asocia el label con el control inyectándole el id (accesibilidad + testabilidad).
+  const labelId = `${id}-label`;
+  const descId = `${id}-desc`;
+  // Asocia el label, la ayuda y el error con el control (accesibilidad + testabilidad).
   const control = isValidElement(children)
-    ? cloneElement(children as React.ReactElement<{ id?: string }>, { id })
+    ? cloneElement(children as React.ReactElement<PropsA11yControl>, {
+        id,
+        "aria-labelledby": label ? labelId : undefined,
+        "aria-describedby": error || help ? descId : undefined,
+        "aria-invalid": error ? true : undefined,
+      })
     : children;
   return (
     <div className={cn("flex flex-col gap-1", className)}>
       {label && (
-        <Label htmlFor={id} required={required}>
+        <Label id={labelId} htmlFor={id} required={required}>
           {label}
         </Label>
       )}
       {control}
-      {error ? <ErrorText>{error}</ErrorText> : help ? <HelpText>{help}</HelpText> : null}
+      {error ? (
+        <ErrorText id={descId}>{error}</ErrorText>
+      ) : help ? (
+        <HelpText id={descId}>{help}</HelpText>
+      ) : null}
     </div>
   );
 }

@@ -1,6 +1,16 @@
-import Link from "next/link";
-
-import { Badge, Table, TBody, TD, TH, THead, TableWrap, TR } from "@/components/ui";
+import {
+  Badge,
+  DateCell,
+  EmptyState,
+  LinkButton,
+  Table,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TableWrap,
+  TR,
+} from "@/components/ui";
 import { PAIS_LABELS } from "@/lib/domain/colegios";
 import { PROSPECTO_ESTADO_LABELS, PROSPECTO_ESTADO_TONE } from "@/lib/domain/prospectos";
 import type { Prospecto } from "@/lib/db/schema/prospectos";
@@ -11,28 +21,52 @@ function ubicacion(p: Prospecto): string | null {
   return partes.length > 0 ? partes.join(" · ") : null;
 }
 
-export function ProspectosTable({ prospectos }: { prospectos: Prospecto[] }) {
+export function ProspectosTable({
+  prospectos,
+  hayFiltros = false,
+}: {
+  prospectos: Prospecto[];
+  hayFiltros?: boolean;
+}) {
   if (prospectos.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 bg-white p-10 text-center">
-        <p className="text-sm font-medium text-gray-700">No hay prospectos que coincidan.</p>
-        <p className="mt-1 text-sm text-gray-500">
-          Probá ajustar los filtros o sumá uno nuevo con “+ Nuevo prospecto”.
-        </p>
-      </div>
+      <EmptyState
+        icon="🎯"
+        title={hayFiltros ? "Sin resultados para estos filtros" : "Todavía no hay prospectos"}
+        action={
+          hayFiltros ? (
+            <LinkButton variant="secondary" href="/prospectos?vista=tabla">
+              Limpiar filtros
+            </LinkButton>
+          ) : (
+            <>
+              <LinkButton href="/prospectos/nuevo">+ Nuevo prospecto</LinkButton>
+              <LinkButton variant="secondary" href="/prospectos/importar">
+                Importar
+              </LinkButton>
+            </>
+          )
+        }
+      >
+        {hayFiltros
+          ? "Probá con menos filtros o buscá por nombre del colegio."
+          : "Cargá los colegios a los que les querés escribir, o importalos desde un CSV."}
+      </EmptyState>
     );
   }
 
   return (
     <TableWrap>
-      <Table>
+      <Table responsive>
         <THead>
           <TR>
             <TH>Colegio</TH>
             <TH>Estado</TH>
             <TH>Contacto</TH>
             <TH>Próxima acción</TH>
-            <TH className="w-[72px]" />
+            <TH className="w-[88px]">
+              <span className="sr-only">Acciones</span>
+            </TH>
           </TR>
         </THead>
         <TBody>
@@ -41,43 +75,44 @@ export function ProspectosTable({ prospectos }: { prospectos: Prospecto[] }) {
             const primerEmail = p.emails[0] ?? null;
             return (
               <TR key={p.id}>
-                <TD>
-                  <span className="font-semibold text-juk-navy-950">{p.nombre}</span>
+                <TD label="Colegio">
+                  <span className="block font-semibold text-[var(--c-ink)]">{p.nombre}</span>
                   {lugar ? (
-                    <span className="mt-0.5 block text-xs text-gray-500">{lugar}</span>
+                    <span className="block text-[length:var(--t-label)] text-[var(--c-ink-muted)]">
+                      {lugar}
+                    </span>
                   ) : null}
                 </TD>
-                <TD>
+                <TD label="Estado">
                   <Badge tone={PROSPECTO_ESTADO_TONE[p.estado]}>
                     {PROSPECTO_ESTADO_LABELS[p.estado]}
                   </Badge>
                 </TD>
-                <TD>
+                <TD label="Contacto">
                   {p.contactoNombre || primerEmail ? (
                     <>
                       {p.contactoNombre ? (
-                        <span className="text-gray-700">{p.contactoNombre}</span>
+                        <span className="block text-[var(--c-ink-muted)]">{p.contactoNombre}</span>
                       ) : null}
                       {primerEmail ? (
-                        <span className="mt-0.5 block text-xs text-gray-500">{primerEmail}</span>
+                        <span className="block break-all text-[length:var(--t-label)] text-[var(--c-ink-muted)]">
+                          {primerEmail}
+                        </span>
                       ) : null}
                     </>
                   ) : (
-                    <span className="text-gray-400">—</span>
+                    <span className="text-[var(--c-ink-subtle)]">—</span>
                   )}
                 </TD>
-                <TD>
-                  <span className="text-gray-700">
-                    {p.proximaAccionAt ? formatFecha(p.proximaAccionAt) : "—"}
-                  </span>
+                <TD label="Próxima acción">
+                  <DateCell date={p.proximaAccionAt ? formatFecha(p.proximaAccionAt) : "—"} />
                 </TD>
-                <TD>
-                  <Link
-                    href={`/prospectos/${p.id}`}
-                    className="text-sm font-semibold text-juk-navy-700 hover:text-juk-navy-900"
-                  >
-                    Ver
-                  </Link>
+                <TD className="max-sm:justify-end">
+                  <div className="flex justify-end">
+                    <LinkButton variant="ghost" size="sm" href={`/prospectos/${p.id}`}>
+                      Ver
+                    </LinkButton>
+                  </div>
                 </TD>
               </TR>
             );

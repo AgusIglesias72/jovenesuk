@@ -180,25 +180,45 @@ function SubirArchivo({ paso }: { paso: PasoAlumno }) {
           Enviado ✓ — lo revisamos pronto
         </p>
       )}
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          ref={inputRef}
-          type="file"
-          accept="application/pdf,image/jpeg,image/png"
-          disabled={pending}
-          onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
-          aria-label={`Adjuntar archivo para ${PASO_LABELS[paso.codigo as PasoCodigo]}`}
-          className="min-w-0 flex-1 text-[length:var(--t-small)] text-[var(--c-ink-muted)] file:mr-3 file:rounded-[var(--r-pill)] file:border file:border-[var(--c-border-strong)] file:bg-[var(--c-surface)] file:px-3 file:py-1.5 file:text-[length:var(--t-label)] file:font-semibold file:text-[var(--c-ink)]"
-        />
+      {/* El input nativo queda oculto: en el teléfono cada plataforma lo dibuja
+          distinto y el nombre del archivo se corta. El botón grande es el que
+          abre el picker del sistema (que ya ofrece cámara, fotos y archivos),
+          y `hidden` no le impide a Playwright hacer setInputFiles. */}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="application/pdf,image/jpeg,image/png,image/webp"
+        disabled={pending}
+        onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
+        aria-label={`Adjuntar archivo para ${PASO_LABELS[paso.codigo as PasoCodigo]}`}
+        className="hidden"
+      />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <Button
           type="button"
-          size="sm"
+          variant="secondary"
+          size="lg"
+          disabled={pending}
+          onClick={() => inputRef.current?.click()}
+          className="w-full sm:w-auto"
+        >
+          Elegir archivo o sacar foto
+        </Button>
+        <Button
+          type="button"
+          size="lg"
           onClick={enviar}
           disabled={!archivo || pending}
+          className="w-full sm:w-auto"
         >
           {pending ? "Subiendo…" : yaEnviado ? "Reemplazar" : "Subir archivo"}
         </Button>
       </div>
+      {archivo && (
+        <p className="truncate text-[length:var(--t-small)] font-medium text-[var(--c-ink)]">
+          Elegiste: {archivo.name}
+        </p>
+      )}
       <p className="text-[length:var(--t-label)] text-[var(--c-ink-subtle)]">
         Aceptamos PDF, JPG o PNG.
       </p>
@@ -222,9 +242,9 @@ function ReportarEta({ paso }: { paso: PasoAlumno }) {
       <p className="text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
         Contanos en qué etapa está el ETA.
       </p>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <Select
-          className="min-w-[180px] flex-1"
+          className="w-full sm:min-w-[180px] sm:flex-1"
           value={subEstado}
           disabled={pending}
           aria-label="Estado del ETA"
@@ -238,8 +258,9 @@ function ReportarEta({ paso }: { paso: PasoAlumno }) {
         </Select>
         <Button
           type="button"
-          size="sm"
+          size="lg"
           disabled={pending}
+          className="w-full sm:w-auto"
           onClick={() =>
             correr(
               () => reportarEtaFamiliaAction({ pasoId: paso.id, subEstado }),
@@ -277,8 +298,9 @@ function ConfirmarPaso({ paso }: { paso: PasoAlumno }) {
       </p>
       <Button
         type="button"
-        size="sm"
+        size="lg"
         disabled={pending}
+        className="w-full sm:w-auto"
         onClick={() =>
           correr(
             () => confirmarPasoFamiliaAction({ pasoId: paso.id }),

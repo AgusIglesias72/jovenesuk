@@ -1,6 +1,15 @@
-import Link from "next/link";
-
-import { Badge, Table, TBody, TD, TH, THead, TableWrap, TR } from "@/components/ui";
+import {
+  Badge,
+  EmptyState,
+  LinkButton,
+  Table,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TableWrap,
+  TR,
+} from "@/components/ui";
 import {
   ESTADO_COLEGIO_LABELS,
   PAIS_LABELS,
@@ -8,58 +17,76 @@ import {
 } from "@/lib/domain/colegios";
 import type { Colegio } from "@/lib/db/schema/colegios";
 
-export function ColegiosTable({ colegios }: { colegios: Colegio[] }) {
+export function ColegiosTable({
+  colegios,
+  hayFiltros = false,
+}: {
+  colegios: Colegio[];
+  hayFiltros?: boolean;
+}) {
   if (colegios.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 bg-white p-10 text-center">
-        <p className="text-sm font-medium text-gray-700">No hay colegios que coincidan.</p>
-        <p className="mt-1 text-sm text-gray-500">
-          Probá ajustar los filtros o creá uno nuevo con “+ Nuevo colegio”.
-        </p>
-      </div>
+      <EmptyState
+        icon="🏫"
+        title={hayFiltros ? "Sin resultados para estos filtros" : "Todavía no hay colegios"}
+        action={
+          hayFiltros ? (
+            <LinkButton variant="secondary" href="/colegios">
+              Limpiar filtros
+            </LinkButton>
+          ) : (
+            <LinkButton href="/colegios/nuevo">+ Nuevo colegio</LinkButton>
+          )
+        }
+      >
+        {hayFiltros
+          ? "Probá con menos filtros o buscá por nombre o ciudad."
+          : "Acá viven los colegios de origen (los que mandan alumnos) y los de destino."}
+      </EmptyState>
     );
   }
 
   return (
     <TableWrap>
-      <Table>
+      <Table responsive>
         <THead>
           <TR>
             <TH>Nombre</TH>
             <TH>Tipo</TH>
             <TH>Ubicación</TH>
             <TH>Estado</TH>
-            <TH className="w-[88px]" />
+            <TH className="w-[104px]">
+              <span className="sr-only">Acciones</span>
+            </TH>
           </TR>
         </THead>
         <TBody>
           {colegios.map((c) => (
             <TR key={c.id}>
-              <TD>
-                <span className="font-semibold text-juk-navy-950">{c.nombre}</span>
+              <TD label="Nombre">
+                <span className="font-semibold text-[var(--c-ink)]">{c.nombre}</span>
               </TD>
-              <TD>
+              <TD label="Tipo">
                 <Badge tone={c.tipo === "destino" ? "brand" : "info"}>
                   {TIPO_COLEGIO_LABELS[c.tipo]}
                 </Badge>
               </TD>
-              <TD>
-                <span className="text-gray-700">
+              <TD label="Ubicación">
+                <span className="text-[var(--c-ink-muted)]">
                   {PAIS_LABELS[c.pais]} · {c.ciudad}
                 </span>
               </TD>
-              <TD>
+              <TD label="Estado">
                 <Badge tone={c.estado === "activo" ? "success" : "neutral"}>
                   {ESTADO_COLEGIO_LABELS[c.estado]}
                 </Badge>
               </TD>
-              <TD>
-                <Link
-                  href={`/colegios/${c.id}/editar`}
-                  className="text-sm font-semibold text-juk-navy-700 hover:text-juk-navy-900"
-                >
-                  Editar
-                </Link>
+              <TD className="max-sm:justify-end">
+                <div className="flex justify-end">
+                  <LinkButton variant="ghost" size="sm" href={`/colegios/${c.id}/editar`}>
+                    Editar
+                  </LinkButton>
+                </div>
               </TD>
             </TR>
           ))}

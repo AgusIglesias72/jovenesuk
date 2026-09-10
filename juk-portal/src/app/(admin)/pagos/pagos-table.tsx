@@ -4,7 +4,23 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 
-import { Badge, Button, MoraBadge, useConfirm, useToast } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  DateCell,
+  EmptyState,
+  LinkButton,
+  MoraBadge,
+  Table,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TableWrap,
+  TR,
+  useConfirm,
+  useToast,
+} from "@/components/ui";
 import { formatMonto, type Moneda } from "@/lib/domain/cuotas";
 import { formatFecha } from "@/lib/utils/date";
 
@@ -31,7 +47,13 @@ export type PagoRow = {
 
 const CANAL_LABELS = { agencia: "Vía agencia", presencial: "Presencial JUK" } as const;
 
-export function PagosTable({ rows }: { rows: PagoRow[] }) {
+export function PagosTable({
+  rows,
+  hayFiltros = false,
+}: {
+  rows: PagoRow[];
+  hayFiltros?: boolean;
+}) {
   const router = useRouter();
   const confirm = useConfirm();
   const toast = useToast();
@@ -73,95 +95,107 @@ export function PagosTable({ rows }: { rows: PagoRow[] }) {
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-[var(--r-lg)] border border-dashed border-[var(--c-border-strong)] p-10 text-center">
-        <p className="text-[length:var(--t-body)] font-semibold text-[var(--c-ink)]">
-          No hay cuotas para estos filtros
-        </p>
-        <p className="mt-1 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
-          Los planes de cuotas se crean desde la ficha del alumno.
-        </p>
-      </div>
+      <EmptyState
+        icon="💸"
+        title={hayFiltros ? "Sin resultados para estos filtros" : "Todavía no hay cuotas"}
+        action={
+          hayFiltros ? (
+            <LinkButton variant="secondary" href="/pagos">
+              Limpiar filtros
+            </LinkButton>
+          ) : undefined
+        }
+      >
+        Los planes de cuotas se crean desde la ficha del alumno.
+      </EmptyState>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] shadow-[shadow:var(--shadow-1)]">
-      <table className="w-full text-[length:var(--t-small)]">
-        <thead>
-          <tr className="border-b border-[var(--c-border)] text-left">
-            {["Alumno", "Viaje", "Cuota", "Monto", "Vencimiento", "Estado", "Canal", ""].map(
-              (h, i) => (
-                <th
-                  key={i}
-                  className="px-5 py-3 text-[length:var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-subtle)]"
-                >
-                  {h}
-                </th>
-              )
-            )}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[var(--c-border)]">
+    <TableWrap>
+      <Table responsive className="sm:min-w-[680px]">
+        <THead>
+          <TR>
+            <TH>Alumno</TH>
+            <TH>Viaje</TH>
+            <TH>Monto</TH>
+            <TH>Vencimiento</TH>
+            <TH>Estado</TH>
+            <TH className="w-[168px]">
+              <span className="sr-only">Acciones</span>
+            </TH>
+          </TR>
+        </THead>
+        <TBody>
           {rows.map((r) => (
-            <tr key={r.id} className="hover:bg-[var(--c-surface-2)]">
-              <td className="px-5 py-3">
+            <TR key={r.id}>
+              <TD label="Alumno">
                 <Link
                   href={`/alumnos/${r.alumnoDni}`}
                   className="font-semibold text-[var(--c-ink)] hover:text-[var(--c-brand)] hover:underline"
                 >
                   {r.alumnoApellido}, {r.alumnoNombre}
                 </Link>
-              </td>
-              <td className="px-5 py-3">
+              </TD>
+              <TD label="Viaje">
                 <Link
                   href={`/viajes/${r.viajeCodigo}`}
                   className="font-mono text-[length:var(--t-mono)] font-bold text-[var(--c-brand)] hover:underline"
                 >
                   {r.viajeCodigo}
                 </Link>
-              </td>
-              <td className="px-5 py-3 text-[var(--c-ink-muted)]">
-                {r.numero}
-                {r.esUltimaCuota === 1 && (
-                  <span className="ml-1 text-[var(--c-ink-subtle)]">(última)</span>
-                )}
-              </td>
-              <td className="px-5 py-3 font-mono text-[length:var(--t-mono)] font-semibold text-[var(--c-ink)]">
-                {formatMonto(r.monto, r.moneda as Moneda)}
-              </td>
-              <td className="px-5 py-3 text-[var(--c-ink-muted)]">
-                {formatFecha(r.fechaVencimiento)}
-              </td>
-              <td className="px-5 py-3">
+              </TD>
+              <TD label="Monto">
+                <span className="block font-mono text-[length:var(--t-mono)] font-semibold tabular-nums text-[var(--c-ink)]">
+                  {formatMonto(r.monto, r.moneda as Moneda)}
+                </span>
+                <span className="block text-[length:var(--t-label)] text-[var(--c-ink-muted)]">
+                  cuota {r.numero}
+                  {r.esUltimaCuota === 1 && (
+                    <span className="ml-1 text-[var(--c-ink-subtle)]">(última)</span>
+                  )}
+                </span>
+              </TD>
+              <TD label="Vencimiento">
+                <DateCell date={formatFecha(r.fechaVencimiento)} />
+                <span className="block text-[length:var(--t-label)] text-[var(--c-ink-muted)]">
+                  {CANAL_LABELS[r.canal]}
+                </span>
+              </TD>
+              <TD label="Estado">
                 {r.estadoEfectivo === "pagada" ? (
-                  <Badge tone="success">Pagada</Badge>
+                  <>
+                    <Badge tone="success">Pagada</Badge>
+                    {r.fechaPagoEfectivo && (
+                      <span className="block text-[length:var(--t-label)] text-[var(--c-ink-subtle)]">
+                        el {formatFecha(r.fechaPagoEfectivo)}
+                      </span>
+                    )}
+                  </>
                 ) : r.estadoEfectivo === "vencida" ? (
                   <MoraBadge days={r.diasMora} />
                 ) : (
                   <Badge tone="neutral">Pendiente</Badge>
                 )}
-              </td>
-              <td className="px-5 py-3 text-[var(--c-ink-muted)]">{CANAL_LABELS[r.canal]}</td>
-              <td className="px-5 py-3 text-right">
-                {r.estadoEfectivo !== "pagada" ? (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    disabled={isPending}
-                    onClick={() => registrarPago(r)}
-                  >
-                    Registrar pago
-                  </Button>
-                ) : (
-                  <span className="text-[length:var(--t-label)] text-[var(--c-ink-subtle)]">
-                    {r.fechaPagoEfectivo ? formatFecha(r.fechaPagoEfectivo) : "—"}
-                  </span>
-                )}
-              </td>
-            </tr>
+              </TD>
+              <TD className="max-sm:justify-end">
+                <div className="flex justify-end">
+                  {r.estadoEfectivo !== "pagada" && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={isPending}
+                      onClick={() => registrarPago(r)}
+                    >
+                      Registrar pago
+                    </Button>
+                  )}
+                </div>
+              </TD>
+            </TR>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </TBody>
+      </Table>
+    </TableWrap>
   );
 }

@@ -92,7 +92,7 @@ export default async function PagosPage({
         <PagosFilters viajes={viajes} />
       </div>
 
-      <PagosTable rows={rows} />
+      <PagosTable rows={rows} hayFiltros={Boolean(sp.viaje || moneda || estado)} />
       <Pagination total={cuotas.total} page={cuotas.page} pages={cuotas.pages} />
     </>
   );

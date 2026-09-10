@@ -2,13 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import { useScrollLock } from "@/components/ui/use-scroll-lock";
 
 type NavLink = { href: string; label: string };
+
+const PANEL_ID = "menu-mobile-publico";
 
 export function MobileMenu({ links }: { links: readonly NavLink[] }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const botonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // Cerrar el menú al cambiar de ruta (incluye el botón "atrás" del navegador).
   useEffect(() => {
@@ -16,16 +22,36 @@ export function MobileMenu({ links }: { links: readonly NavLink[] }) {
     setOpen(false);
   }, [pathname]);
 
+  // Con el menú abierto el fondo no scrollea (el hook del DS cubre iOS) y
+  // Escape lo cierra devolviendo el foco al botón que lo abrió.
+  useScrollLock(open);
+
+  useEffect(() => {
+    if (!open) return;
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", alTeclear);
+    const boton = botonRef.current;
+    panelRef.current?.querySelector<HTMLAnchorElement>("a[href]")?.focus();
+    return () => {
+      document.removeEventListener("keydown", alTeclear);
+      boton?.focus();
+    };
+  }, [open]);
+
   const itemClass =
-    "block rounded-[var(--r-sm)] px-4 py-2.5 text-[length:var(--t-body)] font-semibold hover:bg-[var(--c-surface-3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--c-brand)]";
+    "flex min-h-[var(--tap)] items-center rounded-[var(--r-sm)] px-4 text-[length:var(--t-body)] font-semibold hover:bg-[var(--c-surface-3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--c-brand)]";
 
   return (
     <div className="relative lg:hidden">
       <button
         type="button"
+        ref={botonRef}
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? "Cerrar menú" : "Abrir menú"}
         aria-expanded={open}
+        aria-controls={open ? PANEL_ID : undefined}
         className="flex h-[var(--tap)] w-[var(--tap)] items-center justify-center rounded-[var(--r-sm)] text-[var(--c-ink-onbrand)] transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--c-honey)]"
       >
         <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
@@ -36,7 +62,12 @@ export function MobileMenu({ links }: { links: readonly NavLink[] }) {
       {open && (
         <>
           <div className="fixed inset-0 z-0" onClick={() => setOpen(false)} aria-hidden />
-          <div className="absolute right-0 top-12 z-10 w-60 rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] p-2 shadow-[shadow:var(--shadow-3)]">
+          <nav
+            id={PANEL_ID}
+            ref={panelRef}
+            aria-label="Menú"
+            className="absolute right-0 top-12 z-10 w-60 rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] p-2 shadow-[shadow:var(--shadow-3)]"
+          >
             {links.map((l) => {
               const active = pathname === l.href;
               return (
@@ -59,7 +90,7 @@ export function MobileMenu({ links }: { links: readonly NavLink[] }) {
             >
               Acceso al portal
             </Link>
-          </div>
+          </nav>
         </>
       )}
     </div>

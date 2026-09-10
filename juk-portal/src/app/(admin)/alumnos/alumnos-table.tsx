@@ -1,71 +1,94 @@
-import Link from "next/link";
-
-import { Badge, Table, TBody, TD, TH, THead, TableWrap, TR } from "@/components/ui";
+import {
+  Badge,
+  DateCell,
+  EmptyState,
+  LinkButton,
+  Table,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TableWrap,
+  TR,
+} from "@/components/ui";
 import { ALUMNO_ESTADO_LABELS, ALUMNO_ESTADO_TONE } from "@/lib/domain/alumnos";
 import { formatFecha } from "@/lib/utils/date";
 import { formatearDni } from "@/lib/utils/dni";
 import type { Alumno } from "@/lib/db/schema/alumnos";
 
-export function AlumnosTable({ alumnos }: { alumnos: Alumno[] }) {
+export function AlumnosTable({
+  alumnos,
+  hayFiltros = false,
+}: {
+  alumnos: Alumno[];
+  hayFiltros?: boolean;
+}) {
   if (alumnos.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 bg-white p-10 text-center">
-        <p className="text-sm font-medium text-gray-700">No hay alumnos que coincidan.</p>
-        <p className="mt-1 text-sm text-gray-500">
-          Probá ajustar los filtros o creá uno nuevo con “+ Nuevo alumno”.
-        </p>
-      </div>
+      <EmptyState
+        icon="🎒"
+        title={hayFiltros ? "Sin resultados para estos filtros" : "Todavía no hay alumnos"}
+        action={
+          hayFiltros ? (
+            <LinkButton variant="secondary" href="/alumnos">
+              Limpiar filtros
+            </LinkButton>
+          ) : (
+            <LinkButton href="/alumnos/nuevo">+ Nuevo alumno</LinkButton>
+          )
+        }
+      >
+        {hayFiltros
+          ? "Probá con menos filtros o buscá por apellido, DNI o pasaporte."
+          : "Los alumnos se cargan a mano o llegan por el formulario de inscripción."}
+      </EmptyState>
     );
   }
 
   return (
     <TableWrap>
-      <Table>
+      <Table responsive>
         <THead>
           <TR>
             <TH>Alumno</TH>
             <TH>DNI</TH>
             <TH>Pasaporte vto.</TH>
             <TH>Estado</TH>
-            <TH className="w-[88px]" />
+            <TH className="w-[168px]">
+              <span className="sr-only">Acciones</span>
+            </TH>
           </TR>
         </THead>
         <TBody>
           {alumnos.map((a) => (
             <TR key={a.id}>
-              <TD>
-                <div className="font-semibold text-juk-navy-950">
+              <TD label="Alumno">
+                <span className="block font-semibold text-[var(--c-ink)]">
                   {a.apellido}, {a.nombre}
-                </div>
-                <div className="font-mono text-xs text-gray-500">{a.numeroPasaporte}</div>
-              </TD>
-              <TD>
-                <span className="font-mono text-xs text-gray-700 tabular-nums">{formatearDni(a.dni)}</span>
-              </TD>
-              <TD>
-                <span className="font-mono text-xs text-gray-700 tabular-nums">
-                  {formatFecha(a.fechaVencimientoPasaporte)}
+                </span>
+                <span className="block font-mono text-[length:var(--t-mono)] text-[var(--c-ink-muted)]">
+                  {a.numeroPasaporte}
                 </span>
               </TD>
-              <TD>
-                <Badge tone={ALUMNO_ESTADO_TONE[a.estado]}>
-                  {ALUMNO_ESTADO_LABELS[a.estado]}
-                </Badge>
+              <TD label="DNI">
+                <span className="font-mono text-[length:var(--t-mono)] tabular-nums text-[var(--c-ink)]">
+                  {formatearDni(a.dni)}
+                </span>
               </TD>
-              <TD>
-                <div className="flex items-center gap-3">
-                  <Link
-                    href={`/alumnos/${a.dni}`}
-                    className="text-sm font-semibold text-juk-navy-700 hover:text-juk-navy-900"
-                  >
+              <TD label="Pasaporte vto.">
+                <DateCell date={formatFecha(a.fechaVencimientoPasaporte)} />
+              </TD>
+              <TD label="Estado">
+                <Badge tone={ALUMNO_ESTADO_TONE[a.estado]}>{ALUMNO_ESTADO_LABELS[a.estado]}</Badge>
+              </TD>
+              <TD className="max-sm:justify-end">
+                <div className="flex items-center justify-end gap-1">
+                  <LinkButton variant="ghost" size="sm" href={`/alumnos/${a.dni}`}>
                     Ver
-                  </Link>
-                  <Link
-                    href={`/alumnos/${a.dni}/editar`}
-                    className="text-sm font-medium text-[var(--c-ink-subtle)] hover:text-juk-navy-900"
-                  >
+                  </LinkButton>
+                  <LinkButton variant="ghost" size="sm" href={`/alumnos/${a.dni}/editar`}>
                     Editar
-                  </Link>
+                  </LinkButton>
                 </div>
               </TD>
             </TR>

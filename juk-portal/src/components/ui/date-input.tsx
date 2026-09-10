@@ -1,7 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
+import {
+  clasesPopover,
+  medirPopover,
+  varsPopover,
+  type PosicionPopover,
+} from "@/components/ui/popover-position";
+import { unirIds } from "@/lib/utils/aria";
 import { cn } from "@/lib/utils/cn";
 
 /**
@@ -67,6 +75,9 @@ interface DateInputProps
   invalid?: boolean;
 }
 
+/** Ancho ideal del calendario: 7 columnas de 36px + padding. */
+const ANCHO_CALENDARIO = 296;
+
 export function DateInput({
   value,
   defaultValue,
@@ -76,11 +87,16 @@ export function DateInput({
   disabled,
   onChange,
   placeholder,
+  "aria-labelledby": ariaLabelledBy,
+  "aria-describedby": ariaDescribedBy,
+  "aria-invalid": ariaInvalid,
   ...props
 }: DateInputProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const textoRef = useRef<HTMLInputElement>(null);
+  const campoRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<PosicionPopover | null>(null);
   const [modo, setModo] = useState<Modo>("dias");
   const [interno, setInterno] = useState(defaultValue ?? "");
   const [enfocado, setEnfocado] = useState(false);
@@ -134,12 +150,47 @@ export function DateInput({
     }
   }
 
+  const medir = useCallback(() => {
+    if (campoRef.current) {
+      setPos(medirPopover(campoRef.current, { ancho: ANCHO_CALENDARIO, altoDeseado: 360 }));
+    }
+  }, []);
+
+  const cerrar = useCallback(() => {
+    setOpen(false);
+    textoRef.current?.focus();
+  }, []);
+
   // Al abrir, el calendario arranca en el mes de la fecha actual y en vista de días.
   function alternar() {
-    if (!open && fecha) setVista({ y: fecha.getFullYear(), m: fecha.getMonth() });
+    if (open) {
+      cerrar();
+      return;
+    }
+    if (fecha) setVista({ y: fecha.getFullYear(), m: fecha.getMonth() });
     setModo("dias");
-    setOpen((v) => !v);
+    medir();
+    setOpen(true);
   }
+
+  // El calendario se monta en un portal con posición fija: hay que volver a
+  // medirlo si la página scrollea o cambia el tamaño de la ventana. Escape se
+  // escucha en el documento porque el foco puede seguir en el campo de texto.
+  useEffect(() => {
+    if (!open) return;
+    const reposicionar = () => medir();
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key === "Escape") cerrar();
+    };
+    window.addEventListener("scroll", reposicionar, true);
+    window.addEventListener("resize", reposicionar);
+    document.addEventListener("keydown", alTeclear);
+    return () => {
+      window.removeEventListener("scroll", reposicionar, true);
+      window.removeEventListener("resize", reposicionar);
+      document.removeEventListener("keydown", alTeclear);
+    };
+  }, [open, medir, cerrar]);
 
   const offset = (new Date(vista.y, vista.m, 1).getDay() + 6) % 7; // semana arranca lunes
   const totalDias = new Date(vista.y, vista.m + 1, 0).getDate();
@@ -165,8 +216,7 @@ export function DateInput({
 
   function elegirDia(dia: number) {
     commitISO(aISO(vista.y, vista.m, dia));
-    setOpen(false);
-    textoRef.current?.focus();
+    cerrar();
   }
 
   const esDia = (d: Date | null, dia: number) =>
@@ -204,11 +254,14 @@ export function DateInput({
         }}
         tabIndex={-1}
         aria-hidden
+        aria-labelledby={ariaLabelledBy}
+        aria-describedby={ariaDescribedBy}
         className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
         {...props}
       />
 
       <div
+        ref={campoRef}
         className={cn(
           "flex min-h-[var(--tap)] w-full items-center gap-1 rounded-[var(--r-md)] border bg-[var(--c-surface)] pl-4 pr-1 transition-[border-color,box-shadow] duration-150",
           disabled && "cursor-not-allowed bg-[var(--c-surface-2)]",
@@ -228,6 +281,11 @@ export function DateInput({
           value={texto}
           placeholder={placeholder ?? "DD/MM/AAAA"}
           aria-label="Fecha (DD/MM/AAAA)"
+          // El nombre del campo viaja como descripción: el <input type="date">
+          // oculto es el que el <label> nombra (y el que buscan los tests), y
+          // repetir el nombre haría que un label resuelva a dos controles.
+          aria-describedby={unirIds(ariaLabelledBy, ariaDescribedBy)}
+          aria-invalid={invalid ? true : ariaInvalid}
           onFocus={() => setEnfocado(true)}
           onBlur={() => setEnfocado(false)}
           onChange={(e) => alTipear(e.target.value)}
@@ -262,144 +320,147 @@ export function DateInput({
         </button>
       </div>
 
-      {open && (
-        <>
-          <button
-            type="button"
-            aria-label="cerrar calendario"
-            tabIndex={-1}
-            onClick={() => setOpen(false)}
-            className="fixed inset-0 z-40 cursor-default"
-          />
-          <div
-            role="dialog"
-            aria-label="elegir fecha"
-            className="absolute z-50 mt-2 w-[296px] rounded-[var(--r-xl)] border border-[var(--c-border)] bg-[var(--c-surface)] p-4 shadow-[shadow:var(--shadow-2)]"
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                setOpen(false);
-                textoRef.current?.focus();
-              }
-            }}
-          >
-            <div className="flex items-center justify-between">
-              <button type="button" onClick={anterior} aria-label="anterior" className={navBtn}>
-                ←
-              </button>
-              <button
-                type="button"
-                onClick={subirNivel}
-                disabled={modo === "anios"}
-                aria-label="cambiar de vista"
-                className="rounded-[var(--r-pill)] px-3 py-1 font-display text-[length:var(--t-small)] font-bold text-[var(--c-ink)] transition-colors hover:bg-[var(--c-surface-2)] disabled:hover:bg-transparent"
-              >
-                {tituloCabecera}
-              </button>
-              <button type="button" onClick={siguiente} aria-label="siguiente" className={navBtn}>
-                →
-              </button>
+      {/* El calendario se monta en un portal sobre document.body para que no lo
+          recorte ningún contenedor con overflow ni se salga del viewport. */}
+      {open &&
+        pos &&
+        createPortal(
+          <>
+            <button
+              type="button"
+              aria-label="cerrar calendario"
+              tabIndex={-1}
+              onClick={cerrar}
+              className="fixed inset-0 z-40 cursor-default"
+            />
+            <div
+              role="dialog"
+              aria-label="elegir fecha"
+              style={varsPopover(pos)}
+              className={cn(
+                clasesPopover(pos),
+                "overflow-y-auto rounded-[var(--r-xl)] border border-[var(--c-border)] bg-[var(--c-surface)] p-4 shadow-[shadow:var(--shadow-2)]"
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <button type="button" onClick={anterior} aria-label="anterior" className={navBtn}>
+                  ←
+                </button>
+                <button
+                  type="button"
+                  onClick={subirNivel}
+                  disabled={modo === "anios"}
+                  aria-label="cambiar de vista"
+                  className="rounded-[var(--r-pill)] px-3 py-1 font-display text-[length:var(--t-small)] font-bold text-[var(--c-ink)] transition-colors hover:bg-[var(--c-surface-2)] disabled:hover:bg-transparent"
+                >
+                  {tituloCabecera}
+                </button>
+                <button type="button" onClick={siguiente} aria-label="siguiente" className={navBtn}>
+                  →
+                </button>
+              </div>
+
+              {modo === "dias" && (
+                <div className="mt-3 grid grid-cols-7 text-center">
+                  {DOW.map((d, i) => (
+                    <span
+                      key={`${d}${i}`}
+                      className="pb-2 text-[length:var(--t-label)] font-bold uppercase text-[var(--c-ink-subtle)]"
+                    >
+                      {d}
+                    </span>
+                  ))}
+                  {Array.from({ length: offset }).map((_, i) => (
+                    <span key={`pad${i}`} />
+                  ))}
+                  {Array.from({ length: totalDias }, (_, i) => i + 1).map((dia) => {
+                    const elegido = esDia(fecha, dia);
+                    const esHoy = esDia(hoy, dia);
+                    return (
+                      <button
+                        key={dia}
+                        type="button"
+                        onClick={() => elegirDia(dia)}
+                        className={cn(
+                          celdaBtn,
+                          "mx-auto my-0.5 h-9 w-9 rounded-[var(--r-pill)]",
+                          elegido
+                            ? "bg-[var(--c-brand)] text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-brand)]"
+                            : esHoy
+                              ? "border border-[var(--c-brand-300)] text-[var(--c-brand)] hover:bg-[var(--c-brand-50)]"
+                              : "text-[var(--c-ink-muted)] hover:bg-[var(--c-surface-2)]",
+                        )}
+                      >
+                        {dia}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {modo === "meses" && (
+                <div className="mt-3 grid grid-cols-3 gap-1.5">
+                  {MESES_CORTO.map((mes, i) => {
+                    const elegido = !!fecha && fecha.getFullYear() === vista.y && fecha.getMonth() === i;
+                    const esActual = hoy.getFullYear() === vista.y && hoy.getMonth() === i;
+                    return (
+                      <button
+                        key={mes}
+                        type="button"
+                        onClick={() => {
+                          setVista(({ y }) => ({ y, m: i }));
+                          setModo("dias");
+                        }}
+                        className={cn(
+                          celdaBtn,
+                          "h-11",
+                          elegido
+                            ? "bg-[var(--c-brand)] text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-brand)]"
+                            : esActual
+                              ? "border border-[var(--c-brand-300)] text-[var(--c-brand)] hover:bg-[var(--c-brand-50)]"
+                              : "text-[var(--c-ink-muted)] hover:bg-[var(--c-surface-2)]",
+                        )}
+                      >
+                        {mes}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {modo === "anios" && (
+                <div className="mt-3 grid grid-cols-3 gap-1.5">
+                  {Array.from({ length: 12 }, (_, i) => inicioBloque + i).map((anio) => {
+                    const elegido = !!fecha && fecha.getFullYear() === anio;
+                    const esActual = hoy.getFullYear() === anio;
+                    return (
+                      <button
+                        key={anio}
+                        type="button"
+                        onClick={() => {
+                          setVista(({ m }) => ({ y: anio, m }));
+                          setModo("meses");
+                        }}
+                        className={cn(
+                          celdaBtn,
+                          "h-11",
+                          elegido
+                            ? "bg-[var(--c-brand)] text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-brand)]"
+                            : esActual
+                              ? "border border-[var(--c-brand-300)] text-[var(--c-brand)] hover:bg-[var(--c-brand-50)]"
+                              : "text-[var(--c-ink-muted)] hover:bg-[var(--c-surface-2)]",
+                        )}
+                      >
+                        {anio}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-
-            {modo === "dias" && (
-              <div className="mt-3 grid grid-cols-7 text-center">
-                {DOW.map((d, i) => (
-                  <span
-                    key={`${d}${i}`}
-                    className="pb-2 text-[length:var(--t-label)] font-bold uppercase text-[var(--c-ink-subtle)]"
-                  >
-                    {d}
-                  </span>
-                ))}
-                {Array.from({ length: offset }).map((_, i) => (
-                  <span key={`pad${i}`} />
-                ))}
-                {Array.from({ length: totalDias }, (_, i) => i + 1).map((dia) => {
-                  const elegido = esDia(fecha, dia);
-                  const esHoy = esDia(hoy, dia);
-                  return (
-                    <button
-                      key={dia}
-                      type="button"
-                      onClick={() => elegirDia(dia)}
-                      className={cn(
-                        celdaBtn,
-                        "mx-auto my-0.5 h-9 w-9 rounded-[var(--r-pill)]",
-                        elegido
-                          ? "bg-[var(--c-brand)] text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-brand)]"
-                          : esHoy
-                            ? "border border-[var(--c-brand-300)] text-[var(--c-brand)] hover:bg-[var(--c-brand-50)]"
-                            : "text-[var(--c-ink-muted)] hover:bg-[var(--c-surface-2)]",
-                      )}
-                    >
-                      {dia}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {modo === "meses" && (
-              <div className="mt-3 grid grid-cols-3 gap-1.5">
-                {MESES_CORTO.map((mes, i) => {
-                  const elegido = !!fecha && fecha.getFullYear() === vista.y && fecha.getMonth() === i;
-                  const esActual = hoy.getFullYear() === vista.y && hoy.getMonth() === i;
-                  return (
-                    <button
-                      key={mes}
-                      type="button"
-                      onClick={() => {
-                        setVista(({ y }) => ({ y, m: i }));
-                        setModo("dias");
-                      }}
-                      className={cn(
-                        celdaBtn,
-                        "h-11",
-                        elegido
-                          ? "bg-[var(--c-brand)] text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-brand)]"
-                          : esActual
-                            ? "border border-[var(--c-brand-300)] text-[var(--c-brand)] hover:bg-[var(--c-brand-50)]"
-                            : "text-[var(--c-ink-muted)] hover:bg-[var(--c-surface-2)]",
-                      )}
-                    >
-                      {mes}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {modo === "anios" && (
-              <div className="mt-3 grid grid-cols-3 gap-1.5">
-                {Array.from({ length: 12 }, (_, i) => inicioBloque + i).map((anio) => {
-                  const elegido = !!fecha && fecha.getFullYear() === anio;
-                  const esActual = hoy.getFullYear() === anio;
-                  return (
-                    <button
-                      key={anio}
-                      type="button"
-                      onClick={() => {
-                        setVista(({ m }) => ({ y: anio, m }));
-                        setModo("meses");
-                      }}
-                      className={cn(
-                        celdaBtn,
-                        "h-11",
-                        elegido
-                          ? "bg-[var(--c-brand)] text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-brand)]"
-                          : esActual
-                            ? "border border-[var(--c-brand-300)] text-[var(--c-brand)] hover:bg-[var(--c-brand-50)]"
-                            : "text-[var(--c-ink-muted)] hover:bg-[var(--c-surface-2)]",
-                      )}
-                    >
-                      {anio}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </>
-      )}
+          </>,
+          document.body
+        )}
     </div>
   );
 }

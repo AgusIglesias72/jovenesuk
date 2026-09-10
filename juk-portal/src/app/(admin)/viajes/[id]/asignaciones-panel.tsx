@@ -1,11 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import {
   Badge,
   Button,
+  DateCell,
+  EmptyState,
+  SectionTitle,
   Select,
   Table,
   TBody,
@@ -110,21 +114,27 @@ export function AsignacionesPanel({
 
   return (
     <section>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-600">
-          Alumnos asignados
-        </h2>
-        <span className="font-mono text-sm tabular-nums text-gray-600">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <SectionTitle>Alumnos asignados</SectionTitle>
+        <span className="font-mono text-[length:var(--t-small)] tabular-nums text-[var(--c-ink-muted)]">
           {cupoUsado} / {cupoMax} cupos
         </span>
       </div>
 
       {viajeCancelado ? (
-        <p className="mb-4 text-sm text-gray-500">El viaje está cancelado: no se pueden asignar alumnos.</p>
+        <p className="mb-4 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
+          El viaje está cancelado: no se pueden asignar alumnos.
+        </p>
       ) : (
         <div className="mb-4 flex flex-col flex-wrap gap-3 sm:flex-row sm:items-center">
           <div className="w-full sm:w-72">
-            <Select searchable value={sel} onChange={(e) => setSel(e.target.value)} disabled={isPending}>
+            <Select
+              searchable
+              value={sel}
+              aria-label="Alumno a asignar"
+              onChange={(e) => setSel(e.target.value)}
+              disabled={isPending}
+            >
               <option value="">
                 {elegibles.length === 0 ? "No hay alumnos disponibles" : "Elegí un alumno…"}
               </option>
@@ -139,7 +149,7 @@ export function AsignacionesPanel({
             Asignar
           </Button>
           {sinCupo && (
-            <span className="text-sm text-amber-700">
+            <span className="text-[length:var(--t-small)] text-[var(--c-warning)]">
               Cupo completo: asignar más requiere confirmación explícita.
             </span>
           )}
@@ -147,51 +157,58 @@ export function AsignacionesPanel({
       )}
 
       {asignados.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-10 text-center">
-          <p className="text-sm font-medium text-gray-700">Todavía no hay alumnos asignados.</p>
-        </div>
+        <EmptyState compact title="Todavía no hay alumnos asignados.">
+          Elegí un alumno de la lista de arriba y tocá “Asignar”: se le crea el tablero de
+          seguimiento al instante.
+        </EmptyState>
       ) : (
         <TableWrap>
-          <Table>
+          <Table responsive>
             <THead>
               <TR>
                 <TH>Alumno</TH>
                 <TH>Pasaporte vto.</TH>
                 <TH>Estado</TH>
-                <TH className="w-[88px]" />
+                <TH className="w-[104px]">
+                  <span className="sr-only">Acciones</span>
+                </TH>
               </TR>
             </THead>
             <TBody>
               {asignados.map((a) => (
                 <TR key={a.asignacionId}>
-                  <TD>
-                    <a
+                  <TD label="Alumno">
+                    <Link
                       href={`/alumnos/${a.alumno.dni}`}
-                      className="font-semibold text-juk-navy-950 hover:text-[var(--c-brand)] hover:underline"
+                      className="font-semibold text-[var(--c-ink)] hover:text-[var(--c-brand)] hover:underline"
                     >
                       {a.alumno.apellido}, {a.alumno.nombre}
-                    </a>
-                    <div className="font-mono text-xs text-gray-500">{a.alumno.numeroPasaporte}</div>
-                  </TD>
-                  <TD>
-                    <span className="font-mono text-xs text-gray-700 tabular-nums">
-                      {formatFecha(a.alumno.fechaVencimientoPasaporte)}
+                    </Link>
+                    <span className="block font-mono text-[length:var(--t-mono)] text-[var(--c-ink-muted)]">
+                      {a.alumno.numeroPasaporte}
                     </span>
                   </TD>
-                  <TD>
+                  <TD label="Pasaporte vto.">
+                    <DateCell date={formatFecha(a.alumno.fechaVencimientoPasaporte)} />
+                  </TD>
+                  <TD label="Estado">
                     <Badge tone={ASIGNACION_ESTADO_TONE[a.estado]}>
                       {ASIGNACION_ESTADO_LABELS[a.estado]}
                     </Badge>
                   </TD>
-                  <TD>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={isPending}
-                      onClick={() => quitar(a.asignacionId, `${a.alumno.apellido}, ${a.alumno.nombre}`)}
-                    >
-                      Quitar
-                    </Button>
+                  <TD className="max-sm:justify-end">
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={isPending}
+                        onClick={() =>
+                          quitar(a.asignacionId, `${a.alumno.apellido}, ${a.alumno.nombre}`)
+                        }
+                      >
+                        Quitar
+                      </Button>
+                    </div>
                   </TD>
                 </TR>
               ))}

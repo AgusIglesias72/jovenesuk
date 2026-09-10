@@ -100,7 +100,7 @@ export function PasosViajePanel({
                   : "border-gray-200 bg-white hover:border-gray-300",
               ].join(" ")}
             >
-              <span className="font-mono text-[11px] font-bold text-gray-400">
+              <span className="font-mono text-[length:var(--t-mono)] font-bold text-[var(--c-ink-subtle)]">
                 0{PASO_VIAJE_NUMERO[p.tipo]}
               </span>
               <span className="text-sm font-semibold text-juk-navy-950">
@@ -108,7 +108,7 @@ export function PasosViajePanel({
               </span>
               <StepBadge state={estado} />
               {bloqueadoPorDep && (
-                <span className="text-[11px] text-amber-700">Requiere Pasajes</span>
+                <span className="text-[length:var(--t-label)] text-[var(--c-warning)]">Requiere Pasajes</span>
               )}
             </button>
           );

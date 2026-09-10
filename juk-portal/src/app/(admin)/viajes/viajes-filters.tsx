@@ -37,6 +37,7 @@ export function ViajesFilters() {
         <Input
           type="search"
           placeholder="Buscar por código o nombre…"
+          aria-label="Buscar por código o nombre"
           defaultValue={sp.get("q") ?? ""}
           onChange={(e) => onSearch(e.target.value)}
         />

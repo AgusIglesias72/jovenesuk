@@ -49,7 +49,7 @@ export default async function ColegiosPage({
         <ColegiosFilters />
       </div>
 
-      <ColegiosTable colegios={colegios} />
+      <ColegiosTable colegios={colegios} hayFiltros={Object.values(filters).some(Boolean)} />
       <Pagination total={total} page={page} pages={pages} />
     </>
   );

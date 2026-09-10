@@ -44,7 +44,7 @@ export default async function AlumnosPage({
         <AlumnosFilters />
       </div>
 
-      <AlumnosTable alumnos={alumnos} />
+      <AlumnosTable alumnos={alumnos} hayFiltros={Object.values(filters).some(Boolean)} />
       <Pagination total={total} page={page} pages={pages} />
     </>
   );

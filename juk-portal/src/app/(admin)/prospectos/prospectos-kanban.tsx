@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, useTransition } from "react";
 
-import { Badge, useToast } from "@/components/ui";
+import { Badge, Select, useToast } from "@/components/ui";
 import type { ProspectoKanbanItem } from "@/lib/db/queries/prospectos";
 import { PAIS_LABELS } from "@/lib/domain/colegios";
 import {
@@ -55,12 +55,11 @@ function Tablero({ prospectos }: { prospectos: ProspectoKanbanItem[] }) {
 
   const columnas = useMemo(() => agrupar(items), [items]);
 
-  function alSoltar(estado: ProspectoEstado) {
-    const id = arrastradoId.current;
-    arrastradoId.current = null;
-    setSobre(null);
-    if (!id) return;
-
+  /**
+   * Único camino para cambiar de etapa: lo usan el drop del drag&drop (desktop)
+   * y el Select "Mover a…" de la tarjeta (el HTML5 drag no existe en touch).
+   */
+  function mover(id: string, estado: ProspectoEstado) {
     const actual = items.find((p) => p.id === id);
     if (!actual || actual.estado === estado) return;
 
@@ -81,6 +80,13 @@ function Tablero({ prospectos }: { prospectos: ProspectoKanbanItem[] }) {
     });
   }
 
+  function alSoltar(estado: ProspectoEstado) {
+    const id = arrastradoId.current;
+    arrastradoId.current = null;
+    setSobre(null);
+    if (id) mover(id, estado);
+  }
+
   function alClickTarjeta(id: string) {
     if (recienArrastrado.current) {
       recienArrastrado.current = false;
@@ -90,7 +96,7 @@ function Tablero({ prospectos }: { prospectos: ProspectoKanbanItem[] }) {
   }
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
+    <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-4">
       {PROSPECTO_ESTADOS.map((estado) => {
         const tarjetas = columnas[estado];
         return (
@@ -107,7 +113,7 @@ function Tablero({ prospectos }: { prospectos: ProspectoKanbanItem[] }) {
             }}
             onDrop={() => alSoltar(estado)}
             className={cn(
-              "flex w-72 shrink-0 flex-col rounded-[var(--r-lg)] border bg-[var(--c-surface-2)] transition-colors",
+              "flex w-[85vw] shrink-0 snap-start flex-col rounded-[var(--r-lg)] border bg-[var(--c-surface-2)] transition-colors sm:w-72",
               sobre === estado
                 ? "border-[var(--c-brand-300)] bg-[var(--c-brand-100)]"
                 : "border-[var(--c-border)]"
@@ -143,6 +149,7 @@ function Tablero({ prospectos }: { prospectos: ProspectoKanbanItem[] }) {
                       }, 100);
                     }}
                     onClick={() => alClickTarjeta(p.id)}
+                    onMover={(destino) => mover(p.id, destino)}
                   />
                 ))
               )}
@@ -165,17 +172,20 @@ function TarjetaProspecto({
   onDragStart,
   onDragEnd,
   onClick,
+  onMover,
 }: {
   prospecto: ProspectoKanbanItem;
   ahora: number;
   onDragStart: () => void;
   onDragEnd: () => void;
   onClick: () => void;
+  onMover: (destino: ProspectoEstado) => void;
 }) {
   const lugar = ubicacion(prospecto);
   const vencida =
     prospecto.proximaAccionAt != null &&
     prospecto.proximaAccionAt.getTime() < ahora;
+  const destinos = PROSPECTO_ESTADOS.filter((e) => e !== prospecto.estado);
 
   return (
     <article
@@ -185,7 +195,7 @@ function TarjetaProspecto({
       onClick={onClick}
       className="cursor-pointer rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] p-3 shadow-[shadow:var(--shadow-soft)] transition-colors hover:border-[var(--c-brand-300)] active:cursor-grabbing"
     >
-      <p className="font-semibold text-juk-navy-950">{prospecto.nombre}</p>
+      <p className="font-semibold text-[var(--c-ink)]">{prospecto.nombre}</p>
       {lugar ? (
         <p className="mt-0.5 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
           {lugar}
@@ -217,6 +227,34 @@ function TarjetaProspecto({
           <Badge tone="danger">Vencida {formatFecha(prospecto.proximaAccionAt)}</Badge>
         </div>
       ) : null}
+
+      {/* El drag&drop HTML5 no existe en touch: desde el teléfono la etapa se
+          cambia por acá. El tap del <article> navega al detalle, así que el
+          control corta la propagación (y no arranca un arrastre). */}
+      <div
+        className="mt-3"
+        draggable={false}
+        onDragStart={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Select
+          value=""
+          aria-label={`Mover ${prospecto.nombre} a otra etapa`}
+          onChange={(e) => {
+            const destino = PROSPECTO_ESTADOS.find((s) => s === e.target.value);
+            if (destino) onMover(destino);
+          }}
+        >
+          <option value="" disabled>
+            Mover a…
+          </option>
+          {destinos.map((e) => (
+            <option key={e} value={e}>
+              {PROSPECTO_ESTADO_LABELS[e]}
+            </option>
+          ))}
+        </Select>
+      </div>
     </article>
   );
 }

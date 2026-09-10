@@ -35,6 +35,7 @@ export function ColegiosFilters() {
         <Input
           type="search"
           placeholder="Buscar por nombre o ciudad…"
+          aria-label="Buscar por nombre o ciudad"
           defaultValue={sp.get("q") ?? ""}
           onChange={(e) => onSearch(e.target.value)}
         />

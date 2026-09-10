@@ -1,7 +1,13 @@
 import { forwardRef } from "react";
 import { cn } from "@/lib/utils/cn";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "critical" | "danger";
+export type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "ghost"
+  | "critical"
+  | "danger"
+  | "danger-solid";
 export type ButtonSize = "sm" | "default" | "lg" | "icon";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -20,9 +26,14 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
  *                 If a screen has 2+ critical buttons, redesign.
  *  - secondary  → Cancel, alternate. Outline.
  *  - danger     → Outlined red. Destructive (dar de baja, eliminar).
+ *  - danger-solid → Rojo sólido. La confirmación FINAL de una acción destructiva
+ *                 (el botón "Sí, quitar" del ConfirmDialog). No usar en listados.
  *  - ghost      → Low-emphasis (table row actions, sidebar).
  *
- * Sizes: sm (32px), default (36px), lg (--tap, 44px), icon (36×36 square).
+ * Tamaños — touch-first: TODOS miden al menos `--tap` (44px) por defecto y
+ * recién en pantallas grandes con puntero fino (mouse/trackpad) bajan a la
+ * densidad de escritorio: sm (32px), default (36px), icon (36×36). `lg` se
+ * queda en 44px siempre. Una notebook táctil de 1440px conserva los 44px.
  *
  * @example
  *   <Button>Guardar cambios</Button>
@@ -40,13 +51,21 @@ const variantClasses: Record<ButtonVariant, string> = {
     "border-transparent bg-[image:var(--grad-warm)] text-[var(--c-ink-onaccent)] shadow-[shadow:var(--shadow-accent)] hover:brightness-[1.03] focus-visible:shadow-[shadow:var(--ring-accent)]",
   danger:
     "border-[var(--c-danger)] bg-[var(--c-surface)] text-[var(--c-danger)] hover:bg-[var(--c-danger-bg)] focus-visible:shadow-[shadow:var(--ring-error)]",
+  "danger-solid":
+    "border-transparent bg-[var(--c-danger)] text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-danger)] hover:bg-[var(--c-danger-700)] focus-visible:shadow-[shadow:var(--ring-error)]",
 };
 
+/**
+ * La densidad de escritorio se reserva para pantallas grandes CON puntero fino;
+ * cualquier pantalla táctil (teléfono, tablet, la app Capacitor) se queda en los
+ * 44px de `--tap`. Las clases van completas y literales: el JIT de Tailwind no
+ * ve strings concatenados.
+ */
 const sizeClasses: Record<ButtonSize, string> = {
-  sm:      "min-h-[32px] px-3.5 text-[length:var(--t-label)]",
-  default: "min-h-[36px] px-4 text-[length:var(--t-small)]",
+  sm:      "min-h-[var(--tap)] px-3.5 text-[length:var(--t-label)] lg:[@media(pointer:fine)]:min-h-[32px]",
+  default: "min-h-[var(--tap)] px-4 text-[length:var(--t-small)] lg:[@media(pointer:fine)]:min-h-[36px]",
   lg:      "min-h-[var(--tap)] px-6 text-[length:var(--t-body)]",
-  icon:    "min-h-[36px] w-9 p-0 justify-center",
+  icon:    "min-h-[var(--tap)] w-[var(--tap)] p-0 justify-center lg:[@media(pointer:fine)]:min-h-[36px] lg:[@media(pointer:fine)]:w-9",
 };
 
 /** Clases del Button, reutilizables por LinkButton para mantener un único look. */

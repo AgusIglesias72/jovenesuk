@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { ConfirmProvider, ToastProvider } from "@/components/ui";
 import { cn } from "@/lib/utils/cn";
@@ -79,6 +79,17 @@ export function FamiliaShell({
 }: FamiliaShellProps) {
   const pathname = usePathname();
   const base = `/familias/${dniActual}`;
+  const tabsRef = useRef<HTMLElement>(null);
+
+  // La tira de tabs scrollea: al cambiar de sección hay que traer la activa al
+  // centro. `scrollLeft` en vez de `scrollIntoView`: éste último arrastra
+  // también el scroll vertical del documento bajo el header sticky.
+  useEffect(() => {
+    const nav = tabsRef.current;
+    const activa = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!nav || !activa) return;
+    nav.scrollLeft = activa.offsetLeft - (nav.clientWidth - activa.offsetWidth) / 2;
+  }, [pathname]);
 
   const inicialesTutor = nombreTutor
     .split(/\s+/)
@@ -152,7 +163,7 @@ export function FamiliaShell({
         {/* Chip del tutor + Salir */}
         <div className="mt-3 flex items-center gap-3 rounded-[var(--r-lg)] bg-white/10 p-3">
           <span
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--r-pill)] bg-[image:var(--grad-warm)] text-[11px] font-extrabold text-[var(--c-ink-onaccent)]"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--r-pill)] bg-[image:var(--grad-warm)] text-[length:var(--t-label)] font-extrabold text-[var(--c-ink-onaccent)]"
             aria-hidden
           >
             {inicialesTutor || "T"}
@@ -174,7 +185,7 @@ export function FamiliaShell({
       {/* ---------- Header + tabs (mobile) ---------- */}
       <div className="lg:hidden">
         <header className="sticky top-0 z-10 bg-[image:var(--grad-brand)] text-[var(--c-ink-onbrand)]">
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 pl-[calc(1rem+var(--safe-left))] pr-[calc(1rem+var(--safe-right))] pt-[calc(0.75rem+var(--safe-top))]">
             <div className="flex min-w-0 items-center gap-2.5">
               <span
                 className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--r-md)] bg-[image:var(--grad-warm)] text-[var(--c-ink-onaccent)] shadow-[shadow:var(--shadow-accent)]"
@@ -198,32 +209,23 @@ export function FamiliaShell({
             <MobileAlumnoSwitch alumnos={alumnos} dniActual={dniActual} />
           )}
 
+          {/* Los módulos "Pronto" no entran en la tira mobile: empujaban fuera
+              de pantalla las secciones que sí se usan. El desktop los sigue
+              mostrando en la sidebar. */}
           <nav
+            ref={tabsRef}
             aria-label="Secciones"
-            className="flex gap-2 overflow-x-auto px-4 pb-2"
+            className="relative flex gap-2 overflow-x-auto overscroll-x-contain pb-2 pl-[calc(1rem+var(--safe-left))] pr-[calc(1rem+var(--safe-right))]"
           >
-            {MODULOS.map((mod) =>
-              mod.soon ? (
-                <span
-                  key={mod.label}
-                  aria-disabled
-                  className="flex shrink-0 items-center gap-1.5 rounded-[var(--r-pill)] px-3 py-1.5 text-[length:var(--t-small)] font-semibold text-[var(--c-ink-onbrand-muted)] opacity-60"
-                >
-                  <span className="h-4 w-4" aria-hidden>
-                    {mod.icon}
-                  </span>
-                  <span>{mod.label}</span>
-                </span>
-              ) : (
-                <MobileTab
-                  key={mod.label}
-                  icon={mod.icon}
-                  label={mod.label}
-                  href={hrefDe(base, mod)}
-                  active={esActivo(pathname, base, mod)}
-                />
-              )
-            )}
+            {MODULOS.filter((mod) => !mod.soon).map((mod) => (
+              <MobileTab
+                key={mod.label}
+                icon={mod.icon}
+                label={mod.label}
+                href={hrefDe(base, mod)}
+                active={esActivo(pathname, base, mod)}
+              />
+            ))}
           </nav>
         </header>
       </div>
@@ -234,7 +236,7 @@ export function FamiliaShell({
         <div className="hidden border-b border-[var(--c-border)] bg-[var(--c-surface)] px-8 py-3 lg:block">
           <FamiliaBreadcrumb items={breadcrumb(pathname, base, nombreAlumno)} />
         </div>
-        <div className="mx-auto w-full max-w-3xl px-4 py-6 lg:mx-0 lg:max-w-none lg:flex-1 lg:overflow-auto lg:px-8 lg:py-8">
+        <div className="mx-auto w-full max-w-3xl px-4 py-6 pb-[calc(1.5rem+var(--safe-bottom))] lg:mx-0 lg:max-w-none lg:flex-1 lg:overflow-auto lg:px-8 lg:py-8 lg:pb-8">
           <ConfirmProvider>
             <ToastProvider>{children}</ToastProvider>
           </ConfirmProvider>
@@ -370,7 +372,7 @@ function SidebarItem({
       href={href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex min-h-[42px] w-full items-center gap-3 rounded-[var(--r-pill)] px-4 text-[length:var(--t-small)] transition-colors duration-150",
+        "flex min-h-[var(--tap)] w-full items-center gap-3 rounded-[var(--r-pill)] px-4 text-[length:var(--t-small)] transition-colors duration-150",
         active
           ? "bg-white/10 font-bold text-[var(--c-ink-onbrand)]"
           : "font-semibold text-[var(--c-ink-onbrand-muted)] hover:bg-white/5 hover:text-[var(--c-ink-onbrand)]"
@@ -398,12 +400,12 @@ function SidebarItem({
 function SidebarItemSoon({ icon, label }: { icon: ReactNode; label: string }) {
   return (
     <div
-      className="flex min-h-[42px] w-full cursor-default select-none items-center gap-3 rounded-[var(--r-pill)] px-4 text-[length:var(--t-small)] font-semibold text-[var(--c-ink-onbrand-muted)] opacity-60"
+      className="flex min-h-[var(--tap)] w-full cursor-default select-none items-center gap-3 rounded-[var(--r-pill)] px-4 text-[length:var(--t-small)] font-semibold text-[var(--c-ink-onbrand-muted)] opacity-60"
       aria-disabled="true"
     >
       <span className="h-4 w-4 flex-shrink-0 opacity-80">{icon}</span>
       <span className="flex-1 text-left">{label}</span>
-      <span className="rounded-[var(--r-pill)] bg-white/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-onbrand-muted)]">
+      <span className="rounded-[var(--r-pill)] bg-white/10 px-2 py-0.5 text-[length:var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-onbrand-muted)]">
         Pronto
       </span>
     </div>
@@ -430,7 +432,7 @@ function MobileTab({
       href={href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex shrink-0 items-center gap-1.5 rounded-[var(--r-pill)] px-3 py-1.5 text-[length:var(--t-small)] font-semibold transition-colors",
+        "flex min-h-[var(--tap)] shrink-0 items-center gap-1.5 rounded-[var(--r-pill)] px-4 text-[length:var(--t-small)] font-semibold transition-colors",
         active
           ? "bg-white/15 text-[var(--c-ink-onbrand)]"
           : "text-[var(--c-ink-onbrand-muted)] hover:bg-white/5 hover:text-[var(--c-ink-onbrand)]"

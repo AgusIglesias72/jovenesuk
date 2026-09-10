@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 
-import { Input, Select, useToast } from "@/components/ui";
+import { Button, Input, LinkButton, SectionTitle, Select, useToast } from "@/components/ui";
 import {
   ETA_SUBESTADO_LABELS,
   ETA_SUBESTADOS,
@@ -108,6 +108,8 @@ function PasoCard({
   const router = useRouter();
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [subiendo, setSubiendo] = useState<string | null>(null);
   const c = ESTADO_CLASSES[paso.estado];
   const apagado = paso.estado === "na";
   const editable = esPasoEditable(paso.codigo);
@@ -154,11 +156,14 @@ function PasoCard({
 
   function subirArchivo(file: File | undefined) {
     if (!file) return;
+    setSubiendo(file.name);
     startTransition(async () => {
       const fd = new FormData();
       fd.set("pasoId", paso.id);
       fd.set("archivo", file);
       const r = await subirDocumentoPasoAction(fd);
+      setSubiendo(null);
+      if (fileRef.current) fileRef.current.value = "";
       if (r.ok) {
         toast.success("Documento subido");
         router.refresh();
@@ -180,7 +185,7 @@ function PasoCard({
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[11px] font-bold uppercase text-[var(--c-ink-subtle)]">
+        <span className="font-mono text-[length:var(--t-label)] font-bold uppercase text-[var(--c-ink-subtle)]">
           {paso.codigo === "paso_0" ? "P0" : paso.codigo}
         </span>
         <span
@@ -201,7 +206,7 @@ function PasoCard({
 
       {nota && (
         <p
-          className={`mt-1.5 inline-flex items-center gap-1 rounded-[var(--r-xs)] px-1.5 py-0.5 text-[11px] font-medium ${c.nota}`}
+          className={`mt-1.5 inline-flex items-center gap-1 rounded-[var(--r-xs)] px-1.5 py-0.5 text-[length:var(--t-label)] font-medium ${c.nota}`}
         >
           {paso.estado === "bloqueado" && <span aria-hidden>🔒</span>}
           {paso.estado === "vencido" && <span aria-hidden>⏰</span>}
@@ -214,10 +219,10 @@ function PasoCard({
           <Select
             value={subEstadoActual}
             disabled={isPending}
+            aria-label={`Estado del trámite · ${PASO_LABELS[paso.codigo]}`}
             onChange={(e) => {
               if (e.target.value !== subEstadoActual) actualizarSubEstado(e.target.value);
             }}
-            className="!min-h-0 !py-1 text-[length:var(--t-small)]"
           >
             {subEstados.map((s) => (
               <option key={s} value={s}>
@@ -229,13 +234,13 @@ function PasoCard({
             <Input
               type="text"
               placeholder="N° autorización"
+              aria-label="N° de autorización del ETA"
               defaultValue={numeroAutorizacion}
               disabled={isPending}
               onBlur={(e) => {
                 if (e.target.value.trim() !== numeroAutorizacion)
                   actualizarSubEstado(subEstadoActual, e.target.value);
               }}
-              className="!min-h-0 !py-1 text-[length:var(--t-small)]"
             />
           )}
         </div>
@@ -246,8 +251,8 @@ function PasoCard({
           <Select
             value={paso.estado}
             disabled={isPending}
+            aria-label={`Estado de ${PASO_LABELS[paso.codigo]}`}
             onChange={(e) => transicionar(e.target.value as PasoEstado)}
-            className="!min-h-0 !py-1 text-[length:var(--t-small)]"
           >
             {opciones.map((o) => (
               <option key={o} value={o}>
@@ -259,29 +264,45 @@ function PasoCard({
       )}
 
       {aceptaDocumento && (
-        <div className="mt-2 flex items-center gap-2 text-[11px]">
+        <div className="mt-2 flex flex-wrap items-center gap-1 text-[length:var(--t-small)]">
           {archivoUrl ? (
-            <a
+            <LinkButton
+              variant="ghost"
               href={archivoUrl}
               target="_blank"
               rel="noreferrer"
-              className="font-semibold text-[var(--c-brand)] hover:underline"
+              className="text-[var(--c-brand)]"
             >
               📄 Ver documento
-            </a>
+            </LinkButton>
           ) : (
-            <span className="text-[var(--c-ink-subtle)]">Sin documento</span>
+            <span className="px-1 text-[var(--c-ink-subtle)]">Sin documento</span>
           )}
-          <label className="cursor-pointer font-semibold text-[var(--c-ink-muted)] hover:text-[var(--c-brand)]">
+          {/* El input queda oculto y el botón lo dispara: el control nativo no
+              respeta el DS ni el target de 44px, y `hidden` no le molesta ni al
+              teclado (el botón es el punto de entrada) ni a setInputFiles. */}
+          <input
+            ref={fileRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
+            disabled={isPending}
+            aria-label={`Adjuntar documento de ${PASO_LABELS[paso.codigo]}`}
+            onChange={(e) => subirArchivo(e.target.files?.[0])}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={isPending}
+            onClick={() => fileRef.current?.click()}
+          >
             {archivoUrl ? "Reemplazar" : "Adjuntar"}
-            <input
-              type="file"
-              className="hidden"
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
-              disabled={isPending}
-              onChange={(e) => subirArchivo(e.target.files?.[0])}
-            />
-          </label>
+          </Button>
+          {subiendo && (
+            <span className="min-w-0 flex-1 truncate text-[var(--c-ink-subtle)]">
+              Subiendo {subiendo}…
+            </span>
+          )}
         </div>
       )}
     </div>
@@ -310,9 +331,7 @@ export function TableroM6({
   return (
     <section className="mt-8">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-[length:var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-muted)]">
-          Seguimiento · {titulo}
-        </h2>
+        <SectionTitle>Seguimiento · {titulo}</SectionTitle>
         <span className="font-mono text-[length:var(--t-small)] tabular-nums text-[var(--c-ink-muted)]">
           {completados}/{computables.length} pasos · {pct}%
         </span>
@@ -330,7 +349,7 @@ export function TableroM6({
           <div key={grupo}>
             <h3 className="mb-2 flex items-center gap-2 text-[length:var(--t-small)] font-bold text-[var(--c-ink)]">
               {grupo !== "referencia" && (
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-[var(--r-xs)] bg-[var(--c-brand-100)] font-mono text-[11px] font-bold uppercase text-[var(--c-brand)]">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-[var(--r-xs)] bg-[var(--c-brand-100)] font-mono text-[length:var(--t-label)] font-bold uppercase text-[var(--c-brand)]">
                   {grupo}
                 </span>
               )}

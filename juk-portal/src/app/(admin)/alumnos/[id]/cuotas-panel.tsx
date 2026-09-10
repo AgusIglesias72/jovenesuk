@@ -3,14 +3,32 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Button, DateInput, Field, Input, Select, useConfirm, useToast } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  DateCell,
+  DateInput,
+  Field,
+  Input,
+  MoraBadge,
+  Select,
+  SectionTitle,
+  Table,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TableWrap,
+  TR,
+  useConfirm,
+  useToast,
+} from "@/components/ui";
 import {
   MONEDAS,
   diasDeMora,
   estaVencida,
   formatMonto,
   proximaCuotaPendiente,
-  saldoPendiente,
   totalPagado,
   totalPlan,
   type CuotaLike,
@@ -31,12 +49,10 @@ export type CuotaView = CuotaLike & {
   observaciones: string | null;
 };
 
-function badgeCuota(c: CuotaView, hoy: Date) {
-  if (c.estado === "pagada")
-    return { label: "Pagada", cls: "bg-[var(--c-success-bg)] text-[var(--c-success)]" };
-  if (estaVencida(c, hoy))
-    return { label: `Vencida · ${diasDeMora(c, hoy)}d`, cls: "bg-[var(--c-berry-soft)] text-[var(--c-berry)]" };
-  return { label: "Pendiente", cls: "bg-[var(--c-neutral-bg)] text-[var(--c-neutral)]" };
+function BadgeCuota({ cuota, hoy }: { cuota: CuotaView; hoy: Date }) {
+  if (cuota.estado === "pagada") return <Badge tone="success">Pagada</Badge>;
+  if (estaVencida(cuota, hoy)) return <MoraBadge days={diasDeMora(cuota, hoy)} />;
+  return <Badge tone="neutral">Pendiente</Badge>;
 }
 
 function ResumenCard({
@@ -162,12 +178,15 @@ export function CuotasPanel({
 
   return (
     <section className="mt-6" data-cuotas-panel>
-      <h3 className="mb-3 flex items-center gap-2 text-[length:var(--t-small)] font-bold text-[var(--c-ink)]">
-        <span className="inline-flex h-5 w-5 items-center justify-center rounded-[var(--r-xs)] bg-[var(--c-honey-soft)] font-mono text-[11px] font-bold text-[var(--c-warning)]">
+      <SectionTitle as="h3" className="mb-3 flex items-center gap-2">
+        <span
+          aria-hidden
+          className="inline-flex h-5 w-5 items-center justify-center rounded-[var(--r-xs)] bg-[var(--c-honey-soft)] font-mono text-[length:var(--t-label)] font-bold text-[var(--c-warning)]"
+        >
           $
         </span>
         Plan de cuotas (B1{b2Aplica ? " / B2" : ""})
-      </h3>
+      </SectionTitle>
 
       {cuotas.length === 0 ? (
         <form
@@ -221,7 +240,7 @@ export function CuotasPanel({
             </Field>
           </div>
           <div className="mt-4">
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
               {isPending ? "Creando…" : "Crear plan de cuotas"}
             </Button>
           </div>
@@ -263,78 +282,87 @@ export function CuotasPanel({
                 <strong>B2:</strong> la última cuota (n° {ultima?.numero}) se cobra{" "}
                 <strong>presencialmente en JUK</strong>.
               </p>
-              <Button type="button" variant="secondary" disabled={isPending} onClick={confirmarB2}>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={isPending}
+                onClick={confirmarB2}
+                className="w-full sm:w-auto"
+              >
                 Confirmar pago presencial
               </Button>
             </div>
           )}
 
-          <div className="overflow-x-auto rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] shadow-[shadow:var(--shadow-soft)]">
-            <table className="w-full min-w-[560px] text-left text-[length:var(--t-small)]">
-              <thead>
-                <tr className="bg-[var(--c-surface-2)] text-[length:var(--t-label)] uppercase tracking-[var(--ls-label)] text-[var(--c-ink-muted)]">
-                  <th className="px-4 py-2.5 font-bold">N°</th>
-                  <th className="px-4 py-2.5 font-bold">Vence</th>
-                  <th className="px-4 py-2.5 font-bold">Monto</th>
-                  <th className="px-4 py-2.5 font-bold">Canal</th>
-                  <th className="px-4 py-2.5 font-bold">Estado</th>
-                  <th className="px-4 py-2.5" />
-                </tr>
-              </thead>
-              <tbody>
-                {cuotas.map((c) => {
-                  const b = badgeCuota(c, hoy);
-                  return (
-                    <tr key={c.id} className="border-t border-[var(--c-border)]">
-                      <td className="px-4 py-2.5 font-mono font-bold tabular-nums text-[var(--c-ink)]">
+          <TableWrap>
+            <Table responsive className="sm:min-w-[600px]">
+              <THead>
+                <TR>
+                  <TH>N°</TH>
+                  <TH>Vence</TH>
+                  <TH>Monto</TH>
+                  <TH>Canal</TH>
+                  <TH>Estado</TH>
+                  <TH className="w-[168px]">
+                    <span className="sr-only">Acciones</span>
+                  </TH>
+                </TR>
+              </THead>
+              <TBody>
+                {cuotas.map((c) => (
+                  <TR key={c.id}>
+                    <TD label="N°">
+                      <span className="font-mono font-bold tabular-nums text-[var(--c-ink)]">
                         {c.numero}
-                        {c.esUltimaCuota === 1 && (
-                          <span className="ml-1.5 text-[10px] font-bold uppercase text-[var(--c-warning)]">
-                            última
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 font-mono tabular-nums text-[var(--c-ink-muted)]">
-                        {formatFecha(c.fechaVencimiento)}
-                      </td>
-                      <td className="px-4 py-2.5 font-mono tabular-nums text-[var(--c-ink)]">
-                        {formatMonto(Number(c.monto), c.moneda)}
-                      </td>
-                      <td className="px-4 py-2.5 text-[var(--c-ink-muted)]">
-                        {c.canal === "presencial" ? "Presencial JUK" : "Vía agencia"}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-[var(--r-pill)] px-2.5 py-0.5 text-[length:var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] ${b.cls}`}
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                          {b.label}
+                      </span>
+                      {c.esUltimaCuota === 1 && (
+                        <span className="ml-1.5 text-[length:var(--t-label)] font-bold uppercase text-[var(--c-warning)]">
+                          última
                         </span>
-                        {c.estado === "pagada" && c.fechaPagoEfectivo && (
-                          <span className="ml-2 text-[11px] text-[var(--c-ink-subtle)]">
-                            el {formatFecha(c.fechaPagoEfectivo)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-right">
-                        {c.estado !== "pagada" && !(c.esUltimaCuota === 1 && c.canal === "presencial") && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            disabled={isPending}
-                            onClick={() => pagar(c.id)}
-                          >
-                            Registrar pago
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      )}
+                    </TD>
+                    <TD label="Vence">
+                      <DateCell date={formatFecha(c.fechaVencimiento)} />
+                    </TD>
+                    <TD label="Monto">
+                      <span className="font-mono tabular-nums text-[var(--c-ink)]">
+                        {formatMonto(Number(c.monto), c.moneda)}
+                      </span>
+                    </TD>
+                    <TD label="Canal">
+                      <span className="text-[var(--c-ink-muted)]">
+                        {c.canal === "presencial" ? "Presencial JUK" : "Vía agencia"}
+                      </span>
+                    </TD>
+                    <TD label="Estado">
+                      <BadgeCuota cuota={c} hoy={hoy} />
+                      {c.estado === "pagada" && c.fechaPagoEfectivo && (
+                        <span className="block text-[length:var(--t-label)] text-[var(--c-ink-subtle)]">
+                          el {formatFecha(c.fechaPagoEfectivo)}
+                        </span>
+                      )}
+                    </TD>
+                    <TD className="max-sm:justify-end">
+                      <div className="flex justify-end">
+                        {c.estado !== "pagada" &&
+                          !(c.esUltimaCuota === 1 && c.canal === "presencial") && (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              disabled={isPending}
+                              onClick={() => pagar(c.id)}
+                            >
+                              Registrar pago
+                            </Button>
+                          )}
+                      </div>
+                    </TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          </TableWrap>
         </>
       )}
     </section>

@@ -8,11 +8,14 @@ import {
   Checkbox,
   Field,
   Input,
+  SectionTitle,
   Select,
   Textarea,
+  sectionTitleClasses,
   useConfirm,
   useToast,
 } from "@/components/ui";
+import { AvisoErrores, useErroresDeFormulario } from "@/components/ui/form-errors";
 import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes";
 import {
   CONFIG_DOCUMENTAL_DEFAULT,
@@ -109,7 +112,7 @@ export function ColegioForm({
   const [values, setValues] = useState<FormValues>(() =>
     initialValues(initial, initialConfig)
   );
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
+  const { formRef, fe, reportar, limpiar, aviso } = useErroresDeFormulario();
   const [dirty, setDirty] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -164,7 +167,7 @@ export function ColegioForm({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setFieldErrors({});
+    limpiar();
 
     const payload = {
       ...(mode === "edit" && initial ? { id: initial.id } : {}),
@@ -202,14 +205,23 @@ export function ColegioForm({
         router.refresh();
       } else {
         toast.error(result.error);
-        if (result.fieldErrors) setFieldErrors(result.fieldErrors);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        reportar(result.fieldErrors);
       }
     });
   }
 
-  function cambiarEstado(nuevo: "activo" | "inactivo") {
+  async function cambiarEstado(nuevo: "activo" | "inactivo") {
     if (!initial) return;
+    if (nuevo === "inactivo") {
+      const { confirmado } = await confirm({
+        titulo: `¿Desactivar ${initial.nombre}?`,
+        detalle:
+          "Deja de aparecer en los selectores de viajes y alumnos. Los viajes y los datos que ya tiene se conservan, y podés reactivarlo cuando quieras.",
+        tone: "danger",
+        confirmLabel: "Sí, desactivar",
+      });
+      if (!confirmado) return;
+    }
     startTransition(async () => {
       const result =
         nuevo === "inactivo"
@@ -241,7 +253,6 @@ export function ColegioForm({
     router.push("/colegios");
   }
 
-  const fe = (k: string) => fieldErrors[k]?.[0];
   const ce = (prefix: string) => ({
     nombre: fe(`${prefix}.nombre`),
     email: fe(`${prefix}.email`),
@@ -249,12 +260,17 @@ export function ColegioForm({
   });
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-3xl">
+    <form ref={formRef} onSubmit={handleSubmit} className="max-w-3xl">
+      <AvisoErrores>{aviso}</AvisoErrores>
+
       <Section title="Datos generales">
         <Field label="Nombre" required error={fe("nombre")} className="sm:col-span-2">
           <Input
             value={values.nombre}
             invalid={!!fe("nombre")}
+            // Solo en el alta: en un form vacío el primer campo es donde el
+            // usuario va a escribir (en edición sería un salto molesto).
+            autoFocus={mode === "create"}
             onChange={(e) => set("nombre", e.target.value)}
             placeholder="London School of English"
           />
@@ -338,10 +354,8 @@ export function ColegioForm({
           />
         </Field>
 
-        <div className="sm:col-span-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-gray-700">
-            Tipos de alojamiento
-          </span>
+        <fieldset className="min-w-0 sm:col-span-2">
+          <legend className={sectionTitleClasses}>Tipos de alojamiento</legend>
           <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
             {TIPOS_ALOJAMIENTO.map((t) => (
               <Checkbox
@@ -352,11 +366,11 @@ export function ColegioForm({
               />
             ))}
           </div>
-        </div>
+        </fieldset>
       </Section>
 
       <Section title="Documentos del programa">
-        <p className="-mt-1 text-sm text-gray-600 sm:col-span-2">
+        <p className="-mt-1 text-[length:var(--t-small)] leading-[var(--lh-body)] text-[var(--c-ink-muted)] sm:col-span-2">
           Qué exige este colegio. Define los pasos del tablero del alumno al
           asignarlo a un viaje (los cambios aplican solo a asignaciones nuevas).
           “Opcional” activa el paso pero no cuenta para la completitud ni las alertas.
@@ -429,31 +443,33 @@ export function ColegioForm({
         </Field>
       </Section>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row">
           {mode === "edit" && initial && (
             <Button
               type="button"
-              variant="danger"
+              variant={initial.estado === "activo" ? "danger" : "secondary"}
               disabled={isPending}
               onClick={() =>
                 cambiarEstado(initial.estado === "activo" ? "inactivo" : "activo")
               }
+              className="w-full sm:w-auto"
             >
               {initial.estado === "activo" ? "Desactivar" : "Reactivar"}
             </Button>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Button
             type="button"
             variant="secondary"
             disabled={isPending}
             onClick={handleCancelar}
+            className="w-full sm:w-auto"
           >
             Cancelar
           </Button>
-          <Button type="submit" disabled={isPending}>
+          <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
             {isPending ? "Guardando…" : "Guardar"}
           </Button>
         </div>
@@ -465,9 +481,7 @@ export function ColegioForm({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-8">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
-        {title}
-      </h2>
+      <SectionTitle className="mb-3">{title}</SectionTitle>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
     </section>
   );
@@ -487,10 +501,10 @@ function ContactoFields({
   onChange: (field: keyof ContactoValues, value: string) => void;
 }) {
   return (
-    <fieldset className="rounded-md border border-gray-200 p-4 sm:col-span-2">
-      <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-700">
+    <fieldset className="min-w-0 rounded-[var(--r-md)] border border-[var(--c-border)] p-4 sm:col-span-2">
+      <legend className={`px-1 ${sectionTitleClasses}`}>
         {legend}
-        {required && <span className="ml-0.5 text-juk-coral-600">*</span>}
+        {required && <span className="ml-0.5 text-[var(--c-accent-600)]">*</span>}
       </legend>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Field label="Nombre" error={errors?.nombre}>

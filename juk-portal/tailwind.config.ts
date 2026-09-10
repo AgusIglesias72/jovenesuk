@@ -8,6 +8,11 @@ import type { Config } from "tailwindcss";
  * (text-juk-navy-950, etc.) quedan mapeadas a los valores STUDIO para que toda
  * la app adopte la dirección sin tocar cada archivo. El código nuevo debería
  * usar las custom properties directamente (bg-[var(--c-surface)]).
+ *
+ * El puente son hex CONGELADOS: no siguen a tokens.css, así que hay que
+ * borrarlo. Al 10/09/2026 quedan 32 usos en 13 archivos de (admin) —
+ * `grep -rn "juk-\(navy\|coral\|gold\)" src/` tiene que dar 0 antes de sacar el
+ * bloque `colors` de abajo (lo marca eslint.config.mjs con un warn).
  */
 const config: Config = {
   content: [

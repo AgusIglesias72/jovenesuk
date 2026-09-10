@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ConfirmProvider, ToastProvider } from "@/components/ui";
+import { useScrollLock } from "@/components/ui/use-scroll-lock";
 import { cn } from "@/lib/utils/cn";
 
+import { buildBreadcrumb, type Crumb } from "./breadcrumb-labels";
 import { LogoutButton } from "./logout-button";
 
 /**
@@ -29,28 +31,55 @@ interface AdminShellProps {
   children: React.ReactNode;
 }
 
+const FOCUSABLES =
+  'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+
 export function AdminShell({ user, children }: AdminShellProps) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerRef = useRef<HTMLElement>(null);
+  const hamburguesaRef = useRef<HTMLButtonElement>(null);
 
   const cerrarDrawer = () => setDrawerOpen(false);
   // El drawer se cierra al tocar un item de nav (onNavigate → cerrarDrawer),
   // igual que el shell de familias; no hace falta un effect sobre pathname.
 
-  // Escape cierra el drawer + bloqueo de scroll del body mientras está abierto.
+  // El body se congela con el hook del DS: `overflow: hidden` a secas no frena
+  // el scroll-through de iOS.
+  useScrollLock(drawerOpen);
+
   useEffect(() => {
     if (!drawerOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setDrawerOpen(false);
     };
     document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const hamburguesa = hamburguesaRef.current;
+    drawerRef.current?.querySelector<HTMLElement>(FOCUSABLES)?.focus();
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
+      // El `inert` del fondo ya se levantó cuando corre esta limpieza.
+      hamburguesa?.focus();
     };
   }, [drawerOpen]);
+
+  function atraparFoco(e: React.KeyboardEvent<HTMLElement>) {
+    if (e.key !== "Tab") return;
+    const focusables = Array.from(
+      drawerRef.current?.querySelectorAll<HTMLElement>(FOCUSABLES) ?? []
+    );
+    const primero = focusables[0];
+    const ultimo = focusables[focusables.length - 1];
+    if (!primero || !ultimo) return;
+
+    if (e.shiftKey && document.activeElement === primero) {
+      e.preventDefault();
+      ultimo.focus();
+    } else if (!e.shiftKey && document.activeElement === ultimo) {
+      e.preventDefault();
+      primero.focus();
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[var(--c-page)] text-[var(--c-ink)] lg:grid lg:h-screen lg:grid-cols-[264px_1fr] lg:overflow-hidden">
@@ -60,8 +89,8 @@ export function AdminShell({ user, children }: AdminShellProps) {
       </aside>
 
       {/* ---------- Header sticky (mobile) ---------- */}
-      <div className="sticky top-0 z-30 lg:hidden">
-        <header className="flex items-center justify-between gap-3 bg-[image:var(--grad-brand)] px-4 py-3 text-[var(--c-ink-onbrand)]">
+      <div className="sticky top-0 z-30 lg:hidden" inert={drawerOpen}>
+        <header className="flex items-center justify-between gap-3 bg-[image:var(--grad-brand)] px-4 py-3 pl-[calc(1rem+var(--safe-left))] pr-[calc(1rem+var(--safe-right))] pt-[calc(0.75rem+var(--safe-top))] text-[var(--c-ink-onbrand)]">
           <div className="flex min-w-0 items-center gap-2.5">
             <span
               className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--r-md)] bg-[image:var(--grad-warm)] text-[var(--c-ink-onaccent)] shadow-[shadow:var(--shadow-accent)]"
@@ -80,6 +109,7 @@ export function AdminShell({ user, children }: AdminShellProps) {
           </div>
           <button
             type="button"
+            ref={hamburguesaRef}
             onClick={() => setDrawerOpen(true)}
             aria-label="Abrir menú"
             aria-expanded={drawerOpen}
@@ -89,7 +119,7 @@ export function AdminShell({ user, children }: AdminShellProps) {
             <IconMenu />
           </button>
         </header>
-        <div className="border-b border-[var(--c-border)] bg-[var(--c-surface)] px-4 py-2.5">
+        <div className="border-b border-[var(--c-border)] bg-[var(--c-surface)] px-4 py-2.5 pl-[calc(1rem+var(--safe-left))] pr-[calc(1rem+var(--safe-right))]">
           <Breadcrumb items={buildBreadcrumb(pathname)} />
         </div>
       </div>
@@ -101,14 +131,16 @@ export function AdminShell({ user, children }: AdminShellProps) {
             type="button"
             aria-label="Cerrar menú"
             onClick={cerrarDrawer}
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 touch-none bg-black/50"
           />
           <aside
             id="admin-drawer"
+            ref={drawerRef}
             role="dialog"
             aria-modal="true"
             aria-label="Navegación"
-            className="absolute inset-y-0 left-0 flex w-[min(84vw,300px)] flex-col bg-[image:var(--grad-brand)] p-4 text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-3)]"
+            onKeyDown={atraparFoco}
+            className="absolute inset-y-0 left-0 flex w-[min(84vw,300px)] flex-col bg-[image:var(--grad-brand)] p-4 pb-[calc(1rem+var(--safe-bottom))] pl-[calc(1rem+var(--safe-left))] pt-[calc(1rem+var(--safe-top))] text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-3)]"
           >
             <SidebarBody user={user} pathname={pathname} onNavigate={cerrarDrawer} />
           </aside>
@@ -116,12 +148,12 @@ export function AdminShell({ user, children }: AdminShellProps) {
       )}
 
       {/* ---------- Contenido ---------- */}
-      <main className="lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
+      <main className="lg:flex lg:h-screen lg:flex-col lg:overflow-hidden" inert={drawerOpen}>
         {/* Topbar (desktop) */}
         <div className="hidden items-center gap-4 border-b border-[var(--c-border)] bg-[var(--c-surface)] px-6 py-3 lg:flex">
           <Breadcrumb items={buildBreadcrumb(pathname)} />
         </div>
-        <div className="bg-[image:var(--grad-page)] p-4 sm:p-6 lg:flex-1 lg:overflow-auto">
+        <div className="bg-[image:var(--grad-page)] p-4 pb-[calc(1rem+var(--safe-bottom))] sm:p-6 sm:pb-[calc(1.5rem+var(--safe-bottom))] lg:flex-1 lg:overflow-auto lg:pb-6">
           <ConfirmProvider>
             <ToastProvider>{children}</ToastProvider>
           </ConfirmProvider>
@@ -179,7 +211,7 @@ function SidebarBody({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto overscroll-contain">
         <SidebarSection title="Operación">
           <SidebarItem
             icon={<IconGrid />}
@@ -262,7 +294,7 @@ function SidebarBody({
       {/* User chip — fuera del área scrolleable: siempre visible */}
       <div className="mt-3 flex items-center gap-3 rounded-[var(--r-lg)] bg-white/10 p-3">
         <span
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--r-pill)] bg-[image:var(--grad-warm)] text-[11px] font-extrabold text-[var(--c-ink-onaccent)]"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--r-pill)] bg-[image:var(--grad-warm)] text-[length:var(--t-label)] font-extrabold text-[var(--c-ink-onaccent)]"
           aria-hidden
         >
           {initials || "U"}
@@ -315,12 +347,12 @@ function SidebarItem({ icon, label, href, active, soon, onNavigate }: SidebarIte
   if (soon) {
     return (
       <div
-        className="flex min-h-[42px] w-full cursor-default select-none items-center gap-3 rounded-[var(--r-pill)] px-4 text-[length:var(--t-small)] font-semibold text-[var(--c-ink-onbrand-muted)] opacity-60"
+        className="flex min-h-[var(--tap)] w-full cursor-default select-none items-center gap-3 rounded-[var(--r-pill)] px-4 text-[length:var(--t-small)] font-semibold text-[var(--c-ink-onbrand-muted)] opacity-60"
         aria-disabled="true"
       >
         <span className="h-4 w-4 flex-shrink-0 opacity-80">{icon}</span>
         <span className="flex-1 text-left">{label}</span>
-        <span className="rounded-[var(--r-pill)] bg-white/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-onbrand-muted)]">
+        <span className="rounded-[var(--r-pill)] bg-white/10 px-2 py-0.5 text-[length:var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-ink-onbrand-muted)]">
           Pronto
         </span>
       </div>
@@ -333,7 +365,7 @@ function SidebarItem({ icon, label, href, active, soon, onNavigate }: SidebarIte
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex min-h-[42px] w-full items-center gap-3 rounded-[var(--r-pill)] px-4 text-[length:var(--t-small)] transition-colors duration-150",
+        "flex min-h-[var(--tap)] w-full items-center gap-3 rounded-[var(--r-pill)] px-4 text-[length:var(--t-small)] transition-colors duration-150",
         active
           ? "bg-white/10 font-bold text-[var(--c-ink-onbrand)]"
           : "font-semibold text-[var(--c-ink-onbrand-muted)] hover:bg-white/5 hover:text-[var(--c-ink-onbrand)]"
@@ -362,7 +394,7 @@ function SidebarItem({ icon, label, href, active, soon, onNavigate }: SidebarIte
    Topbar breadcrumb (STUDIO)
    ============================================================ */
 
-function Breadcrumb({ items }: { items: { label: string; href?: string }[] }) {
+function Breadcrumb({ items }: { items: Crumb[] }) {
   return (
     <nav
       className="text-[length:var(--t-small)] text-[var(--c-ink-subtle)]"
@@ -394,36 +426,6 @@ function Breadcrumb({ items }: { items: { label: string; href?: string }[] }) {
       })}
     </nav>
   );
-}
-
-/* ============================================================
-   Breadcrumb derived from pathname
-   ============================================================ */
-
-function buildBreadcrumb(pathname: string): { label: string; href?: string }[] {
-  const segments = pathname.split("/").filter(Boolean);
-  if (segments.length === 0) return [{ label: "Inicio" }];
-
-  const LABEL_MAP: Record<string, string> = {
-    dashboard: "Dashboard",
-    alumnos: "Alumnos",
-    viajes: "Viajes",
-    colegios: "Colegios",
-    prospectos: "Prospectos",
-    pagos: "Pagos",
-    consultas: "Consultas",
-    usuarios: "Usuarios",
-    configuracion: "Configuración",
-    cuenta: "Mi cuenta",
-  };
-
-  return segments.map((seg, i) => {
-    const isLast = i === segments.length - 1;
-    return {
-      label: LABEL_MAP[seg] ?? seg,
-      href: isLast ? undefined : "/" + segments.slice(0, i + 1).join("/"),
-    };
-  });
 }
 
 /* ============================================================

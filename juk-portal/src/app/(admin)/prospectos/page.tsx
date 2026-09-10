@@ -62,28 +62,37 @@ export default async function ProspectosPage({
         subtitle={total === 1 ? "1 prospecto" : `${total} prospectos`}
         actions={
           <>
-            <div
-              className="inline-flex rounded-[var(--r-pill)] border border-[var(--c-border-strong)] bg-[var(--c-surface)] p-0.5"
-              role="group"
-              aria-label="Vista"
+            <LinkButton
+              href="/prospectos/importar"
+              variant="secondary"
+              className="w-full sm:w-auto"
             >
-              <VistaTab href={conVista("kanban")} activo={vista === "kanban"}>
-                Kanban
-              </VistaTab>
-              <VistaTab href={conVista("tabla")} activo={vista === "tabla"}>
-                Tabla
-              </VistaTab>
-            </div>
-            <LinkButton href="/prospectos/importar" variant="secondary">
               Importar
             </LinkButton>
-            <LinkButton href="/prospectos/nuevo">+ Nuevo</LinkButton>
+            <LinkButton href="/prospectos/nuevo" className="w-full sm:w-auto">
+              + Nuevo
+            </LinkButton>
           </>
         }
       />
 
+      {/* El selector de vista es un control de contenido, no una acción del
+          header: en el teléfono ocupa el ancho completo con altura de toque. */}
+      <div
+        className="mb-4 grid grid-cols-2 gap-1 rounded-[var(--r-pill)] border border-[var(--c-border-strong)] bg-[var(--c-surface)] p-1 sm:w-fit"
+        role="group"
+        aria-label="Vista"
+      >
+        <VistaTab href={conVista("kanban")} activo={vista === "kanban"}>
+          Kanban
+        </VistaTab>
+        <VistaTab href={conVista("tabla")} activo={vista === "tabla"}>
+          Tabla
+        </VistaTab>
+      </div>
+
       {datos.vista === "tabla" ? (
-        <TablaVista paginado={datos.paginado} />
+        <TablaVista paginado={datos.paginado} hayFiltros={Object.values(criterios).some(Boolean)} />
       ) : (
         <ProspectosKanban prospectos={datos.tarjetas} />
       )}
@@ -105,7 +114,8 @@ function VistaTab({
       href={href}
       aria-current={activo ? "page" : undefined}
       className={cn(
-        "rounded-[var(--r-pill)] px-3 py-1 text-[length:var(--t-label)] font-semibold uppercase tracking-[var(--ls-label)] transition-colors",
+        "inline-flex min-h-[var(--tap)] items-center justify-center rounded-[var(--r-pill)] px-4 text-[length:var(--t-small)] font-semibold uppercase tracking-[var(--ls-label)] transition-colors",
+        "lg:[@media(pointer:fine)]:min-h-[32px]",
         activo
           ? "bg-[var(--c-brand)] text-[var(--c-ink-onbrand)]"
           : "text-[var(--c-ink-muted)] hover:text-[var(--c-ink)]"
@@ -118,8 +128,10 @@ function VistaTab({
 
 function TablaVista({
   paginado,
+  hayFiltros,
 }: {
   paginado: Paginado<Awaited<ReturnType<typeof listProspectos>>["items"][number]>;
+  hayFiltros: boolean;
 }) {
   const { items, total, page, pages } = paginado;
   return (
@@ -127,7 +139,7 @@ function TablaVista({
       <div className="mb-4">
         <ProspectosFilters />
       </div>
-      <ProspectosTable prospectos={items} />
+      <ProspectosTable prospectos={items} hayFiltros={hayFiltros} />
       <Pagination total={total} page={page} pages={pages} />
     </>
   );

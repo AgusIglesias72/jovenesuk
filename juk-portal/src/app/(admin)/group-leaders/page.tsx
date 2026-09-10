@@ -43,7 +43,7 @@ export default async function GroupLeadersPage({
         <GroupLeadersFilters />
       </div>
 
-      <GroupLeadersTable groupLeaders={gls} />
+      <GroupLeadersTable groupLeaders={gls} hayFiltros={Object.values(filters).some(Boolean)} />
       <Pagination total={total} page={page} pages={pages} />
     </>
   );

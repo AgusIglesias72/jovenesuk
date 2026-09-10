@@ -13,15 +13,15 @@
  * en su idioma. Es client component solo por eso: los layouts no reciben
  * searchParams, así que la audiencia se lee de la URL.
  *
- * Fondo opcional: si `FONDO_LOGIN` apunta a una imagen, se muestra detrás del
- * gradiente (con un velo de marca encima para que el logo y el texto sigan
- * legibles). Con `null`, queda sólo el gradiente. Cambiá la constante para
- * validar distintas fotos / volver al gradiente.
+ * Fondo opcional: con `CON_FOTO` en true se muestra la foto detrás del gradiente
+ * (con un velo de marca encima para que el logo y el texto sigan legibles); en
+ * false queda sólo el gradiente. Qué foto es y cómo es el velo se define en los
+ * tokens (`--img-login` / `--grad-login-veil` en src/styles/tokens.css).
  */
 
 import { useSearchParams } from "next/navigation";
 
-const FONDO_LOGIN: string | null = "/landing/trips/london-bigben.jpg";
+const CON_FOTO = true;
 
 export type AudienciaAuth = "equipo" | "familias";
 
@@ -43,7 +43,7 @@ export function JukBrandPanel({ audiencia }: { audiencia?: AudienciaAuth }) {
   const resuelta: AudienciaAuth =
     audiencia ?? (searchParams.get("portal") === "familias" ? "familias" : "equipo");
   const copy = COPY[resuelta];
-  const conImagen = FONDO_LOGIN !== null;
+  const conImagen = CON_FOTO;
 
   return (
     <aside className="relative hidden flex-col justify-between overflow-hidden bg-[image:var(--grad-brand)] p-12 text-[var(--c-ink-onbrand)] lg:flex">
@@ -51,8 +51,7 @@ export function JukBrandPanel({ audiencia }: { audiencia?: AudienciaAuth }) {
         <>
           {/* Foto de fondo */}
           <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${FONDO_LOGIN})` }}
+            className="absolute inset-0 bg-[image:var(--img-login)] bg-cover bg-center"
             aria-hidden
           />
           {/* Velo de marca: mantiene la identidad teal y la legibilidad del texto
@@ -62,11 +61,7 @@ export function JukBrandPanel({ audiencia }: { audiencia?: AudienciaAuth }) {
             aria-hidden
           />
           <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage:
-                "linear-gradient(to top, rgba(8,32,29,0.65), rgba(8,32,29,0.05) 55%)",
-            }}
+            className="absolute inset-0 bg-[image:var(--grad-login-veil)]"
             aria-hidden
           />
         </>

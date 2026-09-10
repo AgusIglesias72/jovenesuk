@@ -8,11 +8,13 @@ import {
   DateInput,
   Field,
   Input,
+  SectionTitle,
   Select,
   Textarea,
   useConfirm,
   useToast,
 } from "@/components/ui";
+import { AvisoErrores, useErroresDeFormulario } from "@/components/ui/form-errors";
 import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes";
 import {
   ALUMNO_ESTADO_LABELS,
@@ -40,6 +42,16 @@ type FacturacionValues = {
   cuilCuit: string;
   condicionFiscal: (typeof CONDICIONES_FISCALES)[number];
 };
+
+/** Los campos que delatan que este alumno YA factura: abren la sección plegada. */
+const CAMPOS_FACTURACION = [
+  "razonSocial",
+  "direccion",
+  "localidad",
+  "provincia",
+  "codigoPostal",
+  "cuilCuit",
+] as const satisfies readonly (keyof FacturacionValues)[];
 
 type FormValues = {
   nombre: string;
@@ -109,9 +121,12 @@ export function AlumnoForm({
   const confirm = useConfirm();
   const toast = useToast();
   const [values, setValues] = useState<FormValues>(() => initialValues(initial));
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
+  const { formRef, fe, hayErrorCon, reportar, limpiar, aviso } = useErroresDeFormulario();
   const [dirty, setDirty] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [facturacionAbierta, setFacturacionAbierta] = useState(() =>
+    CAMPOS_FACTURACION.some((k) => (initial?.facturacion?.[k] ?? "") !== "")
+  );
 
   useUnsavedChanges(dirty);
 
@@ -123,11 +138,10 @@ export function AlumnoForm({
     setDirty(true);
     setValues((v) => ({ ...v, facturacion: { ...v.facturacion, [key]: value } }));
   }
-  const fe = (k: string) => fieldErrors[k]?.[0];
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setFieldErrors({});
+    limpiar();
 
     const { estado, ...rest } = values;
     const payload = {
@@ -147,8 +161,7 @@ export function AlumnoForm({
         router.refresh();
       } else {
         toast.error(result.error);
-        if (result.fieldErrors) setFieldErrors(result.fieldErrors);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        reportar(result.fieldErrors);
       }
     });
   }
@@ -204,10 +217,14 @@ export function AlumnoForm({
     });
   }
 
+  const alta = mode === "create";
+
   return (
-    <form onSubmit={handleSubmit} className="max-w-3xl">
+    <form ref={formRef} onSubmit={handleSubmit} className="max-w-3xl">
+      <AvisoErrores>{aviso}</AvisoErrores>
+
       <Section title="Datos personales">
-        <TextField label="Nombre" required value={values.nombre} error={fe("nombre")} onChange={(v) => set("nombre", v)} />
+        <TextField label="Nombre" required autoFocus={alta} value={values.nombre} error={fe("nombre")} onChange={(v) => set("nombre", v)} />
         <TextField label="Apellido" required value={values.apellido} error={fe("apellido")} onChange={(v) => set("apellido", v)} />
         <TextField label="Fecha de nacimiento" required type="date" value={values.fechaNacimiento} error={fe("fechaNacimiento")} onChange={(v) => set("fechaNacimiento", v)} />
         <TextField label="DNI" required value={formatearDni(values.dni)} error={fe("dni")} onChange={(v) => set("dni", soloDigitos(v))} />
@@ -235,7 +252,11 @@ export function AlumnoForm({
         <TextField label="Email" type="email" value={values.tutor2Email} error={fe("tutor2Email")} onChange={(v) => set("tutor2Email", v)} className="col-span-1 sm:col-span-2" />
       </Section>
 
-      <Section title="Facturación (opcional)">
+      <SeccionPlegable
+        title="Facturación (opcional)"
+        abierta={facturacionAbierta || hayErrorCon("facturacion.")}
+        onToggle={setFacturacionAbierta}
+      >
         <TextField label="Razón social" value={values.facturacion.razonSocial} error={fe("facturacion.razonSocial")} onChange={(v) => setFact("razonSocial", v)} />
         <TextField label="CUIL / CUIT" value={values.facturacion.cuilCuit} error={fe("facturacion.cuilCuit")} onChange={(v) => setFact("cuilCuit", v)} />
         <TextField label="Dirección" value={values.facturacion.direccion} error={fe("facturacion.direccion")} onChange={(v) => setFact("direccion", v)} />
@@ -251,7 +272,7 @@ export function AlumnoForm({
             ))}
           </Select>
         </Field>
-      </Section>
+      </SeccionPlegable>
 
       <Section title="Preferencias y notas">
         <TextField label="Preferencias de alojamiento" value={values.preferenciasAlojamiento} onChange={(v) => set("preferenciasAlojamiento", v)} />
@@ -273,23 +294,41 @@ export function AlumnoForm({
       </Section>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="flex flex-col gap-3 sm:flex-row">
           {mode === "edit" && initial && initial.estado !== "baja" && (
-            <Button type="button" variant="danger" disabled={isPending} onClick={darDeBaja}>
+            <Button
+              type="button"
+              variant="danger"
+              disabled={isPending}
+              onClick={darDeBaja}
+              className="w-full sm:w-auto"
+            >
               Dar de baja
             </Button>
           )}
           {mode === "edit" && initial && initial.estado === "baja" && (
-            <Button type="button" variant="secondary" disabled={isPending} onClick={reactivar}>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={isPending}
+              onClick={reactivar}
+              className="w-full sm:w-auto"
+            >
               Reactivar
             </Button>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          <Button type="button" variant="secondary" disabled={isPending} onClick={cancelar}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={isPending}
+            onClick={cancelar}
+            className="w-full sm:w-auto"
+          >
             Cancelar
           </Button>
-          <Button type="submit" disabled={isPending}>
+          <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
             {isPending ? "Guardando…" : "Guardar"}
           </Button>
         </div>
@@ -301,11 +340,44 @@ export function AlumnoForm({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-8">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
-        {title}
-      </h2>
+      <SectionTitle className="mb-3">{title}</SectionTitle>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
     </section>
+  );
+}
+
+/**
+ * Sección plegable — Facturación arranca cerrada (MIN-15: se conserva, pero
+ * son 7 campos que casi nunca se cargan en el alta).
+ */
+function SeccionPlegable({
+  title,
+  abierta,
+  onToggle,
+  children,
+}: {
+  title: string;
+  abierta: boolean;
+  onToggle: (abierta: boolean) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <details
+      open={abierta}
+      onToggle={(e) => onToggle(e.currentTarget.open)}
+      className="group mb-8 rounded-[var(--r-lg)] border border-[var(--c-border)] bg-[var(--c-surface)] px-4"
+    >
+      <summary className="-mx-4 flex min-h-[var(--tap)] list-none items-center gap-2 px-4 text-[var(--c-ink-subtle)] [&::-webkit-details-marker]:hidden">
+        <span
+          aria-hidden
+          className="transition-transform duration-150 group-open:rotate-90"
+        >
+          ▸
+        </span>
+        <SectionTitle as="div">{title}</SectionTitle>
+      </summary>
+      <div className="grid grid-cols-1 gap-4 pb-4 sm:grid-cols-2">{children}</div>
+    </details>
   );
 }
 
@@ -319,6 +391,7 @@ function TextField({
   placeholder,
   help,
   className,
+  autoFocus,
 }: {
   label: string;
   required?: boolean;
@@ -329,6 +402,7 @@ function TextField({
   placeholder?: string;
   help?: string;
   className?: string;
+  autoFocus?: boolean;
 }) {
   return (
     <Field label={label} required={required} error={error} help={help} className={className}>
@@ -345,6 +419,9 @@ function TextField({
           value={value}
           invalid={!!error}
           placeholder={placeholder}
+          // Solo en el alta: en un form vacío el primer campo es exactamente
+          // donde el usuario va a escribir (en edición sería un salto molesto).
+          autoFocus={autoFocus}
           onChange={(e) => onChange(e.target.value)}
         />
       )}

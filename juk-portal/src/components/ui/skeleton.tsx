@@ -30,14 +30,39 @@ function CardShell({ children, className }: { children: React.ReactNode; classNa
   );
 }
 
+/** Espeja `<PageHeader>`: apilado en mobile, en fila desde `sm`. */
 export function PageHeaderSkeleton({ withAction = true }: { withAction?: boolean }) {
   return (
-    <div className="mb-6 flex items-start justify-between gap-4">
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
       <div className="space-y-2">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-8 w-64 max-w-full" />
+        <Skeleton className="h-4 w-40 max-w-full" />
       </div>
-      {withAction && <Skeleton className="h-10 w-32 rounded-[var(--r-pill)]" />}
+      {withAction && <Skeleton className="h-11 w-full rounded-[var(--r-pill)] sm:h-10 sm:w-32" />}
+    </div>
+  );
+}
+
+/** Espeja la barra de filtros de los listados (alumnos-filters, colegios-filters). */
+export function FiltersSkeleton() {
+  return (
+    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+      <Skeleton className="h-11 w-full rounded-[var(--r-pill)] sm:min-w-[220px] sm:flex-1" />
+      <Skeleton className="h-11 w-full sm:w-52" />
+      <Skeleton className="h-11 w-full sm:w-44" />
+    </div>
+  );
+}
+
+/** Fila de listado: en mobile es una card apilada (modo card del DataTable). */
+function ListRowSkeleton() {
+  return (
+    <div className="flex flex-col gap-2 px-4 py-3.5 sm:flex-row sm:items-center sm:gap-6 sm:px-5 sm:py-4">
+      <Skeleton className="h-4 w-40 max-w-full" />
+      <Skeleton className="h-4 w-28" />
+      <Skeleton className="h-4 w-24" />
+      <Skeleton className="hidden h-4 w-32 sm:block" />
+      <Skeleton className="h-7 w-24 rounded-[var(--r-pill)] sm:ml-auto sm:w-16" />
     </div>
   );
 }
@@ -46,28 +71,64 @@ export function ListPageSkeleton({ rows = 8 }: { rows?: number }) {
   return (
     <div role="status" aria-label="Cargando…">
       <PageHeaderSkeleton />
-      <div className="mb-4 flex flex-wrap gap-3">
-        <Skeleton className="h-11 w-72 rounded-[var(--r-pill)]" />
-        <Skeleton className="h-11 w-44" />
-        <Skeleton className="h-11 w-44" />
-      </div>
+      <FiltersSkeleton />
       <CardShell className="p-0">
-        <div className="border-b border-[var(--c-border)] px-5 py-3">
+        <div className="hidden border-b border-[var(--c-border)] px-5 py-3 sm:block">
           <Skeleton className="h-4 w-full max-w-2xl" />
         </div>
         <div className="divide-y divide-[var(--c-border)]">
           {Array.from({ length: rows }).map((_, i) => (
-            <div key={i} className="flex items-center gap-6 px-5 py-4">
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="hidden h-4 w-32 sm:block" />
-              <Skeleton className="ml-auto h-7 w-16 rounded-[var(--r-pill)]" />
-            </div>
+            <ListRowSkeleton key={i} />
           ))}
         </div>
       </CardShell>
     </div>
+  );
+}
+
+/** /pagos: header + 4 StatCards de resumen + filtros + tabla de cuotas. */
+export function PagosPageSkeleton({ rows = 8 }: { rows?: number }) {
+  return (
+    <div role="status" aria-label="Cargando…">
+      <PageHeaderSkeleton withAction={false} />
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <CardShell key={i}>
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="mt-3 h-9 w-32" />
+            <Skeleton className="mt-3 h-5 w-40 rounded-[var(--r-pill)]" />
+          </CardShell>
+        ))}
+      </div>
+      <FiltersSkeleton />
+      <CardShell className="p-0">
+        <div className="hidden border-b border-[var(--c-border)] px-5 py-3 sm:block">
+          <Skeleton className="h-4 w-full max-w-2xl" />
+        </div>
+        <div className="divide-y divide-[var(--c-border)]">
+          {Array.from({ length: rows }).map((_, i) => (
+            <ListRowSkeleton key={i} />
+          ))}
+        </div>
+      </CardShell>
+    </div>
+  );
+}
+
+/**
+ * Panel que streamea dentro de una página (fallback de `<Suspense>`).
+ * No lleva `role="status"`: la página ya anunció que estaba cargando.
+ */
+export function PanelSkeleton({ filas = 4 }: { filas?: number }) {
+  return (
+    <CardShell className="mb-8">
+      <Skeleton className="h-5 w-48 max-w-full" />
+      <div className="mt-4 space-y-3">
+        {Array.from({ length: filas }).map((_, i) => (
+          <Skeleton key={i} className="h-10 w-full" />
+        ))}
+      </div>
+    </CardShell>
   );
 }
 
@@ -84,9 +145,9 @@ export function FormPageSkeleton({ fields = 8 }: { fields?: number }) {
             </div>
           ))}
         </div>
-        <div className="mt-8 flex justify-end gap-3">
-          <Skeleton className="h-10 w-28 rounded-[var(--r-pill)]" />
-          <Skeleton className="h-10 w-36 rounded-[var(--r-pill)]" />
+        <div className="mt-8 flex flex-wrap justify-end gap-3">
+          <Skeleton className="h-11 w-28 rounded-[var(--r-pill)]" />
+          <Skeleton className="h-11 w-36 rounded-[var(--r-pill)]" />
         </div>
       </CardShell>
     </div>
@@ -141,11 +202,11 @@ export function FichaAlumnoSkeleton() {
     <div role="status" aria-label="Cargando…">
       <PageHeaderSkeleton />
       <CardShell>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="space-y-1.5">
               <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-5 w-32 max-w-full" />
             </div>
           ))}
         </div>
@@ -170,33 +231,27 @@ export function FichaAlumnoSkeleton() {
   );
 }
 
-export function ViajeDetalleSkeleton() {
+/**
+ * /viajes/[id]: header + ficha de datos + los paneles que streamean.
+ * Espeja la página real (una columna, paneles apilados), no un grid de dos.
+ */
+export function ViajeDetalleSkeleton({ paneles = 3 }: { paneles?: number }) {
   return (
     <div role="status" aria-label="Cargando…">
       <PageHeaderSkeleton />
-      <div className="mb-6 flex flex-wrap gap-3">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-40 rounded-[var(--r-pill)]" />
-        ))}
-      </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <CardShell>
-          <Skeleton className="h-5 w-44" />
-          <div className="mt-4 space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
-        </CardShell>
-        <CardShell>
-          <Skeleton className="h-5 w-44" />
-          <div className="mt-4 space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
-        </CardShell>
-      </div>
+      <CardShell className="mb-8">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 md:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="space-y-1.5">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-5 w-32 max-w-full" />
+            </div>
+          ))}
+        </div>
+      </CardShell>
+      {Array.from({ length: paneles }).map((_, i) => (
+        <PanelSkeleton key={i} filas={i === 0 ? 2 : 4} />
+      ))}
     </div>
   );
 }

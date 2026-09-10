@@ -33,6 +33,7 @@ export function GroupLeadersFilters() {
         <Input
           type="search"
           placeholder="Buscar por nombre, apellido o email…"
+          aria-label="Buscar por nombre, apellido o email"
           defaultValue={sp.get("q") ?? ""}
           onChange={(e) => onSearch(e.target.value)}
         />

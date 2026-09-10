@@ -9,11 +9,14 @@ import {
   DateInput,
   Field,
   Input,
+  SectionTitle,
   Select,
   Textarea,
+  sectionTitleClasses,
   useConfirm,
   useToast,
 } from "@/components/ui";
+import { AvisoErrores, useErroresDeFormulario } from "@/components/ui/form-errors";
 import { PAIS_LABELS, PAISES } from "@/lib/domain/colegios";
 import { PROSPECTO_ESTADO_LABELS, PROSPECTO_ESTADOS } from "@/lib/domain/prospectos";
 import type { Prospecto } from "@/lib/db/schema/prospectos";
@@ -87,7 +90,7 @@ export function ProspectoForm({
   const toast = useToast();
   const confirm = useConfirm();
   const [values, setValues] = useState<FormValues>(() => initialValues(initial));
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
+  const { formRef, fe, reportar, limpiar, aviso } = useErroresDeFormulario();
   const [dirty, setDirty] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -143,7 +146,7 @@ export function ProspectoForm({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setFieldErrors({});
+    limpiar();
     const payload = buildPayload();
 
     startTransition(async () => {
@@ -158,8 +161,7 @@ export function ProspectoForm({
         router.refresh();
       } else {
         toast.error(result.error);
-        if (result.fieldErrors) setFieldErrors(result.fieldErrors);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        reportar(result.fieldErrors);
       }
     });
   }
@@ -198,15 +200,18 @@ export function ProspectoForm({
     router.push("/prospectos");
   }
 
-  const fe = (k: string) => fieldErrors[k]?.[0];
-
   return (
-    <form onSubmit={handleSubmit} className="max-w-3xl">
+    <form ref={formRef} onSubmit={handleSubmit} className="max-w-3xl">
+      <AvisoErrores>{aviso}</AvisoErrores>
+
       <Section title="Datos generales">
         <Field label="Nombre" required error={fe("nombre")} className="sm:col-span-2">
           <Input
             value={values.nombre}
             invalid={!!fe("nombre")}
+            // Solo en el alta: en un form vacío el primer campo es donde el
+            // usuario va a escribir (en edición sería un salto molesto).
+            autoFocus={mode === "create"}
             onChange={(e) => set("nombre", e.target.value)}
             placeholder="Nombre del colegio o institución"
           />
@@ -278,6 +283,7 @@ export function ProspectoForm({
 
         <ListaDinamica
           label="Emails"
+          singular="Email"
           type="email"
           placeholder="contacto@colegio.com"
           valores={values.emails}
@@ -289,6 +295,7 @@ export function ProspectoForm({
 
         <ListaDinamica
           label="Teléfonos"
+          singular="Teléfono"
           type="tel"
           placeholder="+44 20 1234 5678"
           valores={values.telefonos}
@@ -386,11 +393,21 @@ export function ProspectoForm({
             <input
               ref={fileRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               disabled={subiendoImagen || isPending}
               onChange={handleImagen}
-              className="block w-full text-[length:var(--t-small)] text-[var(--c-ink-muted)] file:mr-3 file:cursor-pointer file:rounded-[var(--r-sm)] file:border-0 file:bg-[var(--c-surface-2)] file:px-3 file:py-2 file:text-[var(--c-ink)] hover:file:bg-[var(--c-brand-50)]"
+              aria-label="Imagen del prospecto"
+              className="hidden"
             />
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={subiendoImagen || isPending}
+              onClick={() => fileRef.current?.click()}
+              className="w-full sm:w-auto"
+            >
+              {imagenUrl ? "Cambiar imagen" : "Elegir imagen o sacar foto"}
+            </Button>
             {subiendoImagen && (
               <p className="mt-2 text-[length:var(--t-small)] text-[var(--c-ink-subtle)]">
                 Subiendo imagen…
@@ -400,11 +417,17 @@ export function ProspectoForm({
         </Section>
       )}
 
-      <div className="mt-6 flex items-center justify-end gap-3">
-        <Button type="button" variant="secondary" disabled={isPending} onClick={handleCancelar}>
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={isPending}
+          onClick={handleCancelar}
+          className="w-full sm:w-auto"
+        >
           Cancelar
         </Button>
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
           {isPending ? "Guardando…" : "Guardar"}
         </Button>
       </div>
@@ -415,9 +438,7 @@ export function ProspectoForm({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-8">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
-        {title}
-      </h2>
+      <SectionTitle className="mb-3">{title}</SectionTitle>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
     </section>
   );
@@ -425,6 +446,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function ListaDinamica({
   label,
+  singular,
   type,
   placeholder,
   valores,
@@ -434,6 +456,8 @@ function ListaDinamica({
   onQuitar,
 }: {
   label: string;
+  /** Nombra cada fila ("Email 2"): los inputs de la lista no tienen <Field>. */
+  singular: string;
   type: "email" | "tel";
   placeholder: string;
   valores: string[];
@@ -443,20 +467,19 @@ function ListaDinamica({
   onQuitar: (index: number) => void;
 }) {
   return (
-    <div className="sm:col-span-2">
-      <span className="text-xs font-semibold uppercase tracking-wide text-gray-700">
-        {label}
-      </span>
+    <fieldset className="min-w-0 sm:col-span-2">
+      <legend className={sectionTitleClasses}>{label}</legend>
       <div className="mt-2 flex flex-col gap-2">
         {valores.map((valor, i) => (
           <div key={i} className="flex items-start gap-2">
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <Input
                 type={type}
                 value={valor}
                 invalid={!!errorAt(i)}
                 onChange={(e) => onChange(i, e.target.value)}
                 placeholder={placeholder}
+                aria-label={`${singular} ${i + 1}`}
               />
               {errorAt(i) && (
                 <p className="mt-1 text-[length:var(--t-small)] text-[var(--c-danger)]">
@@ -469,7 +492,7 @@ function ListaDinamica({
               variant="ghost"
               disabled={valores.length === 1}
               onClick={() => onQuitar(i)}
-              aria-label={`Quitar ${label.toLowerCase()}`}
+              aria-label={`Quitar ${singular.toLowerCase()} ${i + 1}`}
             >
               Quitar
             </Button>
@@ -479,6 +502,6 @@ function ListaDinamica({
       <Button type="button" variant="secondary" className="mt-2" onClick={onAgregar}>
         + Agregar
       </Button>
-    </div>
+    </fieldset>
   );
 }

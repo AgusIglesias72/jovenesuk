@@ -1,9 +1,9 @@
-import Link from "next/link";
-
-import { formatFecha } from "@/lib/utils/date";
 import {
+  Badge,
   CodeCell,
   DateCell,
+  EmptyState,
+  LinkButton,
   Table,
   TBody,
   TD,
@@ -13,6 +13,7 @@ import {
   TR,
   TripBadge,
 } from "@/components/ui";
+import { formatFecha } from "@/lib/utils/date";
 import { PAIS_LABELS } from "@/lib/domain/colegios";
 import type { ViajeListItem } from "@/lib/db/queries/viajes";
 
@@ -20,21 +21,38 @@ function rango(inicio: Date, fin: Date) {
   return `${formatFecha(inicio)} – ${formatFecha(fin)}`;
 }
 
-export function ViajesTable({ viajes }: { viajes: ViajeListItem[] }) {
+export function ViajesTable({
+  viajes,
+  hayFiltros = false,
+}: {
+  viajes: ViajeListItem[];
+  hayFiltros?: boolean;
+}) {
   if (viajes.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 bg-white p-10 text-center">
-        <p className="text-sm font-medium text-gray-700">No hay viajes que coincidan.</p>
-        <p className="mt-1 text-sm text-gray-500">
-          Probá ajustar los filtros o creá uno nuevo con “+ Nuevo viaje”.
-        </p>
-      </div>
+      <EmptyState
+        icon="✈️"
+        title={hayFiltros ? "Sin resultados para estos filtros" : "Todavía no hay viajes"}
+        action={
+          hayFiltros ? (
+            <LinkButton variant="secondary" href="/viajes">
+              Limpiar filtros
+            </LinkButton>
+          ) : (
+            <LinkButton href="/viajes/nuevo">+ Nuevo viaje</LinkButton>
+          )
+        }
+      >
+        {hayFiltros
+          ? "Probá con menos filtros o buscá por código o nombre del viaje."
+          : "Cada viaje agrupa a los alumnos, sus pasos y el plan de pagos."}
+      </EmptyState>
     );
   }
 
   return (
     <TableWrap>
-      <Table>
+      <Table responsive>
         <THead>
           <TR>
             <TH>Código</TH>
@@ -42,42 +60,45 @@ export function ViajesTable({ viajes }: { viajes: ViajeListItem[] }) {
             <TH>Fechas</TH>
             <TH>Estado</TH>
             <TH numeric>Cupo máx.</TH>
-            <TH className="w-[88px]" />
+            <TH className="w-[88px]">
+              <span className="sr-only">Acciones</span>
+            </TH>
           </TR>
         </THead>
         <TBody>
           {viajes.map((v) => (
             <TR key={v.id}>
-              <TD>
+              <TD label="Código">
                 <CodeCell code={v.codigo} />
               </TD>
-              <TD>
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-juk-navy-950">{v.nombre}</span>
+              <TD label="Viaje">
+                <span className="flex flex-wrap items-center gap-2 max-sm:justify-end">
+                  <span className="font-semibold text-[var(--c-ink)]">{v.nombre}</span>
                   {v.tipo === "individual" && (
-                    <span className="rounded-full border border-juk-navy-200 bg-juk-navy-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-juk-navy-700">
+                    <Badge tone="info" showDot={false}>
                       Individual
-                    </span>
+                    </Badge>
                   )}
-                </div>
-                <div className="text-xs text-gray-500">
+                </span>
+                <span className="block text-[length:var(--t-label)] text-[var(--c-ink-muted)]">
                   {v.colegioDestinoNombre ?? "—"} · {PAIS_LABELS[v.paisDestino]}
-                </div>
+                </span>
               </TD>
-              <TD>
+              <TD label="Fechas">
                 <DateCell date={rango(v.fechaInicio, v.fechaFin)} />
               </TD>
-              <TD>
+              <TD label="Estado">
                 <TripBadge state={v.estado} />
               </TD>
-              <TD numeric>{v.capacidadMaxima}</TD>
-              <TD>
-                <Link
-                  href={`/viajes/${v.codigo}`}
-                  className="text-sm font-semibold text-juk-navy-700 hover:text-juk-navy-900"
-                >
-                  Ver
-                </Link>
+              <TD label="Cupo máx." numeric>
+                {v.capacidadMaxima}
+              </TD>
+              <TD className="max-sm:justify-end">
+                <div className="flex justify-end">
+                  <LinkButton variant="ghost" size="sm" href={`/viajes/${v.codigo}`}>
+                    Ver
+                  </LinkButton>
+                </div>
               </TD>
             </TR>
           ))}

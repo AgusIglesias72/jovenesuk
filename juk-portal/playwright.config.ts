@@ -54,8 +54,24 @@ export default defineConfig({
     {
       name: "chromium",
       testIgnore: /(public|familias)\.spec\.ts/,
+      // Lo etiquetado @mobile corre en el proyecto "mobile" (viewport de
+      // teléfono): sin este grepInvert correría dos veces, y en desktop los
+      // asserts de overflow/tap no significan nada.
+      grepInvert: /@mobile/,
       use: { ...devices["Desktop Chrome"], storageState: "tests/e2e/.auth/admin.json" },
       dependencies: ["setup"],
+    },
+    // Viewport de teléfono (Pixel 7, touch). Corre SOLO los tests marcados
+    // @mobile — el tag va en el título o en `{ tag: "@mobile" }`, no en el
+    // nombre del archivo (Playwright matchea grep contra el título + tags).
+    // Depende también de setup-familia porque smoke-mobile.spec.ts entra al
+    // portal de familias con `test.use({ storageState })` en su describe.
+    {
+      name: "mobile",
+      testIgnore: /(public|familias)\.spec\.ts/,
+      grep: /@mobile/,
+      use: { ...devices["Pixel 7"], storageState: "tests/e2e/.auth/admin.json" },
+      dependencies: ["setup", "setup-familia"],
     },
     {
       name: "familias",

@@ -8,11 +8,13 @@ import {
   DateInput,
   Field,
   Input,
+  SectionTitle,
   Select,
   Textarea,
   useConfirm,
   useToast,
 } from "@/components/ui";
+import { AvisoErrores, useErroresDeFormulario } from "@/components/ui/form-errors";
 import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes";
 import { toDateInput } from "@/lib/utils/date";
 import {
@@ -110,7 +112,7 @@ export function ViajeForm({
   const confirm = useConfirm();
   const toast = useToast();
   const [values, setValues] = useState<FormValues>(() => initialValues(initial));
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
+  const { formRef, fe, reportar, limpiar, aviso } = useErroresDeFormulario();
   const [dirty, setDirty] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -121,7 +123,6 @@ export function ViajeForm({
     setValues((v) => ({ ...v, [key]: value }));
   }
 
-  const fe = (k: string) => fieldErrors[k]?.[0];
   const esIndividual = values.tipo === "individual";
   const capMax = capacidadMaxima(Number(values.cantidadGroupLeaders) || 0, values.tipo);
   const estadosDisponibles = initial
@@ -141,7 +142,7 @@ export function ViajeForm({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setFieldErrors({});
+    limpiar();
 
     const payload = {
       ...(mode === "edit" && initial ? { id: initial.id, estado: values.estado } : {}),
@@ -188,8 +189,7 @@ export function ViajeForm({
         router.refresh();
       } else if (!("requiereConfirmacion" in result && result.requiereConfirmacion)) {
         toast.error(result.error);
-        if (result.fieldErrors) setFieldErrors(result.fieldErrors);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        reportar(result.fieldErrors);
       }
     });
   }
@@ -239,7 +239,9 @@ export function ViajeForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-3xl">
+    <form ref={formRef} onSubmit={handleSubmit} className="max-w-3xl">
+      <AvisoErrores>{aviso}</AvisoErrores>
+
       <Section title="Identificación">
         <Field
           label="Código"
@@ -250,6 +252,9 @@ export function ViajeForm({
           <Input
             value={values.codigo}
             invalid={!!fe("codigo")}
+            // Solo en el alta: en un form vacío el primer campo es donde el
+            // usuario va a escribir (en edición sería un salto molesto).
+            autoFocus={mode === "create"}
             onChange={(e) => set("codigo", e.target.value.toUpperCase())}
             placeholder="UK-2026-JUL-LONDON"
           />
@@ -562,9 +567,7 @@ export function ViajeForm({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-8">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
-        {title}
-      </h2>
+      <SectionTitle className="mb-3">{title}</SectionTitle>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
     </section>
   );

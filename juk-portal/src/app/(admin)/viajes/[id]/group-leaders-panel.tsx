@@ -6,6 +6,8 @@ import { useState, useTransition } from "react";
 import {
   Badge,
   Button,
+  EmptyState,
+  SectionTitle,
   Select,
   Table,
   TBody,
@@ -109,18 +111,22 @@ export function GroupLeadersPanel({
 
   return (
     <section className="mt-10">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">
-        Group Leaders del viaje
-      </h2>
+      <SectionTitle className="mb-3">Group Leaders del viaje</SectionTitle>
 
       {viajeCancelado ? (
-        <p className="mb-4 text-sm text-gray-500">
+        <p className="mb-4 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
           El viaje está cancelado: no se pueden asignar Group Leaders.
         </p>
       ) : (
         <div className="mb-4 flex flex-col flex-wrap gap-3 sm:flex-row sm:items-center">
           <div className="w-full sm:w-72">
-            <Select searchable value={sel} onChange={(e) => setSel(e.target.value)} disabled={isPending}>
+            <Select
+              searchable
+              value={sel}
+              aria-label="Group Leader a asignar"
+              onChange={(e) => setSel(e.target.value)}
+              disabled={isPending}
+            >
               <option value="">
                 {elegibles.length === 0
                   ? "No hay Group Leaders disponibles"
@@ -140,36 +146,36 @@ export function GroupLeadersPanel({
       )}
 
       {asignados.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-10 text-center">
-          <p className="text-sm font-medium text-gray-700">
-            Todavía no hay Group Leaders asignados.
-          </p>
-        </div>
+        <EmptyState compact title="Todavía no hay Group Leaders asignados.">
+          El paso “Police Checks” del viaje se calcula sobre los GLs de esta lista.
+        </EmptyState>
       ) : (
         <TableWrap>
-          <Table>
+          <Table responsive>
             <THead>
               <TR>
                 <TH>Group Leader</TH>
                 <TH>Police check</TH>
-                <TH>Principal</TH>
-                <TH className="w-[88px]" />
+                <TH>Rol</TH>
+                <TH className="w-[104px]">
+                  <span className="sr-only">Acciones</span>
+                </TH>
               </TR>
             </THead>
             <TBody>
               {asignados.map((g) => (
                 <TR key={g.groupLeaderId}>
-                  <TD>
-                    <div className="font-semibold text-juk-navy-950">
+                  <TD label="Group Leader">
+                    <span className="font-semibold text-[var(--c-ink)]">
                       {g.apellido}, {g.nombre}
-                    </div>
+                    </span>
                   </TD>
-                  <TD>
+                  <TD label="Police check">
                     <Badge tone={POLICE_TONE[g.policeCheckEstado]}>
                       {POLICE_CHECK_ESTADO_LABELS[g.policeCheckEstado]}
                     </Badge>
                   </TD>
-                  <TD>
+                  <TD label="Rol">
                     {g.esPrincipal ? (
                       <Badge tone="success">Principal</Badge>
                     ) : (
@@ -183,15 +189,17 @@ export function GroupLeadersPanel({
                       </Button>
                     )}
                   </TD>
-                  <TD>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={isPending}
-                      onClick={() => quitar(g.groupLeaderId)}
-                    >
-                      Quitar
-                    </Button>
+                  <TD className="max-sm:justify-end">
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={isPending}
+                        onClick={() => quitar(g.groupLeaderId)}
+                      >
+                        Quitar
+                      </Button>
+                    </div>
                   </TD>
                 </TR>
               ))}

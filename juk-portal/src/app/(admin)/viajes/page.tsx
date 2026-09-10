@@ -45,7 +45,7 @@ export default async function ViajesPage({
         <ViajesFilters />
       </div>
 
-      <ViajesTable viajes={viajes} />
+      <ViajesTable viajes={viajes} hayFiltros={Object.values(filters).some(Boolean)} />
       <Pagination total={total} page={page} pages={pages} />
     </>
   );

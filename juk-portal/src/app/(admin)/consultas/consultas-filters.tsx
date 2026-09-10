@@ -31,6 +31,7 @@ export function ConsultasFilters() {
         <Input
           type="search"
           placeholder="Buscar por nombre o email…"
+          aria-label="Buscar por nombre o email"
           defaultValue={sp.get("q") ?? ""}
           onChange={(e) => onSearch(e.target.value)}
         />

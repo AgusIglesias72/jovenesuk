@@ -1,6 +1,16 @@
-import Link from "next/link";
-
-import { Badge, Table, TBody, TD, TH, THead, TableWrap, TR } from "@/components/ui";
+import {
+  Badge,
+  DateCell,
+  EmptyState,
+  LinkButton,
+  Table,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TableWrap,
+  TR,
+} from "@/components/ui";
 import {
   POLICE_CHECK_ESTADO_LABELS,
   POLICE_CHECK_TONE,
@@ -8,63 +18,85 @@ import {
 import { formatFecha } from "@/lib/utils/date";
 import type { GroupLeader } from "@/lib/db/schema/grupos-leaders";
 
-export function GroupLeadersTable({ groupLeaders }: { groupLeaders: GroupLeader[] }) {
+export function GroupLeadersTable({
+  groupLeaders,
+  hayFiltros = false,
+}: {
+  groupLeaders: GroupLeader[];
+  hayFiltros?: boolean;
+}) {
   if (groupLeaders.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 bg-white p-10 text-center">
-        <p className="text-sm font-medium text-gray-700">No hay group leaders que coincidan.</p>
-        <p className="mt-1 text-sm text-gray-500">
-          Probá ajustar los filtros o creá uno nuevo con “+ Nuevo group leader”.
-        </p>
-      </div>
+      <EmptyState
+        icon="🧑‍🏫"
+        title={hayFiltros ? "Sin resultados para estos filtros" : "Todavía no hay group leaders"}
+        action={
+          hayFiltros ? (
+            <LinkButton variant="secondary" href="/group-leaders">
+              Limpiar filtros
+            </LinkButton>
+          ) : (
+            <LinkButton href="/group-leaders/nuevo">+ Nuevo group leader</LinkButton>
+          )
+        }
+      >
+        {hayFiltros
+          ? "Probá con menos filtros o buscá por apellido o email."
+          : "Son los acompañantes del viaje: cada uno necesita su police check al día."}
+      </EmptyState>
     );
   }
 
   return (
     <TableWrap>
-      <Table>
+      <Table responsive>
         <THead>
           <TR>
             <TH>Group Leader</TH>
             <TH>Documento</TH>
             <TH>Police check</TH>
             <TH>Vencimiento</TH>
-            <TH className="w-[88px]" />
+            <TH className="w-[104px]">
+              <span className="sr-only">Acciones</span>
+            </TH>
           </TR>
         </THead>
         <TBody>
           {groupLeaders.map((gl) => (
             <TR key={gl.id}>
-              <TD>
-                <div className="font-semibold text-juk-navy-950">
+              <TD label="Group Leader">
+                <span className="block font-semibold text-[var(--c-ink)]">
                   {gl.apellido}, {gl.nombre}
-                </div>
-                <div className="text-xs text-gray-500">{gl.email}</div>
+                </span>
+                <span className="block break-all text-[length:var(--t-label)] text-[var(--c-ink-muted)]">
+                  {gl.email}
+                </span>
               </TD>
-              <TD>
-                <span className="font-mono text-xs text-gray-700 tabular-nums">
+              <TD label="Documento">
+                <span className="font-mono text-[length:var(--t-mono)] tabular-nums text-[var(--c-ink)]">
                   {gl.documento ?? "—"}
                 </span>
               </TD>
-              <TD>
+              <TD label="Police check">
                 <Badge tone={POLICE_CHECK_TONE[gl.policeCheckEstado]}>
                   {POLICE_CHECK_ESTADO_LABELS[gl.policeCheckEstado]}
                 </Badge>
               </TD>
-              <TD>
-                <span className="font-mono text-xs text-gray-700 tabular-nums">
-                  {gl.policeCheckFechaVencimiento
-                    ? formatFecha(gl.policeCheckFechaVencimiento)
-                    : "—"}
-                </span>
+              <TD label="Vencimiento">
+                <DateCell
+                  date={
+                    gl.policeCheckFechaVencimiento
+                      ? formatFecha(gl.policeCheckFechaVencimiento)
+                      : "—"
+                  }
+                />
               </TD>
-              <TD>
-                <Link
-                  href={`/group-leaders/${gl.id}/editar`}
-                  className="text-sm font-semibold text-juk-navy-700 hover:text-juk-navy-900"
-                >
-                  Editar
-                </Link>
+              <TD className="max-sm:justify-end">
+                <div className="flex justify-end">
+                  <LinkButton variant="ghost" size="sm" href={`/group-leaders/${gl.id}/editar`}>
+                    Editar
+                  </LinkButton>
+                </div>
               </TD>
             </TR>
           ))}

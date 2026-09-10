@@ -31,6 +31,7 @@ export function ProspectosFilters() {
         <Input
           type="search"
           placeholder="Buscar por nombre, ciudad o contacto…"
+          aria-label="Buscar por nombre, ciudad o contacto"
           defaultValue={sp.get("q") ?? ""}
           onChange={(e) => onSearch(e.target.value)}
         />

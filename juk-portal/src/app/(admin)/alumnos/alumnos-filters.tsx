@@ -30,6 +30,7 @@ export function AlumnosFilters() {
         <Input
           type="search"
           placeholder="Buscar por nombre, apellido, DNI o pasaporte…"
+          aria-label="Buscar por nombre, apellido, DNI o pasaporte"
           defaultValue={sp.get("q") ?? ""}
           onChange={(e) => onSearch(e.target.value)}
         />

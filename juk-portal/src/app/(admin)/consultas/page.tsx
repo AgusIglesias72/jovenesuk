@@ -41,7 +41,10 @@ export default async function ConsultasPage({
         <ConsultasFilters />
       </div>
 
-      <ConsultasTable consultas={consultas} />
+      <ConsultasTable
+        consultas={consultas}
+        hayFiltros={Boolean(str(sp.q) || (estado.success && estado.data))}
+      />
       <Pagination total={total} page={page} pages={pages} />
     </>
   );

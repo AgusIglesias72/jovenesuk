@@ -88,7 +88,7 @@ export async function AlertasSection() {
               }`}
             >
               <span
-                className={`rounded-[var(--r-pill)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[var(--ls-label)] ${
+                className={`rounded-[var(--r-pill)] px-2 py-0.5 text-[length:var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] ${
                   a.severidad === "critica"
                     ? "bg-[var(--c-danger)] text-white"
                     : "bg-[var(--c-warning)] text-white"
@@ -176,7 +176,7 @@ export async function ProximoAnioSection() {
             href={`/viajes/${v.codigo}`}
             className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-[var(--r-md)] border border-[var(--c-border)] bg-[var(--c-surface)] px-4 py-3 transition-shadow hover:shadow-[shadow:var(--shadow-1)]"
           >
-            <span className="font-mono text-xs text-[var(--c-ink-muted)]">{v.codigo}</span>
+            <span className="font-mono text-[length:var(--t-mono)] text-[var(--c-ink-muted)]">{v.codigo}</span>
             <span className="text-sm font-semibold text-[var(--c-ink)]">{v.nombre}</span>
             <span className="text-sm text-[var(--c-ink-muted)]">
               {formatFecha(v.fechaInicio)} – {formatFecha(v.fechaFin)}
@@ -185,12 +185,12 @@ export async function ProximoAnioSection() {
               {v.inscriptos}/{v.capacidadMaxima} inscriptos
             </span>
             {v.inscriptos < v.capacidadMinima && (
-              <span className="rounded-[var(--r-pill)] border border-[var(--c-warning)] bg-[var(--c-warning-bg)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-warning)]">
+              <span className="rounded-[var(--r-pill)] border border-[var(--c-warning)] bg-[var(--c-warning-bg)] px-2 py-0.5 text-[length:var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-warning)]">
                 Mínimo no alcanzado
               </span>
             )}
             {v.capacidadMaxima > 0 && v.inscriptos >= 0.8 * v.capacidadMaxima && (
-              <span className="rounded-[var(--r-pill)] border border-[var(--c-info)] bg-[var(--c-info-bg)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-info)]">
+              <span className="rounded-[var(--r-pill)] border border-[var(--c-info)] bg-[var(--c-info-bg)] px-2 py-0.5 text-[length:var(--t-label)] font-bold uppercase tracking-[var(--ls-label)] text-[var(--c-info)]">
                 Alta demanda
               </span>
             )}

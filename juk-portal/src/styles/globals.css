@@ -27,6 +27,23 @@ body.v-studio {
   box-sizing: border-box;
 }
 
+/* Safari iOS (y la WebView de Capacitor) hacen zoom al enfocar un control con
+   fuente menor a 16px y no lo deshacen al salir: la página queda descolocada.
+   Piso de 16px en anchos de teléfono/tablet — en desktop mandan los tokens.
+   Va acá (y no por clase) para cubrir también los inputs del sitio público.
+
+   El !important es deliberado: en una lista de selectores cada uno lleva su
+   propia especificidad, así que `textarea` a secas (0,0,1) pierde contra
+   cualquier utilidad de tamaño de Tailwind (0,1,0) que aplique el componente
+   —y el control vuelve a 13px sin que se note hasta que el teléfono hace zoom. */
+@media (max-width: 1023px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 /* El preflight de Tailwind resetea el cursor de los botones a default;
    todo lo clickeable debe mostrar pointer (pedido del equipo). */
 button:not(:disabled),
