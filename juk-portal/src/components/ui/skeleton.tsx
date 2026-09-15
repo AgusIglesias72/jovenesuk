@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils/cn";
  * Skeletons — placeholders de carga del design system.
  *
  * Para páginas con datos, preferimos skeletons que respetan la silueta de la
- * pantalla (el GlobeLoader queda como fallback global / esperas largas).
+ * pantalla. GlobeLoader existe pero hoy no se usa en ninguna pantalla (decisión del 12/06/2026).
  * Cada route segment usa la variante que matchea su layout en `loading.tsx`.
  */
 

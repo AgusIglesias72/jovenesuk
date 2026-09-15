@@ -705,22 +705,8 @@ Esta vista comparte modelo de datos y login con el portal interno (PRD interno v
 
 ## Implicancias para el código actual
 
-### Qué ya existe en el portal interno que esta vista reutiliza
-
-- **Rol `representante` en `users`** (`src/lib/db/schema/users.ts`): el enum `user_role` ya lo incluye, junto con Better-Auth, sesiones de 8 hs y el corte por `isActive` en `requireSession`. El login compartido del Módulo 1 ya está construido.
-- **Tabla `group_leaders`** (`src/lib/db/schema/grupos-leaders.ts`): ABM funcionando, con datos de contacto y seguimiento del police check (estado, URL, fechas). Modela hoy al **GL físico**.
-- **Tabla `group_leaders_viaje` con `es_principal`** (`src/lib/db/schema/pasos-viaje.ts`): asignación N:M de GLs a viajes, con flag de principal, ya operable desde el detalle del viaje. Es el ancla natural del trigger "asignar representante → activar credenciales".
-- **`pasos_viaje` (M7)**: el paso `excursiones` ya existe con metadata tipada y audit log — es donde se materializa la aprobación de excursiones del punto de contacto 2.
-- **`pasos_alumno`, `asignaciones`, `alumnos`, `viajes`, `colegios`**: el roster del viaje y el esqueleto del seguimiento por alumno que alimentarían el Panel de Estados (3A).
-- **`alertas` (schema) y la infra de email (Resend + React Email)**: base para las notificaciones, hoy con alertas placeholder.
-
-### Qué falta conceptualmente
-
-1. **Vínculo `group_leaders` ↔ `users`.** No existe FK entre el GL y una cuenta de usuario; hoy asignar un GL a un viaje no crea credenciales ni manda email de bienvenida (US-1.2). Hay que decidir cómo se modela la cuenta del representante y su acceso multi-viaje con selector de contexto.
-2. **Distinción representante vs. GL físico.** `es_principal` marca un GL principal, pero el PRD interno define al representante como *contacto responsable* que puede no ser ninguno de los GL físicos. Falta decidir si el representante es un atributo del viaje apuntando a `users` o una relación aparte. También falta el origen "JUK (directo)" en el enum `viaje_origen` (hoy solo `representante_independiente | instituto | colegio_cliente`), que es el caso *sin* credenciales.
-3. **Autorización por alcance ("solo su viaje").** El proxy/guards actuales distinguen admin vs. no-admin; falta todo el scoping por viaje asignado, el redirect al dashboard propio con "Sin acceso", y el layout/navegación de la vista representante.
-4. **Estructura de pasos A/B/C/D.** El enum `paso_tipo` actual conserva la numeración lineal 1-10 vieja; el PRD v1.8+ usa Paso 0 + grupos A/B/C/D con N/A automáticos por destino (C1), por flujo de pago (B2) y por tipo de viaje (D2). Además `viajes` no tiene campo `tipo_viaje` (grupal/individual). Los ex CRIT-01/03 ya están resueltos (PRD Interno v1.13: B2 derivado del tipo de representante, D2 del alumno en Grupales); los gates que heredaba el Panel de Estados (3A) también se cerraron el 11/06/2026: **CRIT-05** (moneda de cuotas: multi-moneda `USD|GBP|ARS` + cotización opcional, default USD — ⭐ validar con Felix) y **CRIT-04** (aprobación de excursiones: el representante aprueba/rechaza desde su vista — ⭐ validar con equipo) (`OPEN_DECISIONS.md`).
-5. **Entidades nuevas completas:** calendario/actividades del viaje (con categorías paga/variable y estados de aprobación), solicitudes de cambio, datos de transfer, validación conjunta del itinerario, casas de familia con dirección y geocoding, diario de viaje (entradas, media, reacciones, comentarios, mensajes), notificaciones in-app (campana) y preferencias de alertas/remitente del representante.
-6. **Infra pendiente:** upload de archivos a R2 (hoy URLs manuales), generación de PDFs (itinerario, ubicaciones, salud, tarjeta de emergencia), geocoding y mapas con rutas de transporte público, envío con remitente configurable, jobs programados (Trigger.dev) para alertas de vencimiento 3 días / 1 día y recordatorios de 48 hs del diario, y actualización en tiempo real (o polling de 15 minutos) del panel de estados.
-7. **Datos de salud estructurados.** Hoy `alumnos` solo tiene `alergiasSalud` (texto libre); el PRD pide alergias, condiciones crónicas, medicación y observaciones diferenciadas, doble fuente (Application Form + Parental Consent), y flag de condición crítica visible en la tabla.
-8. **Dependencia del Portal de Familias.** El Módulo 4 entero (visibilidad de entradas, comentarios, reacciones, mensajes) y el NPS asumen un Portal de Familias que no existe; sin él, el Diario de Viaje no tiene consumidor.
+Esta vista **no está construida**. Los prerrequisitos verificados en el código (rol sin alta posible
+ni home propia, GLs sin vínculo con `users`, tablas faltantes) y el orden de trabajo se mantienen en
+un solo lugar: [06 §C · Vista del Representante](06-deltas-implementacion.md#vista-del-representante-spec-05)
+y [06 §D](06-deltas-implementacion.md#d--plan-priorizado-solo-lo-que-falta). El modelo que falta, tabla
+por tabla, está en [03 §9](03-modelo-datos.md#9-delta-vs-implementación-actual).

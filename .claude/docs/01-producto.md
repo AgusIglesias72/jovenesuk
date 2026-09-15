@@ -1,152 +1,135 @@
 # 01 · Producto
 
+> Qué es y para qué sirve cada parte. **No** lleva estado ni historial:
+> qué está hecho y qué falta → [`docs/estado-actual.md`](../../juk-portal/docs/estado-actual.md) ·
+> cuándo cambió cada cosa → [`CHANGELOG.md`](../../juk-portal/CHANGELOG.md) ·
+> la spec funcional completa → [`docs/prd/`](../../juk-portal/docs/prd/00-indice.md).
+
 ## Qué es
 
-**JUK Portal** es el back-office interno de **Jóvenes en UK (JUK)**, una agencia argentina que organiza
-viajes de estudio de inglés a UK (y otros destinos). Lo usa el equipo operativo de JUK (4 personas) para
-gestionar colegios, viajes, alumnos, group leaders, pagos y el seguimiento de trámites de cada alumno.
+**Jóvenes en UK (JUK)** es una agencia argentina que organiza viajes de estudio de inglés a Reino
+Unido y otros destinos de habla inglesa, en salidas grupales e individuales. El **JUK Portal** es
+su sistema de gestión: una sola app Next.js, con una sola base de datos, que tiene tres superficies.
 
-No es un producto de cara al cliente: hoy es solo el portal interno (`admin`). Más adelante se suman
-dos portales que comparten el mismo modelo de datos: el del **Representante** (group leader) y el de las
-**Familias**. Por eso la arquitectura separa la lógica de negocio del framework (ver doc 02).
-
-## Roles
-
-Modelados en la tabla `users` (campo `role`):
-
-| Rol | Quién | Acceso |
+| Superficie | Rutas | Para quién |
 |---|---|---|
-| `admin_juk` | Equipo interno (Felix, Delfina, Tomás…) | Todo el portal admin |
-| `super_admin` | Admin que además gestiona usuarios (María) | Todo + sección Usuarios |
-| `representante` | Group leader externo | Futuro portal (tablas ya existen) |
-| `familia` | Alumno/tutor | Futuro portal (tablas ya existen) |
+| **Back-office** (portal interno) | `/dashboard`, `/alumnos`, `/viajes`, … | El equipo de JUK |
+| **Portal de Familias** | `/familias`, `/familias/<dni>/…` | Tutores de los alumnos |
+| **Sitio público** | `/`, `/quienes-somos`, `/salidas`, `/programas`, `/contacto`, `/consulta`, `/notas` | Familias y colegios que todavía no son clientes |
 
-Los usuarios desactivados (`isActive = false`) no pueden entrar aunque tengan sesión válida
-(se enforza en `requireSession`).
+Comparten el login (`/login`, `/reset-password`). Hay dos páginas sueltas sin sesión: `/baja`
+(darse de baja del outreach, con el token del mail) y `/offline` (la que muestra la PWA sin
+conexión). La app se instala como PWA en el teléfono; el plan para publicarla en las stores está
+en [`docs/mobile-app/`](../../juk-portal/docs/mobile-app/).
 
-## Módulos
+## Quién lo usa
 
-### Construidos y funcionando
-- **Auth** — login, reset de password (Better-Auth + Resend).
-- **Dashboard** — conteos reales (viajes por estado, alumnos) + viajes próximos. Las alertas son
-  placeholder (su generación automática es fase posterior).
-- **Colegios** — ABM de colegios destino y cliente.
-- **Viajes** — ABM de salidas grupales (código, fechas, origen, destino, capacidad GL×12, estado).
-- **Alumnos** — ABM con datos personales, pasaporte, tutores, facturación; baja/reactivación.
-- **Group Leaders** — ABM con datos + seguimiento del police check.
-- **Usuarios** (solo super_admin) — alta de admins con password temporal, cambio de rol, activar/desactivar.
-- **Asignaciones** — detalle del viaje (`/viajes/[id]`) con su roster: asignar/quitar alumnos, control de
-  cupo (GL×12) y validación de pasaporte. NO genera cuotas ni pasos del alumno todavía (eso es lo gated).
-- **Seguimiento M7** (pasos del viaje) — strip de los 5 pasos en el detalle del viaje, máquina de estados
-  con dependencia (Transfers ← Pasajes), metadata tipada por paso y audit log. *Police Checks* es derivado
-  del police check de cada Group Leader del viaje. Falta: asignar GLs al viaje desde la UI (la FK ya existe)
-  y el upload de archivos a R2 (hoy las URLs de e-ticket/comprobante son manuales).
+Los roles son el enum `user_role` de `src/lib/db/schema/users.ts`; a dónde entra cada uno lo define
+`HOME_BY_ROLE` en `src/lib/routes.ts`.
 
-### Pendientes (marcados "Pronto" en la nav o sin entrada)
-- **Pagos / cuotas** — bloqueado por CRIT-01 (ver abajo).
-- **Seguimiento M6** (10 pasos por alumno) — Application Form, Immigration Letter, ETA, Parental Consent,
-  etc. Paso 2/10 (pagos) bloqueado por CRIT-01; Paso 9 (psicofísico) por CRIT-03.
-- **Asignación de Group Leaders al viaje** (UI) — habilita el cálculo real del paso Police Checks del M7.
-- **Upload de archivos a R2** — infra de almacenamiento (no existe todavía); hoy los docs van como URL manual.
-- **Configuración**, **recordatorios automáticos** (Trigger.dev), **alertas** dinámicas.
+| Rol | Quién | Qué ve |
+|---|---|---|
+| `super_admin` | Dirección del equipo | Todo el back-office, más **Usuarios** y **Configuración** |
+| `admin_juk` | Equipo operativo | Todo el back-office menos Usuarios y Configuración |
+| `familia` | Tutor 1 del alumno. Su email es la identidad de la cuenta (decisión MIN-07) y una cuenta puede tener varios alumnos | Solo el Portal de Familias, y solo sus alumnos |
+| `representante` | Representante del viaje (spec [`docs/prd/05`](../../juk-portal/docs/prd/05-vista-representante.md)) | **Todavía sin portal.** El valor existe en el enum, pero no se puede crear desde `/usuarios` (`src/lib/domain/usuarios/schema.ts` solo admite `admin_juk` y `super_admin`) y no tiene a dónde entrar: `HOME_BY_ROLE` lo manda a `/dashboard`, que exige un rol de admin, y `requireRole` lo devuelve a su home, o sea otra vez a `/dashboard` (loop de redirects). No crees usuarios con este rol a mano en la base |
 
-## Decisiones de negocio abiertas (gating)
+No hay registro público (`/api/auth/sign-up` responde 404). Las cuentas se crean así:
 
-**Los 3 CRITs históricos (pagos NEA, pasaporte UK, psicofísico) quedaron RESUELTOS por los PRDs
-de junio 2026** — la regla vigente está en las specs de `juk-portal/docs/prd/`. Los gates
-vigentes hoy son dos contradicciones entre PRDs (detalle en `juk-portal/OPEN_DECISIONS.md`):
+- **Equipo:** lo da de alta un `super_admin` desde `/usuarios`, y la persona recibe **en ese
+  momento** un link para crear su contraseña (se puede reenviar desde la misma pantalla).
+- **Familias:** la cuenta se crea **sola** al dar de alta al alumno, a mano (`createAlumnoAction`)
+  o por el webhook del Application Form (`asegurarCuentaFamilia` en
+  `src/lib/db/queries/familias.ts`). Si el email del Tutor 1 ya es la cuenta de otra familia, la
+  vincula; si es el email de alguien del equipo, no crea nada. **En ese momento no se avisa a
+  nadie.** El link para crear la contraseña sale recién cuando el equipo toca "Enviar acceso" en
+  la ficha del alumno (`enviarAccesoFamiliaAction`, se puede reenviar sin tocar la contraseña
+  vigente). Si al enviar resulta que ese email ya es la cuenta de otros alumnos, pide confirmar
+  el vínculo antes. El envío queda registrado en el alumno (`marcarAccesoEnviado`).
 
-| Gate | Qué bloquea |
+Nadie conoce esas contraseñas, ni el `super_admin`. La única excepción es el `super_admin` inicial
+que crea `npm run db:seed`, que imprime una contraseña temporal en la terminal (detalle en
+[06-seguridad](06-seguridad.md)).
+
+Los **group leaders** son una entidad del negocio (tienen su propio ABM). No son usuarios del sistema.
+
+## Back-office
+
+| Módulo | Ruta | Para qué sirve |
+|---|---|---|
+| **Dashboard** | `/dashboard` | Qué hay que hacer hoy: alumnos con acción urgente (pasos vencidos o trabados, pasaporte en alerta, cuota en mora), alertas, viajes próximos y del año que viene, accesos rápidos. Cada número lleva al listado ya filtrado. |
+| **Alumnos** | `/alumnos` · ficha `/alumnos/<dni>` | Datos personales, pasaporte, tutores y facturación. La ficha tiene el tablero M6 por viaje, el plan de cuotas, los documentos adjuntos, la asignación a un viaje y el acceso al Portal de Familias. |
+| **Viajes** | `/viajes` · detalle `/viajes/<código>` | Salidas grupales e individuales. El detalle tiene alertas del viaje, inscriptos (asignar y quitar, con validación de pasaporte y cupo), group leaders, pagos del viaje y el seguimiento M7. |
+| **Colegios** | `/colegios` | Colegios destino (qué documentación pide cada uno y si piden ETA, VISA o nada) y colegios cliente (directorio). |
+| **Prospectos** | `/prospectos` | CRM comercial de colegios: kanban o tabla, importación por CSV, outreach por mail con seguimiento de entrega y apertura, y "convertir en colegio cliente". |
+| **Group Leaders** | `/group-leaders` | Alta y edición de los group leaders, con el seguimiento del police check. |
+| **Pagos** | `/pagos` | Todas las cuotas, con la mora derivada, filtros, resumen por moneda y registro de pagos. |
+| **Consultas** | `/consultas` | Los leads que entran por el sitio público y en qué estado están. |
+| **Usuarios** | `/usuarios` (solo `super_admin`) | Alta del equipo (con link para crear la contraseña), reenviar el acceso, cambio de rol, activar y desactivar. |
+| **Configuración** | `/configuracion` (solo `super_admin`) | Remitentes de mail, envío de prueba de cada template, estado de los servicios externos. Cualquier usuario del back-office cambia su contraseña en `/configuracion/cuenta`. |
+
+## Portal de Familias
+
+`/familias` lleva directo a la ficha si la cuenta tiene un solo alumno. Si tiene varios, primero
+se elige. Dentro de `/familias/<dni>/`:
+
+| Sección | Para qué sirve |
 |---|---|
-| **CRIT-04** — ¿el representante aprueba excursiones o solo solicita cambios? | El mecanismo de aprobación del Paso 2 del M7 y el modelo `ACTIVIDAD_VIAJE`/`SOLICITUD_CAMBIO` |
-| **CRIT-05** — moneda del plan de cuotas (¿USD, GBP, multi?) | El schema de cuotas (B1/B2) y el resumen de pagos |
+| Resumen | El estado general del viaje del alumno |
+| Viaje | Datos del viaje y sus responsables |
+| Documentación | Los trámites A/B/C/D explicados en criollo. La familia sube documentos, reporta el estado de su ETA (incluido "tuve un problema") y confirma la autorización ante escribano (D1). Subir un documento o confirmar no reabre un paso que el equipo ya dio por completado. Excepción abierta: el ETA (C1) es autoreporte, y hoy la familia puede marcarlo Aprobado sin revisión o volver un Aprobado a Pendiente (MIN-25 en [`OPEN_DECISIONS.md`](../../juk-portal/OPEN_DECISIONS.md)) |
+| Pagos | Las cuotas y su estado. Si hay una cuota vencida, el aviso aparece en todas las pantallas |
+| Datos | Los datos del alumno, con la opción de reportar uno incorrecto (le llega al equipo por mail) |
+| Ayuda | Canales de contacto y preguntas frecuentes |
 
-El trigger de asignación (crear los 11 pasos del M6 + validar pasaporte) ya NO está bloqueado;
-solo la parte de cuotas espera CRIT-05.
+## Sitio público
 
-## Specs de producto
+Spec: [`docs/prd/07-prospectos-y-web-publica.md`](../../juk-portal/docs/prd/07-prospectos-y-web-publica.md)
+(cubre también Consultas y Prospectos, que no tienen PRD de producto).
 
-La referencia funcional completa vive en **`juk-portal/docs/prd/`** (empezar por `00-indice.md`):
-los 4 PRDs de junio 2026 convertidos en `fuentes/` + specs internas consolidadas (visión,
-portal interno M1–M7, modelo de datos objetivo, Portal de Familias, Vista del Representante)
-+ el gap analysis con plan de adecuación (`06-deltas-implementacion.md`).
+Es el sitio de marketing y la entrada de clientes nuevos. Tiene páginas institucionales, la próxima
+salida grupal (calculada, no fija), notas para SEO, el formulario de consulta (crea una consulta y
+le avisa al equipo) y la newsletter. Las URLs del sitio viejo en Wix redirigen con 301
+(`next.config.ts`). Si se configura `NEXT_PUBLIC_PORTAL_URL`, la gestión se sirve en el subdominio
+`portal.*` y el marketing en el dominio raíz (`src/proxy.ts`).
 
-## Estado (junio 2026)
+## Lo que corre solo
 
-Fase 0-1 completas. ABMs de Colegios, Viajes, Alumnos, GLs y Usuarios; M7 parcial. PRDs
-procesados (11/06/2026) y decisiones tomadas: cero gates ROJOS. **Fundaciones del modelo
-completas (12/06/2026)**: tipo_viaje + JUK directo + flujo de pago derivado, config documental
-por colegio, tablero Paso 0 + A1…D2, lockout de login, y el **trigger de asignación** (crea los
-11 pasos con N/A automáticos + valida pasaporte + auto-Confirmado al 5°). **Dirección visual
-STUDIO aplicada** a toda la app (tokens del lab como fuente de verdad, components/ui, shell y
-auth). **Tablero M6 con UI** en `/alumnos/[id]` (transiciones validadas + auditadas),
-**cuotas B1/B2 completas** (multi-moneda, sync de pasos, C2 se desbloquea con B1) y
-**dashboard v2 con alertas reales** (pasaporte, mora, bloqueados, police checks). Cuentas de
-test (`test.superadmin@` / `test.admin@`, password fija dev) + `npm run db:seed:demo` con
-dataset que cubre todas las ramas. **Webhook del Google Form** (alta + auto-asignación,
-idempotente), **credenciales del Portal de Familias** (generar/enviar/desactivar),
-**documentos** (R2 con fallback local + proxy autenticado, adjuntos en los pasos),
-**transfers/tarjetas por alumno** (M7) y **recordatorios** (notificaciones_enviadas con dedup,
-scan diario en Trigger.dev — el servicio Trigger.dev aún no está conectado; la lógica está
-validada). **Auditoría adversarial (12/06/2026)**: 55 hallazgos → 32 confirmados → todos los bugs de
-lógica/seguridad arreglados (mora UTC, metadata C2, sign-up público bloqueado, ownership
-server-side, TOCTOU) y los gaps de spec implementados (sub-estados ETA/A3, filtro por alerta,
-viajes del próximo año, alerta PC >12m, re-validación de pasaportes al editar fechas,
-notificación al cancelar, transiciones automáticas por fecha, fecha de cambio de pasaporte).
-E2E del recorrido completo del negocio. Backlog UX: reemplazar
-window.confirm/prompt por un modal del design system, guard de cambios sin guardar.
+| Qué | Dónde | Qué hace |
+|---|---|---|
+| Webhook del Application Form (Google Form) | `src/app/api/webhooks/google-form/route.ts` | Da de alta al alumno como pre-inscripto y le crea la cuenta de familia (sin mandar el acceso). Si el link del form trae el código de un viaje con inscripción abierta o confirmado y con cupo, lo asigna. Si no, queda pre-inscripto y el equipo decide: la sobre-capacidad nunca se acepta sola. Si el DNI ya existe, no duplica nada. |
+| Webhook de Resend | `src/app/api/webhooks/resend/route.ts` | Registra la entrega, apertura, click, rebote o spam de los mails de outreach de Prospectos. |
+| Asignación a un viaje | `asignarConTablero` en `src/lib/db/queries/asignar-alumno.ts` | Al asignar un alumno se crea su tablero M6 (con los pasos que no aplican ya en N/A) y un viaje grupal se confirma solo al llegar al quinto inscripto. |
+| Scan diario (Trigger.dev) | `src/trigger/reminders.ts` → `daily-reminder-scan` | Todos los días a las 06:00 ART pasa los viajes de estado según la fecha y manda los recordatorios escalonados (14, 7, 3 y 1 días antes de cada fecha límite, y al vencer). No repite envíos. `run-reminder-scan` corre a mano **solo los recordatorios**, sin las transiciones de viajes; con `enviarEmails: false` hace un dry-run que registra sin mandar mails. Decisiones abiertas: un envío que falla no se reintenta (TEC-14) y un viaje confirmado con fin ya pasado tarda dos corridas en llegar a finalizado (TEC-15), ambas en [`OPEN_DECISIONS.md`](../../juk-portal/OPEN_DECISIONS.md). |
+| Aviso de consulta nueva | `submitLead` en `src/app/(public)/leads/actions.ts` → task `notificar-consulta-nueva` (`src/trigger/leads.ts`) | Mail al equipo (`LEADS_NOTIFY_TO`) por cada consulta del sitio. La action no avisa dos veces por el mismo email y modalidad en 24 h (la consulta se guarda igual). Encola el task y, si Trigger.dev no responde o no está configurado, manda el mail directo. |
+| Aviso de cancelación | `src/trigger/viajes.ts` | Mail a las familias de los inscriptos cuando se cancela un viaje. |
 
-**13/06/2026 — UX + Pagos + Configuración:**
-- **Select del design system** en toda la app (botón + listbox estilo STUDIO; el `<select>`
-  nativo queda invisible como fuente de verdad — forms, labels y Playwright `selectOption`
-  siguen funcionando). Un solo componente: `components/ui/field.tsx`.
-- **Skeletons en todos los loading states** (`components/ui/skeleton.tsx`: List/Form/Ficha/
-  ViajeDetalle/Dashboard) con `loading.tsx` por segmento; el GlobeLoader quedó sin uso (fondo
-  ya transparente) hasta decidirle un lugar.
-- **Navegación instantánea:** el sidebar usaba `<a href>` (full reload) → `next/link`;
-  `staleTimes` en next.config. La raíz `/` es pública (landing en construcción del usuario);
-  el login sanea `returnTo`.
-- **Módulo Pagos** (`/pagos`): todas las cuotas con mora derivada, filtros (estado/viaje/
-  moneda), resumen por moneda y registrar pago inline. **US-24**: sección "Pagos del viaje"
-  en `/viajes/[id]` (pagas/total, abonado, saldo, mora; orden por mora/saldo/nombre).
-- **Configuración** (`/configuracion`, solo super_admin): remitentes de mail configurables
-  (automáticos noreply@ / comunicaciones info@ — MIN-09 resuelto operativamente, tabla
-  `configuracion` key-value, migración 0014) + **envío de prueba** por template con datos de
-  ejemplo. `sendEmail` resuelve el remitente desde la config con fallback a env/defaults.
-- Suite: **32/32 E2E, 128 unit**.
+## Glosario del dominio
 
-**13/06/2026 (2ª tanda) — componentes de interacción del design system:**
-- **ConfirmDialog** (`useConfirm()`, promise-based, con campo de texto opcional): reemplazó TODOS
-  los `window.confirm/prompt` (10 sitios). Provider en el AdminShell.
-- **Selects con búsqueda** (`searchable`): filtro por texto dentro del desplegable (alumnos/GL
-  elegibles, colegios del viaje, filtro de viaje en Pagos).
-- **DateInput**: calendario del lab STUDIO en vez del datepicker nativo (input nativo invisible
-  como fuente de verdad — `fill()` de Playwright intacto). En todos los forms con fechas.
-- **Paginación** (50/página, `paginar()` + `<Pagination>`): alumnos, viajes, colegios, GLs,
-  usuarios y pagos, preservando filtros.
-- **Sidebar fijo**: alto = pantalla, nav scrolleable, chip de usuario siempre visible.
-- **Validaciones confirmables nuevas**: GL con police check no aprobado o por vencer al asignarlo;
-  pago fuera de orden (cuotas anteriores impagas) en ficha y módulo Pagos. La de sobre-capacidad
-  ya existía y quedó verificada de punta a punta.
-- Convenciones nuevas en CLAUDE.md (nada de window.confirm, date nativo, selects sueltos ni
-  tablas sin paginar). Suite: **32/32 E2E** tras migrar los specs de `page.on("dialog")` al modal.
+La definición completa está en [`docs/prd/01-vision-y-dominio.md`](../../juk-portal/docs/prd/01-vision-y-dominio.md).
+Lo mínimo para leer el código:
 
-**13/06/2026 (3ª tanda — ultracode con workflows) — toasts, Familias, slugs, guard:**
-- **Capa de feedback**: sistema de **toasts** del design system (montado en el shell, card
-  pointer-events-none salvo el cerrar para no bloquear clicks) reemplazó todo el feedback inline;
-  **guard de cambios sin guardar** (beforeunload + confirmación al cancelar) en los forms.
-- **Portal de Familias (foundations)**: route group `familias/` (mobile-first, rol `familia`),
-  `requireFamilia()` + `getAlumnosDeFamilia`, home con los alumnos del grupo y ficha read-only del
-  alumno (Documentación M6 con copy familiar + Pagos M3), con logout real. Falta el grueso de los
-  11 módulos (subidas de doc, ETA autoreporte, diario, NPS, etc.).
-- **URLs legibles (slugs)**: viaje por **código**, alumno por **DNI**; la página resuelve por slug
-  y pasa el uuid real a todo lo demás; `revalidatePath` en forma literal. Documentado en CLAUDE.md.
-- **Teardown de E2E**: la suite no limpiaba y la DB de dev se infló (516 viajes / 279 alumnos
-  acumulados, ralentizando los listados). Se limpió y se agregó un proyecto `cleanup` de Playwright
-  (`tests/e2e/cleanup.ts`) que borra sólo los artefactos E2E al terminar cada corrida.
-- Hecho con **3 workflows** (agentes en paralelo) + verificación e integración manual entre cada
-  uno. Suite **33/33 E2E** (exit 0), typecheck y lint verdes.
+- **Asignación**: un alumno inscripto en un viaje. Cada asignación tiene su tablero M6 y su plan de cuotas.
+- **M6 · tablero del alumno** (`src/lib/domain/pasos/codigos.ts`): Paso 0 (cómo llegó el alumno) +
+  **A** Inscripción y programa (A1 Application Form del colegio, A2 Test de nivel, A3 Parental
+  Consent) · **B** Pagos (B1 Plan de cuotas, B2 Último pago presencial) · **C** Documentación de
+  viaje (C1 ETA, C2 Immigration Letter, C3 Accommodation Letter) · **D** Documentación legal
+  argentina (D1 Autorización ante escribano, D2 Certificado psicofísico).
+- **M7 · seguimiento del viaje** (`src/lib/domain/pasos-viaje/estados.ts`): pasajes, excursiones,
+  transfers, tarjeta de transporte y police checks de los group leaders.
+- **Tipo de viaje**: grupal (con group leaders, cupo de 12 por GL, se confirma solo al quinto
+  inscripto) o individual (sin GL, cupo 1, nace confirmado).
+- **Tipo de representante** (atributo del viaje): Independiente, Instituto, Colegio cliente o JUK
+  directo. Define el flujo de pago; por ejemplo, si B2 aplica o queda en N/A.
+- **Colegio destino / colegio cliente**: el destino es donde se estudia (en UK u otro país) y fija
+  la documentación. El cliente es la institución argentina que manda el grupo.
+- **Cuotas**: multi-moneda (USD, GBP o ARS), USD por defecto. Es la decisión CRIT-05, pendiente
+  de validar con el equipo ([`OPEN_DECISIONS.md`](../../juk-portal/OPEN_DECISIONS.md)).
+- **Pasaporte para UK**: tiene que estar vigente hasta el fin del viaje (sin los 6 meses extra que
+  piden otros países).
 
-Próximo: conectar Trigger.dev y credenciales reales de R2 (las actuales parecen placeholders),
-resumen semanal, calendario del dashboard, portales externos (Familias/Representante),
-migrar URLs de ids a slugs (preferencia del equipo, anotada en CLAUDE.md).
+## Para seguir
+
+- Cómo está armado el código → [02-arquitectura-y-convenciones](02-arquitectura-y-convenciones.md)
+- Qué falta y qué depende del dueño → [`docs/estado-actual.md`](../../juk-portal/docs/estado-actual.md)
+- Decisiones abiertas → [`OPEN_DECISIONS.md`](../../juk-portal/OPEN_DECISIONS.md)

@@ -1,71 +1,131 @@
 ---
 name: juk-modulo
-description: Andamia un módulo/feature completo del JUK Portal siguiendo la arquitectura por capas (schema → domain → queries → server actions/api → UI). Usalo cuando arranques un ABM o feature nueva (Colegios, Viajes, Alumnos, Asignaciones, etc.).
+description: Construye un módulo o feature del JUK Portal con el molde real del proyecto — schema → domain + tests → queries con paginación en SQL → server actions con ActionResult y safeAudit → UI (tabla con modo card, EmptyState, filtros en la URL, loading con skeleton, detalle por slug) → tests por capa → docs. Usalo al arrancar un ABM o una feature nueva.
 ---
 
-# /juk-modulo — Scaffold de un módulo por capas
+# /juk-modulo — Un módulo con el molde del proyecto
 
-Construí una feature respetando las reglas de `juk-portal/CLAUDE.md` y las ADRs de
-`juk-portal/docs/architecture.md`. **Todos los comandos corren desde `juk-portal/`.**
+El molde con su porqué está en `.claude/docs/02-arquitectura-y-convenciones.md`; las convenciones
+de código, en `juk-portal/CLAUDE.md`. Este skill es el orden de trabajo. Referencia viva más
+simple para listado, filtros, formulario y actions: **Colegios** (`src/lib/domain/colegios/`,
+`src/lib/db/queries/colegios.ts`, `src/app/(admin)/colegios/`). Colegios no tiene página de
+detalle, su edición va por uuid y no tiene `actions.test.ts`: para el detalle por slug el molde es
+Viajes (`src/app/(admin)/viajes/[id]/page.tsx`, `getViajeByCodigo`) o Alumnos
+(`src/app/(admin)/alumnos/[id]/page.tsx`, `getAlumnoByDni`); para el test de actions,
+`src/app/(admin)/usuarios/actions.test.ts`. Comandos desde `juk-portal/`.
 
-## Paso 0 — Gate check (OBLIGATORIO)
+## 0. Antes de escribir código
 
-Antes de escribir nada, corré `/juk-gate <módulo>` o leé `juk-portal/OPEN_DECISIONS.md`.
-Si el módulo toca **aprobación de excursiones (CRIT-04)** o la **moneda de cuotas (CRIT-05)**,
-NO asumas esa regla: confirmá con el usuario cómo proceder (modelar desacoplado vs. esperar).
+1. **Spec**: `docs/prd/00-indice.md` → el doc del módulo, con sus User Stories y criterios de
+   aceptación. Si no hay spec, escribí una corta en `docs/prd/` y confirmala con el usuario.
+2. **Estado**: `docs/estado-actual.md`. Que no exista ya, entero o a medias.
+3. **Gate**: `/juk-gate <área>`.
+4. Si cruza varias entidades o no es trivial: agente **`juk-arquitecto`** y seguí su blueprint.
 
-## Paso 1 — Entender el alcance
+## 1. Schema (solo si hace falta) — `src/lib/db/schema/<entidad>.ts`
 
-1. Buscá la spec funcional del módulo en `juk-portal/docs/prd/` (02 = portal interno;
-   03 = modelo objetivo; 06 = deltas y plan). Las User Stories con criterios de aceptación
-   están ahí; `docs/phases.md` da el orden por fases.
-2. Leé el modelo de datos relevante en `docs/prd/03-modelo-datos.md` (objetivo) +
-   `juk-portal/docs/data-model.md` (implementado) y el/los schema(s) en
-   `juk-portal/src/lib/db/schema/`.
-3. Si la feature es no trivial o cruza varias entidades, delegá el diseño al agente
-   **`juk-arquitecto`** y seguí su blueprint.
+- `pgTable`; tipos con `$inferSelect` / `$inferInsert`; re-export en `schema/index.ts`.
+- Baja lógica con `estado` ENUM (TEC-03: no sumar `activo BOOLEAN`).
+- Índices para los filtros y el orden del listado; `unique()` para el slug; FKs con `onDelete`.
+- Después: `/juk-migracion`.
 
-## Paso 2 — Construir, en este orden (de adentro hacia afuera)
+## 2. Dominio + tests — `src/lib/domain/<feature>/`
 
-> Regla de capas (ADR-005): `lib/domain/` es lógica PURA, sin imports de `next`/`react`/`app/`.
-> El hook `domain-purity-check` lo enforza.
+| Archivo | Qué va |
+|---|---|
+| `schema.ts` | enums con `z.enum`, `*CreateSchema`, `*UpdateSchema`, `*FiltersSchema`, tipos inferidos |
+| `errors.ts` | errores nombrados (ej: `ColegioNotFoundError extends Error`); nunca `throw new Error("…")` |
+| `labels.ts` | textos rioplatenses y tono de cada badge |
+| `<regla>.ts` | reglas puras: transiciones, derivaciones, validaciones que no son de forma |
+| `index.ts` | solo barrel (`export * from`). Lógica en `index.ts` queda fuera de la cobertura |
 
-1. **Schema** (`src/lib/db/schema/<entidad>.ts`) — solo si falta o hay que extenderlo.
-   - `pgTable`, tipos con `$inferSelect` / `$inferInsert`.
-   - Soft-delete vía `estado` ENUM (no agregar `activo BOOLEAN` nuevos — ver TEC-03).
-   - Índices y `unique()` donde corresponda; FKs con `onDelete`.
-   - Si tocás un schema → al final corré `/juk-migracion`.
+- `<archivo>.test.ts` al lado de todo archivo con lógica (el hook `test-companion-check` avisa;
+  `npm run check:tests` lo exige).
+- Puro: sin `next`, `react`, `server-only`, `@/app`, `drizzle-orm` ni `@/lib/db` (el hook
+  `domain-purity-check` lo frena). Si necesitás los valores de un enum de la DB, replicalos con Zod.
 
-2. **Domain** (`src/lib/domain/<feature>/`) — crear la carpeta si no existe.
-   - Lógica de negocio pura + validaciones. Schemas **Zod** para inputs.
-   - Errores con **clases nombradas** (no `throw new Error("...")`).
-   - Sin imports de Next/React/app.
+## 3. Queries — `src/lib/db/queries/<feature>.ts`
 
-3. **Queries** (`src/lib/db/queries/<feature>.ts`) — crear la carpeta si no existe.
-   - Acceso a DB tipado y reusable vía Drizzle. Nada de drizzle crudo en componentes.
+- El único lugar con Drizzle. Devuelven filas tipadas; no validan ni hacen auth.
+- Listado paginado **en SQL**: `listXPaginado(filters, pagina(page))` con `paginarEnSql` de
+  `@/lib/utils/paginate` (ventana y total en paralelo). El ORDER BY desempata por `id`: sin eso,
+  LIMIT/OFFSET repite o saltea filas entre páginas (pasó en `/pagos`).
+- Cada query es un round-trip HTTPS (neon-http): consultas independientes en `Promise.all`,
+  nada de N+1 (`inArray`).
+- Detalle por slug: `getXByCodigo` / `getXByDni` sobre una columna `unique` (hoy no hay ningún
+  `getXBySlug`: nombrala por la columna que uses).
+- Lógica SQL real (filtros compuestos, agregados, ORDER BY paginado, escrituras encadenadas con
+  `db.batch`; neon-http no tiene `db.transaction()`) → `<feature>.integration.test.ts` al lado.
 
-4. **Mutaciones**:
-   - Desde la UI → **Server Actions**. Devolver `{ ok: true, data } | { ok: false, error }`.
-     Validar el input con Zod. Registrar en `auditoria` los cambios sensibles.
-   - Para consumidores externos → **Route Handler** en `src/app/api/v1/`.
+## 4. Server actions — `src/app/(admin)/<feature>/actions.ts`
 
-5. **UI** (`src/app/(admin)/<ruta>/`):
-   - Server Components por defecto; `"use client"` solo si hace falta.
-   - Usar SIEMPRE los componentes de `@/components/ui` (PageHeader, DataTable, Field, Badge, etc.).
-     No inventes componentes si ya existe uno.
-   - Las páginas admin ya están protegidas por `requireAdminJuk()` en el layout.
+```ts
+export async function crearXAction(input: unknown): Promise<ActionResult<{ id: string }>>
+```
 
-## Paso 3 — Convenciones que no se negocian
+En este orden:
 
-- Copy de UI en **español rioplatense**.
-- Fechas **DD/MM/YYYY**. Plata: **GBP** para montos del viaje, **ARS** para conceptos locales.
-- Datos de facturación visibles **solo** para `admin_juk`/`super_admin` (enforcement en domain).
-- TypeScript estricto: nada de `any`; `type` sobre `interface`; `const … as const` en vez de `enum`.
-- Cero `console.log` commiteado (solo `console.error` en paths inesperados).
-- Comentarios solo para el **porqué** no obvio.
+1. `"use server"` y guard de rol: `requireAdminJuk()` (o `requireFamilia()` en el portal de
+   familias), de `@/lib/auth/helpers`.
+2. `schema.safeParse(input)`; si falla, `{ ok: false, error, fieldErrors: fieldErrorsFromZod(...) }`
+   (`@/lib/utils/zod`).
+3. El dueño y los ids relacionados se derivan en el server, nunca del input del cliente.
+4. Query. Errores esperados (los nombrados del dominio) → `{ ok: false, error }` con copy;
+   inesperados → `Sentry.captureException` + mensaje genérico.
+5. `safeAudit({ accion, entidadTipo, entidadId, usuarioId, metadata })` de `@/lib/actions/safe-audit`.
+6. `revalidatePath("/<ruta>/[id]", "page")` con la forma literal.
+7. `{ ok: true, data }` (`ActionResult` de `@/lib/actions/result`).
 
-## Paso 4 — Cerrar
+- Test: `actions.test.ts` al lado, con los mocks de `src/lib/actions/__tests__/mocks.ts`
+  (ejemplo: `src/app/(admin)/usuarios/actions.test.ts`): sin sesión o rol incorrecto, Zod
+  inválido, ownership, camino feliz con auditoría, error de query.
+- Lógica que usan varias pantallas → `src/lib/actions/<x>.ts` (como `asignaciones.ts`).
+- Route handler solo para consumidores externos o archivos, en `src/app/api/`.
 
-Corré el loop completo de **`/juk-cierre`** (typecheck + lint + unit + E2E afectados +
-navegador + migración pendiente + `juk-revisor`). Después resumí al usuario qué quedó
-hecho y qué falta (no más de 2 frases).
+## 5. UI — `src/app/(admin)/<feature>/`
+
+| Archivo | Qué hace |
+|---|---|
+| `page.tsx` | server component: `await searchParams` → `xFiltersSchema.safeParse` → `listXPaginado` → `<PageHeader>`, filtros, tabla y `<Pagination total page pages />` |
+| `<feature>-filters.tsx` | `"use client"`: escribe los filtros en la URL (nunca en estado React) |
+| `<feature>-table.tsx` | `<Table responsive>` con `label` en cada `<TD>` (modo card en el teléfono); vacío con `<EmptyState>`, distinguiendo "sin resultados para estos filtros" de "todavía no hay" |
+| `<feature>-form.tsx` | `"use client"`: alta y edición compartidas; errores por campo desde el `ActionResult` |
+| `nuevo/page.tsx`, `[id]/page.tsx`, `[id]/editar/page.tsx` | alta, detalle, edición |
+| `loading.tsx` (en cada segmento) | el skeleton con la silueta de la pantalla (`ListPageSkeleton`, `FormPageSkeleton`, …); nada de spinners ni `GlobeLoader` |
+
+- **Detalle por slug, nunca por uuid**: la carpeta sigue siendo `[id]` pero el param es el slug;
+  la página resuelve con la query por slug (`getViajeByCodigo`, `getAlumnoByDni`), llama `notFound()` si no existe y pasa el uuid real a
+  componentes hijos, actions y queries. Los `<Link>` emiten el slug.
+- `error.tsx` y `not-found.tsx` de `(admin)` cubren el módulo; sumá uno propio solo si necesita
+  otro mensaje. El layout de `(admin)` ya exige `requireAdminJuk()`, pero cada action valida igual.
+- Componentes de `@/components/ui`: `<Select>` (con `searchable` si la lista es larga),
+  `<DateInput>`, `useConfirm()`. Nada de `<select>` o `<input type="date">` nativos, `window.confirm`
+  ni estilos inline.
+- Copy rioplatense; fechas DD/MM/YYYY con los helpers de `src/lib/utils/date.ts`; moneda según
+  `juk-portal/CLAUDE.md`.
+- Navegación: link en `src/components/admin/admin-shell.tsx`, label en
+  `src/components/admin/breadcrumb-labels.ts` y prefijo en `PORTAL_PREFIXES` de `src/lib/routes.ts`
+  (de ahí lee el proxy qué rutas exigen sesión; actualizá `routes.test.ts`).
+
+## 6. Tests por capa
+
+| Capa | Test | Cómo se corre |
+|---|---|---|
+| dominio, utils, `src/lib/actions` | `<archivo>.test.ts` al lado | `npm run test:coverage` |
+| server actions | `actions.test.ts` con mocks | `npm test` |
+| queries con lógica SQL | `<archivo>.integration.test.ts` | `npm run test:integration` (con `INTEGRATION_DATABASE_URL`) |
+| pantallas y flujos | `tests/e2e/<feature>.spec.ts`, más tests `@mobile` si el layout cambia en el teléfono | `npx playwright test tests/e2e/<feature>.spec.ts` |
+
+Reglas de E2E: `.claude/docs/05-testing.md`.
+
+## 7. Docs (regla de sincronía)
+
+- Spec del módulo en `docs/prd/` (y `03-modelo-datos.md` si hubo schema).
+- `docs/estado-actual.md`: el módulo, construido o parcial.
+- `.claude/docs/03-mapa-de-archivos.md`: la carpeta nueva.
+- `OPEN_DECISIONS.md` si asumiste algo de producto.
+- `CHANGELOG.md`, sección `[Sin publicar]`.
+
+## 8. Cerrar
+
+`/juk-cierre` completo. Después, al usuario: qué quedó hecho y qué falta, en dos frases.

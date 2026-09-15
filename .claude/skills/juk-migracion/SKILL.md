@@ -1,47 +1,91 @@
 ---
 name: juk-migracion
-description: Genera, revisa y commitea una migración Drizzle del JUK Portal de forma segura después de cambiar un schema. Usalo cada vez que toques src/lib/db/schema/.
+description: Genera, revisa y aplica una migración Drizzle del JUK Portal de forma segura después de cambiar un schema, incluidas las migraciones de datos (drizzle-kit generate --custom). Usalo cada vez que toques src/lib/db/schema/.
 ---
 
 # /juk-migracion — Migración Drizzle segura
 
-Después de cambiar cualquier archivo de `juk-portal/src/lib/db/schema/`.
-**Comandos desde `juk-portal/`.**
+Comandos desde `juk-portal/`. Configuración en `drizzle.config.ts`: schema
+`./src/lib/db/schema/*`, salida `./drizzle`, `strict: true`, conexión por
+`DATABASE_URL_UNPOOLED` (o `DATABASE_URL` si falta).
 
-## Flujo
+> **La base de desarrollo tiene datos reales del dueño.** No es descartable: una migración
+> destructiva o mal escrita se lleva datos que no están en ningún otro lado. Si hay DROP, cambio
+> de tipo o backfill, probala primero en una branch de Neon y confirmá con el usuario antes de
+> aplicarla en dev.
 
-1. **Confirmá que `schema/index.ts` re-exporta la entidad** (si creaste un schema nuevo).
+## 1. Schema
 
-2. **Generá la migración**:
-   ```bash
-   npm run db:generate
-   ```
-   Esto escribe SQL en `juk-portal/drizzle/`. **No uses `db:push` contra prod** — push es solo
-   para el primer greenfield local.
+- Tabla nueva → re-export en `src/lib/db/schema/index.ts`.
+- snake_case en SQL; tipos con `$inferSelect` / `$inferInsert`.
+- Baja lógica con `estado` ENUM (TEC-03: no sumar `activo BOOLEAN`).
+- FKs con `onDelete` explícito; índices y `unique()` donde la query o el slug los necesitan.
 
-3. **Revisá el SQL generado** (leelo, no lo asumas). Checklist:
-   - [ ] ¿La operación es segura? Agregar columna `NOT NULL` sin default a una tabla con datos
-         rompe. Usá default o hacelo en 2 pasos (nullable → backfill → not null).
-   - [ ] ¿Snake_case en nombres de columnas/tablas? (convención del proyecto)
-   - [ ] ¿FKs con `onDelete` correcto? (`cascade` para pasos/cuotas de una asignación, etc.)
-   - [ ] ¿Índices y `unique()` necesarios? (ej: `(asignacion_id, tipo)` en pasos_alumno).
-   - [ ] Soft-delete vía `estado` ENUM — no introducir `activo BOOLEAN` nuevos (TEC-03).
-   - [ ] ¿Drops destructivos no intencionales? Un rename mal detectado puede salir como drop+add
-         y perder datos. Si ves un DROP de columna con datos, frená y revisá.
+## 2. Generar
 
-4. **Commiteá la migración JUNTO con el cambio de schema**, en el mismo commit:
-   ```bash
-   git add src/lib/db/schema/ drizzle/
-   git commit -m "feat(db): <qué cambió>"
-   ```
+```bash
+npm run db:generate -- --name=<que_cambia>
+```
 
-5. **Aplicación**:
-   - Local: `npm run db:push` (greenfield) o `npm run db:migrate`.
-   - Preview: cada PR corre contra una branch de Neon (copy-on-write de prod) — ahí probás el cambio.
-   - Prod: las migraciones se aplican **manualmente** vía workflow bloqueante antes del deploy
-     (ADR-008 / Módulo 8 §8.5). Nunca migres prod a mano sin avisar.
+Escribe `drizzle/NNNN_<nombre>.sql` y actualiza `drizzle/meta/` (snapshot y `_journal.json`).
+Poné un nombre que diga qué hace, como las existentes (`0018_ola2_rol_default_y_rate_limit.sql`,
+`0019_fase2_indices.sql`). Si drizzle-kit pregunta si una columna es un rename o una nueva,
+contestá la verdad: "nueva" significa drop + add, y el drop se lleva los datos.
 
-## Si el cambio toca un módulo gated
+## 3. Migraciones de datos
 
-Si el schema afectado es de pagos/cuotas/pasaporte/psicofísico, recordá que la **forma** del
-schema puede cambiar según se resuelva el CRIT correspondiente. Avisá al usuario antes de migrar.
+drizzle-kit solo genera cambios de estructura. Para completar, normalizar o mover datos:
+
+```bash
+npx drizzle-kit generate --custom --name=<backfill_que_hace>
+```
+
+Crea un `.sql` vacío, numerado y registrado en el journal. Escribí ahí el SQL (`UPDATE`,
+`INSERT … SELECT`). Que sea idempotente cuando se pueda (`WHERE` que no vuelva a tocar lo ya migrado).
+
+Patrón para una columna `NOT NULL` en una tabla con filas, en tres migraciones:
+1. generada: la columna entra nullable (o con default);
+2. `--custom`: el backfill;
+3. schema a `.notNull()` + `db:generate`.
+
+## 4. Revisar el SQL (leelo entero, no lo asumas)
+
+- [ ] `DROP TABLE` / `DROP COLUMN`: ¿intencional? ¿hay datos? Un rename mal contestado sale como drop + add.
+- [ ] `NOT NULL` sin default sobre una tabla con filas: falla o necesita backfill antes.
+- [ ] `ALTER COLUMN … TYPE`: ¿necesita `USING`? En enums, sumar valores es seguro; sacarlos no.
+- [ ] Índices y `unique` que la query necesita; FKs con el `onDelete` correcto.
+- [ ] Una migración ya aplicada en alguna base no se edita: se suma otra.
+- [ ] Ningún dato del dueño escrito a mano en una migración `--custom`.
+
+## 5. Aplicar
+
+```bash
+npm run db:migrate
+```
+
+- `drizzle-kit` no lee `.env.local` solo: cargalo en la shell antes (receta para bash y
+  PowerShell en `.claude/docs/04-operacion-y-handoff.md`).
+- **Nunca `db:push`**: aplica el schema sin migración. Está en `permissions.deny` del harness y lo
+  frena el hook `destructive-command-guard`, igual que `drizzle-kit push/drop`.
+- CI: el job `e2e` crea una branch efímera de Neon y corre `npm run db:migrate` y los seeds; una
+  migración rota se ve ahí.
+- Producción: no hay workflow de migración a prod. Se aplica a mano con `db:migrate` apuntando a
+  la base de producción, antes del deploy que usa el schema nuevo, y lo decide y coordina el usuario.
+
+## 6. Probar
+
+- `npm run typecheck`.
+- Si la migración cambia datos o afecta queries con lógica SQL: `npm run test:integration` contra
+  una branch (ver `/juk-cierre` paso 4).
+
+## 7. Docs y commit
+
+- `docs/prd/03-modelo-datos.md` refleja la tabla o columna (regla de sincronía); `CHANGELOG.md`;
+  `.claude/docs/03-mapa-de-archivos.md` si hay un archivo de schema nuevo.
+- Commit (cuando el usuario lo pida): schema + `drizzle/*.sql` + `drizzle/meta/` juntos.
+
+## Decisiones ⭐
+
+Si el schema toca excursiones o actividades del viaje (CRIT-04 ⭐) o la moneda de las cuotas
+(CRIT-05 ⭐), la forma puede cambiar cuando el equipo valide la decisión: avisale al usuario y
+mantené el cambio acotado. Estado vigente en `OPEN_DECISIONS.md`.

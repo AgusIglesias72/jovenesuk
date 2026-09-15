@@ -26,6 +26,10 @@ export const alertaTipo = pgEnum("alerta_tipo", [
  *   1) performance (no recomputar 60 alumnos × N reglas en cada page load),
  *   2) permitir "descartar" alertas por sesión (PRD §2.3 US-DX-01),
  *   3) historial / auditoría.
+ *
+ * OJO (TEC-16): hoy NADA lee ni escribe esta tabla. Las alertas se calculan en
+ * vivo en `src/lib/db/queries/alertas.ts` con las reglas puras de
+ * `src/lib/domain/alertas/`. Queda decidir si se materializa o se borra.
  */
 export const alertas = pgTable("alertas", {
   id: uuid("id").primaryKey().defaultRandom(),

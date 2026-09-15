@@ -28,9 +28,9 @@ if (DATABASE_URL) process.env.DATABASE_URL = DATABASE_URL;
 const PORT = Number(process.env.PW_PORT ?? 3001);
 const baseURL = `http://localhost:${PORT}`;
 
-// En CI se prueba lo que se deploya: `next start` sobre el build, no Turbopack
-// en dev. E2E_SERVER=dev|start lo fuerza (ej: CI sin build, o probar el build
-// en local). En local, sin la variable, todo sigue como siempre.
+// E2E_SERVER=dev|start elige el server. El CI fija dev a propósito (ver ci.yml:
+// en modo producción rigen el rate limit real de login y el storage exige R2).
+// Sin la variable: start si corre en CI y hay un build, dev en cualquier otro caso.
 const EN_CI = Boolean(process.env.CI);
 const SERVER =
   process.env.E2E_SERVER ?? (EN_CI && existsSync(".next/BUILD_ID") ? "start" : "dev");

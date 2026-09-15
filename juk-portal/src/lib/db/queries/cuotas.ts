@@ -149,8 +149,8 @@ export async function sincronizarPasosPago(
     })
     .where(and(eq(pasosAlumno.asignacionId, asignacionId), eq(pasosAlumno.codigo, "b1")));
 
-  // C2 nace bloqueado por B1: al completarse B1 pasa a pendiente; si B1 se
-  // reabre (pago revertido a futuro), C2 vuelve a bloquearse solo si no avanzó.
+  // C2 nace bloqueado por B1: al completarse B1 se destraba. Si después B1 se
+  // reabre (un pago revertido), C2 NO vuelve a bloquearse: queda como está.
   if (b1 === "completado") {
     const c2Rows = await db
       .select()

@@ -86,7 +86,7 @@ async function dentroDelLimite(
  * envío inline. Todo es best-effort: el lead ya quedó persistido, así que un
  * fallo de email no debe romper la respuesta al usuario.
  *
- * Antes de avisar, dedup por (email, interés) en 24 h: la consulta repetida se
+ * Antes de avisar, dedup por (email, modalidad) en 24 h: la consulta repetida se
  * persiste igual pero no vuelve a gastar cuota ni a saturar LEADS_NOTIFY_TO.
  */
 async function dispararAvisoConsulta(consulta: Consulta): Promise<void> {

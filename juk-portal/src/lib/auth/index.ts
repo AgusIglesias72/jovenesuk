@@ -11,8 +11,11 @@ import { debeBloquearAlta, SIGN_UP_PATHS } from "./sign-up-policy";
  *  - email + password only (no OAuth yet — small known team)
  *  - sessions expire at 8h of inactivity (PRD §1.3)
  *  - password reset link expires at 24h (PRD §1.2 US-04)
- *  - admin creates users from /usuarios; new users get a temp password emailed
- *  - email verification required before first login (set on admin invite)
+ *  - el equipo crea las cuentas (/usuarios y el acceso de familias) y la persona
+ *    recibe un link para crear su contraseña: nunca una contraseña temporal
+ *  - requireEmailVerification: el alta server-side marca emailVerified, así el
+ *    link alcanza para entrar
+ *  - una cuenta desactivada no abre sesión (databaseHooks, más abajo)
  *  - no hay registro público: el sign-up solo se atiende server-side
  */
 export const auth = betterAuth({

@@ -327,8 +327,9 @@ asignar después del alta), Tipo de alojamiento solicitado ◇, Preferencias de 
 Usuario que procesó el alta ★ (automático), Notas internas ◇ (visibles para representantes
 **excepto datos fiscales**).
 
-> Nota: la sección "Datos de facturación" del alumno fue **eliminada del PRD en v1.2** (Felix).
-> El schema actual todavía la tiene — ver deltas (doc 06).
+> Nota: el changelog dice que la sección "Datos de facturación" del alumno se **eliminó en v1.2**
+> (Felix), pero US-15 y el Modelo v1.7 (RV-20) la conservan. ✅ **MIN-15:** se conserva, visible
+> solo para admins (sección plegable en la ficha del alumno).
 
 ### User stories
 
@@ -558,7 +559,8 @@ dependencias, condición de activación). Referencia de diseño: tabla `pasos_di
 
 ### Preguntas abiertas — M6
 
-- ¿Recordatorios desde info@ o noreply@? **Abierta** (decisión técnica).
+- ¿Recordatorios desde info@ o noreply@? ✅ **Resuelta (MIN-09):** automáticos desde noreply@,
+  configurable en `/configuracion`.
 - ¿Paso de gestión de VISA para USA/Canadá en v2 o PRD separado? **Abierta.**
 
 ---
@@ -629,7 +631,7 @@ en **argentina.gob.ar**. Individual (sin GL) → **N/A automático al crear el v
 |---|---|---|
 | M4 | Multi-destino | ¿Un viaje con dos colegios destino en futuras versiones? |
 | M4 | Precios | ¿Campo de precio por alumno / cálculo del precio final con las 3 comisiones? ¿v1 o futuro? |
-| M6 | Email sistema | ¿Recordatorios desde info@ o noreply@? |
+| M6 | Email sistema | ~~¿Recordatorios desde info@ o noreply@?~~ Resuelta: MIN-09 |
 | M6/C1 | VISA | ¿Flujo de VISA para USA/Canadá en v2 o PRD separado? |
 
 ## Historial de cambios relevante (para entender por qué el código viejo difiere)

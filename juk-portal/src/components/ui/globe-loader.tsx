@@ -1,17 +1,13 @@
 import { cn } from "@/lib/utils/cn";
 
 /**
- * GlobeLoader — el loader oficial de JUK.
+ * GlobeLoader — el loader de marca, hoy SIN USO.
  *
  * Monta el loader auto-contenido de `public/globe-loader.html` en un iframe.
- * Usalo SIEMPRE que haya un estado de carga (route `loading.tsx`, Suspense
- * fallback, esperas de página). No crear spinners ad-hoc.
- *
- * @example
- *   // app/(admin)/loading.tsx
- *   export default function Loading() {
- *     return <GlobeLoader />;
- *   }
+ * Los estados de carga de la app van con los skeletons de `skeleton.tsx`, que
+ * respetan la silueta de cada pantalla (decisión del 12/06/2026). Este
+ * componente se conserva a pedido del dueño para buscarle un lugar (una espera
+ * larga, una pantalla de bienvenida); ninguna pantalla lo renderiza.
  */
 export function GlobeLoader({
   label = "Cargando…",

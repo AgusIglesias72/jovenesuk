@@ -1,67 +1,77 @@
 #!/usr/bin/env node
 /**
- * Aviso (no bloqueante) al editar código de un módulo que está bloqueado por una
- * decisión de negocio abierta en OPEN_DECISIONS.md.
+ * Aviso (no bloquea) al editar código de un área cuya regla de negocio se
+ * decidió con ⭐ en OPEN_DECISIONS.md: decidida para desarrollo, pendiente de
+ * validar con el equipo.
  *
- * No frena el trabajo (a veces querés andamiar con un flag), pero le recuerda a
- * Claude que la regla de negocio todavía no está cerrada, para no asumir.
+ * - CRIT-04 excursiones: el representante aprueba o rechaza.
+ * - CRIT-05 cuotas: multi-moneda, default USD.
+ *
+ * El aviso NO dice "no avances": dice "codeá con la regla, pero acotada y fácil
+ * de revertir", porque si el equipo decide distinto el cambio tiene que ser
+ * chico.
+ *
+ * PostToolUse (Edit|Write|MultiEdit). Reglas para que no sea ruido:
+ * - solo archivos .ts/.tsx de juk-portal/src/, nunca *.test.ts ni *.spec.ts;
+ * - una vez por sesión por decisión;
+ * - relee OPEN_DECISIONS.md: si la línea de esa decisión ya no tiene ⭐ (el
+ *   equipo la validó), el aviso deja de salir solo.
  */
-const raw = await readStdin();
-let payload;
-try {
-  payload = JSON.parse(raw);
-} catch {
-  process.exit(0);
-}
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
-const filePath = payload?.tool_input?.file_path;
-if (!filePath) process.exit(0);
+import { APP_DIR, emitirContexto, esTest, leerPayload, primeraVez, rutaEnApp } from "./_comun.mjs";
 
-const norm = filePath.replace(/\\/g, "/").toLowerCase();
-if (!/\.(ts|tsx)$/.test(norm)) process.exit(0);
-
-// Decisiones ⭐ del 11/06/2026: decididas para desarrollo pero pendientes de validación del
-// equipo. El aviso recuerda mantener la regla ACOTADA (fácil de revertir), no bloquea.
-const gates = [
+const DECISIONES = [
   {
-    crit: "CRIT-04 (decidido ⭐)",
-    tema: "excursiones: el representante APRUEBA (decisión 11/06, validar con equipo) — mantené el mecanismo de aprobación desacoplado/auditado",
-    patterns: ["excursion", "actividad-viaje", "actividad_viaje", "solicitud-cambio", "solicitud_cambio"],
+    id: "CRIT-04",
+    // Las excursiones no tienen archivo propio: viven en los pasos del viaje
+    // (domain/pasos-viaje/, queries y schema pasos-viaje.ts, viajes/[id]/pasos-viaje-panel.tsx).
+    patrones: [/excursion/, /pasos-viaje/, /actividad[-_]viaje/, /solicitud[-_]cambio/],
+    regla:
+      "excursiones: aprueba el representante (estado aprobada_representante). Como la Vista del Representante " +
+      "no existe, hoy el admin carga ese estado a mano, sin nota obligatoria. Las solicitudes de cambio son un " +
+      "mecanismo aparte. Estados en src/lib/domain/pasos-viaje/metadata.ts (EXCURSION_ESTADOS).",
   },
   {
-    crit: "CRIT-05 (decidido ⭐)",
-    tema: "cuotas: multi-moneda (USD|GBP|ARS) default USD (decisión 11/06, validar con Felix) — no hardcodear la moneda en UI ni lógica",
-    patterns: ["cuota", "/pagos/", "plan-de-pagos", "ultimo_pago", "mora"],
+    id: "CRIT-05",
+    patrones: [/cuota/, /(^|\/)pagos(\/|\.|-)/, /moneda/],
+    regla:
+      "cuotas multi-moneda (USD | GBP | ARS, default USD). No hardcodees la moneda: usá la de la cuota " +
+      "y MONEDA_SIMBOLOS de src/lib/domain/cuotas/schema.ts.",
   },
 ];
 
-const matched = gates.filter((g) => g.patterns.some((p) => norm.includes(p)));
-if (matched.length === 0) process.exit(0);
+function sigueConEstrella(id) {
+  let texto;
+  try {
+    texto = readFileSync(path.join(APP_DIR, "OPEN_DECISIONS.md"), "utf8");
+  } catch {
+    return true;
+  }
+  const lineas = texto.split(/\r?\n/).filter((l) => l.includes(id));
+  return lineas.length === 0 || lineas.some((l) => l.includes("⭐"));
+}
 
-const lines = matched
-  .map((g) => `  • ${g.crit}: ${g.tema}`)
-  .join("\n");
+const payload = await leerPayload();
+const ruta = rutaEnApp(payload?.tool_input?.file_path);
+if (!ruta || !ruta.startsWith("src/") || !/\.tsx?$/.test(ruta) || esTest(ruta)) process.exit(0);
 
-console.log(
-  JSON.stringify({
-    hookSpecificOutput: {
-      hookEventName: "PostToolUse",
-      additionalContext:
-        `Estás tocando un módulo con una decisión de negocio ABIERTA:\n${lines}\n` +
-        `Ver juk-portal/OPEN_DECISIONS.md. No asumas la regla de negocio: si tenés que avanzar, ` +
-        `dejá la lógica detrás de un flag/constante claramente marcada y avisale al usuario que ` +
-        `el módulo depende de cerrar esa decisión con el equipo (María).`,
-    },
-  })
+const rutaMinuscula = ruta.toLowerCase();
+const aplican = DECISIONES.filter(
+  (d) =>
+    d.patrones.some((re) => re.test(rutaMinuscula)) &&
+    sigueConEstrella(d.id) &&
+    primeraVez(payload, "gated-module-warning", d.id),
+);
+if (aplican.length === 0) process.exit(0);
+
+emitirContexto(
+  "PostToolUse",
+  `Decisión ⭐ en juego (tomada el 11/06/2026, falta validarla con el equipo):\n` +
+    aplican.map((d) => `  • ${d.id}: ${d.regla}`).join("\n") +
+    `\nNo frena nada: codeá con esa regla, pero mantenela acotada y fácil de revertir ` +
+    `(constantes y funciones del dominio, no condiciones sueltas en la UI). ` +
+    `Detalle en juk-portal/OPEN_DECISIONS.md. Este aviso sale una vez por sesión.`,
 );
 process.exit(0);
-
-function readStdin() {
-  return new Promise((resolve) => {
-    if (process.stdin.isTTY) return resolve("");
-    let data = "";
-    process.stdin.on("data", (c) => (data += c));
-    process.stdin.on("end", () => resolve(data));
-    process.stdin.on("error", () => resolve(""));
-  });
-}

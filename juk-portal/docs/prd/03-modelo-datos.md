@@ -2,7 +2,7 @@
 
 > **Fuente de verdad:** PRD *Modelo de Base de Datos y Matriz de Roles y Permisos* **v1.7** (Agente 4 — el documento original está fechado mayo 2026; incorporado al repo en junio 2026). El doc raw vive en [`fuentes/modelo-datos-v1.7.md`](./fuentes/modelo-datos-v1.7.md).
 >
-> Este documento es la spec **objetivo** del modelo: lo que el portal debe terminar implementando. La última sección ("Delta vs. implementación actual") compara contra los schemas Drizzle vigentes en `src/lib/db/schema/`.
+> Este documento es la spec **objetivo** del modelo: lo que el portal debe terminar implementando. §1 a §8 transcriben la fuente; §9 ("Delta vs. implementación actual") compara contra el schema real (`src/lib/db/schema/` + migraciones de `drizzle/`) y §10 explica las desviaciones deliberadas.
 
 **Novedades de v1.7:** `COLEGIO_DESTINO.tipo_entrada_requerida` ENUM(ETA|VISA|Ninguna) + regla RV-C1 · bullet C1 en inicialización de pasos · nota de arquitectura "Representante del sistema vs. GL físico" en `VIAJE.id_representante`.
 
@@ -19,6 +19,7 @@
 7. [Multi-tenancy (v2)](#7-multi-tenancy-v2)
 8. [Glosario](#8-glosario)
 9. [Delta vs. implementación actual](#9-delta-vs-implementación-actual)
+10. [Decisiones de modelado propias](#10-decisiones-de-modelado-propias)
 
 ---
 
@@ -168,11 +169,13 @@ Institución educativa en el extranjero (principalmente UK) donde estudian los a
 | `fecha_creacion` | TIMESTAMP | NOT NULL | |
 | `id_organizacion` | UUID | NULL | En v1 siempre NULL (JUK). Reservado multi-tenant v2 (§7) |
 
-> **Nota de implementación (Interno v1.13, US-05b):** la nota de arquitectura del Interno exige modelar la configuración de documentos como **entidad independiente** (`colegio_documento_config`, una fila por documento), NO como columnas fijas. La implementación va a seguir al Interno; las columnas `config_*` de esta tabla quedan como referencia de los 5 documentos a configurar.
+> **Nota de implementación (Interno v1.13, US-05b):** la nota de arquitectura del Interno exige modelar la configuración de documentos como **entidad independiente** (`colegio_documento_config`, una fila por documento), NO como columnas fijas. ✅ La implementación sigue al Interno (tabla `colegio_documento_config`, §9.2); las columnas `config_*` de esta tabla quedan como referencia de los 5 documentos a configurar.
 
 > ✅ RESUELTO (**MIN-11**, decisión 11/06/2026): el Interno decía default "Opcional" para todos los documentos; valen los **defaults por documento de este Modelo v1.7** — App Form Requerido, Test de Nivel NA, Parental Consent NA, Confirmation Letter Requerido, Visa/Immigration Requerido.
 
 > **Nota (TEC-11.k):** el estado `En_negociacion` no existe en el Interno v1.13, que solo define `Activo|Inactivo` para el colegio. Decidir al implementar.
+
+> **Nota (TEC-11.m):** el Interno v1.13 trata la VISA/Immigration Letter como campo de control (MIN-02), no como inicializador de C2. El código sigue al Interno: C2 nace siempre Bloqueado por B1 (`pasosIniciales`, `src/lib/domain/pasos/inicializacion.ts`) y `visa_immigration_letter` en la config documental no cambia su estado inicial.
 
 ### 3.4 REPRESENTANTE
 
@@ -303,7 +306,7 @@ Estado de cada uno de los **11 pasos** (Paso 0 + grupos A–D) que cada alumno a
 
 **Constraints:** `UNIQUE(id_inscripcion, codigo_paso)`.
 
-> **Nota (TEC-11.d):** al ENUM de `estado` le falta **`Vencido`**, que el Interno v1.13 define para A1 (fecha límite pasada sin completar). Agregarlo al implementar.
+> **Nota (TEC-11.d):** al ENUM de `estado` le falta **`Vencido`**, que el Interno v1.13 define para A1 (fecha límite pasada sin completar). ✅ Implementado (`paso_estado` incluye `vencido`, §9.2).
 
 **Reglas de inicialización automática:**
 
@@ -338,7 +341,7 @@ Cada cuota del plan de pagos de un alumno por viaje. Los pagos **no son online**
 
 > ✅ RESUELTO (**CRIT-05**, decisión 11/06/2026 — ⭐ validar con Felix): el PRD fijaba las cuotas en **USD** (`monto_usd`) y la convención del proyecto usaba **GBP**. Decisión: **multi-moneda** — campo `moneda` ENUM (`USD|GBP|ARS`) + monto + cotización opcional, **default USD**.
 
-> **Nota (TEC-11.h):** a esta tabla le falta el campo **`canal`** (`'Vía agencia'` \| `'Presencial JUK'`) que B1/B2 del Interno v1.13 requieren por cuota. Agregarlo al implementar.
+> **Nota (TEC-11.h):** a esta tabla le falta el campo **`canal`** (`'Vía agencia'` \| `'Presencial JUK'`) que B1/B2 del Interno v1.13 requieren por cuota. ✅ Implementado (`cuotas.canal = agencia | presencial`, §9.2).
 
 ### 3.10 NPS_RESPUESTA
 
@@ -382,7 +385,7 @@ Los **5 trámites** coordinados a nivel de viaje (no por alumno), responsabilida
 
 **Constraints:** `UNIQUE(id_viaje, numero_paso)`.
 
-> ⚠️ AMBIGUO: RV-10 dice que el Paso 3 (Transfers) no puede inicializarse hasta que el Paso 1 (Pasajes) esté "al menos en **Confirmado**", pero `Confirmado` no es un valor del ENUM de estado de PASO_VIAJE (`Pendiente|En_progreso|Completado|Bloqueado|NA`). Probablemente quiera decir `Completado` (o un sub-estado de Pasajes no modelado). A confirmar antes de implementar la dependencia.
+> ⚠️ AMBIGUO: RV-10 dice que el Paso 3 (Transfers) no puede inicializarse hasta que el Paso 1 (Pasajes) esté "al menos en **Confirmado**", pero `Confirmado` no es un valor del ENUM de estado de PASO_VIAJE (`Pendiente|En_progreso|Completado|Bloqueado|NA`). Probablemente quiera decir `Completado` (o un sub-estado de Pasajes no modelado). Hoy el código exige Pasajes **Completado**; la pregunta está abierta como **MIN-19** en `OPEN_DECISIONS.md`.
 
 ### 3.12 ACTIVIDAD_VIAJE
 
@@ -445,7 +448,7 @@ Control policial de los group leaders por viaje (el colegio destino lo requiere)
 
 > **Nota (TEC-11.f):** el Interno v1.13 (US-41) exige el police check por **cada GL físico** del viaje, no por representante del sistema. Manda el Interno (la implementación actual ya lo modela por GL).
 
-> **Nota (TEC-11.g):** los ENUM de estado difieren entre fuentes e implementación. Implementar la **unión**: `pendiente|en_tramite|aprobado|rechazado|vencido`.
+> **Nota (TEC-11.g):** los ENUM de estado difieren entre fuentes e implementación. Implementar la **unión**: `pendiente|en_tramite|aprobado|rechazado|vencido`. Hoy el código tiene todos menos `rechazado` (§9.2).
 
 ### 3.15 LOG_AUDITORIA
 
@@ -688,136 +691,299 @@ Leyenda: ✅ completo · ⚠️ limitado (ver nota) · 🚫 sin acceso.
 
 ## 9. Delta vs. implementación actual
 
-Comparación del modelo objetivo (PRD v1.7) contra los schemas Drizzle en `src/lib/db/schema/` (estado a 11/06/2026). Convención: "impl." = lo implementado hoy.
+Comparación del modelo objetivo (PRD v1.7) contra el schema real: `src/lib/db/schema/` y las
+migraciones `drizzle/0000` a `drizzle/0019`. **Corte: 11/09/2026** (`main` @ `0b73eaf`).
+"Impl." = lo implementado. Lo que falta construir y en qué orden: [06](06-deltas-implementacion.md).
+Las desviaciones que son decisión y no deuda están explicadas en [§10](#10-decisiones-de-modelado-propias).
 
-### 9.1 Resumen
+### 9.1 Resumen por entidad
 
-| Entidad PRD | Tabla actual | Estado |
+| Entidad PRD | Tabla(s) impl. | Estado |
 |---|---|---|
-| CUENTA_ADMIN | `users` (+ `sessions`, `accounts`, `verifications` de Better-Auth) — `users.ts` | Parcial, con diferencias de enum y campos |
-| CUENTA_FAMILIAS | — | **Falta crear** |
-| COLEGIO_DESTINO | `colegios` — `colegios.ts` | Parcial; impl. mezcla destino+cliente y le falta toda la config de documentos |
-| REPRESENTANTE | `group_leaders` — `grupos-leaders.ts` (aprox.) | Parcial; falta el concepto de tipo/flujo de pago y el vínculo a cuenta |
-| VIAJE | `viajes` — `viajes.ts` | Parcial; faltan `tipo_viaje`, representante, flags de pasos y flujo de pago |
-| ESTUDIANTE | `alumnos` — `alumnos.ts` | Parcial; faltan campos de salud desglosados, `pais_pasaporte`, `origen_alta`, UNIQUE en dni |
-| INSCRIPCION_VIAJE | `asignaciones` — `asignaciones.ts` | Parcial; faltan accommodation y certificado |
-| PASO_INSCRIPCION | `pasos_alumno` — `pasos-alumno.ts` | Parcial; 10 pasos en vez de 11, sin códigos/grupos |
-| CUOTA_PAGO | `cuotas` — `cuotas.ts` | Parcial; moneda, constraints y campos distintos |
-| NPS_RESPUESTA | — | **Falta crear** |
-| PASO_VIAJE | `pasos_viaje` — `pasos-viaje.ts` | Parcial; falta estado `na` |
-| ACTIVIDAD_VIAJE | — | **Falta crear** |
-| SOLICITUD_CAMBIO | — | **Falta crear** |
-| POLICE_CHECK | campos inline en `group_leaders` | **Falta crear como tabla** (hoy es 1 check por GL, no por GL×viaje) |
-| LOG_AUDITORIA | `auditoria` — `auditoria.ts` | Parcial; PK, tipo_cuenta y forma de `accion` difieren |
-| ENTRADA_DIARIO | — | **Falta crear** |
-| MENSAJE_DIARIO | — | **Falta crear** |
+| CUENTA_ADMIN | `users` (+ `sessions`, `accounts`, `verifications`, `rate_limits` de Better-Auth) | Implementada, con enum y campos distintos |
+| CUENTA_FAMILIAS | `users` con rol `familia` + `alumnos.familia_user_id` | **Desviación deliberada** (MIN-07): sin tabla propia, §10.4 |
+| COLEGIO_DESTINO | `colegios` + `colegio_documento_config` | Implementada: config documental como tabla y tipo de entrada. Faltan archivos y campos |
+| REPRESENTANTE | `viajes.origen` (tipo) + `group_leaders` + `group_leaders_viaje` | **No existe como entidad** |
+| VIAJE | `viajes` | Implementada: tipo, tipo de representante, comisión y fee. Flujo de pago y flags derivados en dominio |
+| ESTUDIANTE | `alumnos` | Implementada: DNI único, canal de alta, vínculo a cuenta. Faltan salud desglosada y país del pasaporte |
+| INSCRIPCION_VIAJE | `asignaciones` | Implementada. Faltan alojamiento y certificado |
+| PASO_INSCRIPCION | `pasos_alumno` | **Implementada**: 11 códigos, estado Vencido, inicialización automática completa |
+| CUOTA_PAGO | `cuotas` | **Implementada**: multi-moneda, canal, `registrado_por`. Sin uniques del PRD |
+| NPS_RESPUESTA | — | Falta |
+| PASO_VIAJE | `pasos_viaje` | Implementada sin estado `na` |
+| ACTIVIDAD_VIAJE | array en `pasos_viaje.metadata` (paso Excursiones) | Falta como tabla |
+| SOLICITUD_CAMBIO | — | Falta |
+| POLICE_CHECK | columnas en `group_leaders` | Falta como tabla (hoy un check por persona) |
+| LOG_AUDITORIA | `auditoria` | Implementada, con PK y `accion` distintas |
+| ENTRADA_DIARIO | — | Falta |
+| MENSAJE_DIARIO | — | Falta |
 
-Tablas implementadas que **no existen en el PRD** (extensiones propias, a conservar): `documentos` (storage R2 polimórfico — reemplaza los `url_*` sueltos del PRD), `alertas` (materialización de alertas del dashboard), `group_leaders_viaje` (N:M GL↔viaje — anticipa la nota de arquitectura v2 sobre GL físicos), y las tablas de Better-Auth (`sessions`, `accounts`, `verifications`).
+**Tablas propias sin equivalente en el PRD:** `documentos` (storage polimórfico, §10.3),
+`notificaciones_enviadas` (dedup de mails automáticos, TEC-06), `configuracion` (key-value, TEC-04),
+`group_leaders_viaje` (N:M GL ↔ viaje), `form_rate_limits` (anti-abuso de formularios públicos),
+`consultas` y `suscriptores` (web pública, spec 07), `prospectos` y `prospecto_comunicaciones`
+(CRM, spec 07), `alertas` (sin uso, TEC-16) y las tablas de Better-Auth.
 
 ### 9.2 Detalle por tabla
 
 #### CUENTA_ADMIN → `users` (`users.ts`)
 
-- **Enum de rol:** impl. `user_role = admin_juk | super_admin | representante | familia` vs. PRD `Admin | Representante | SuperAdmin`. Renombre pendiente `admin_juk` → `admin`; el valor `familia` **no pertenece** a CUENTA_ADMIN (en el PRD las familias tienen entidad propia, `CUENTA_FAMILIAS`); `super_admin` en el PRD es un boolean (`es_super_admin`) + rol `SuperAdmin` reservado v2, no un rol operativo v1.
-- **Faltan:** `apellido` (impl. tiene un solo `name`), `sub_rol_admin` (CEO|Sales|Marketing|Operations), `es_super_admin`, `fecha_ultimo_acceso`, `intentos_fallidos`, `bloqueado_hasta` (lockout 5 intentos → 15 min sin modelar).
-- **Cubierto distinto:** `password_hash` vive en `accounts.password` (Better-Auth); `reset_token`/`reset_token_expira` se cubren con `verifications` (caducidad 24 hs ya respetada); expiración de sesión 8 hs cubierta por `sessions.expiresAt`.
-- **Extra impl.:** `emailVerified`, `image`, `updatedAt`.
+- **Rol:** enum `user_role = admin_juk | super_admin | representante | familia`, con default
+  `familia` (el de menor privilegio, migración 0018). PRD: `Admin | Representante | SuperAdmin` +
+  `es_super_admin`. El renombre `admin_juk` → `Admin` no se aplicó (no cambia lógica); en v1
+  `super_admin` es un rol operativo (María) y no un booleano. `familia` vive en esta tabla por MIN-07.
+- **Tiene:** `apellido` y `sub_rol_admin` (migración 0009, ambos opcionales y sin carga desde la UI;
+  `sub_rol_admin` es texto libre aunque el PRD define `CEO | Sales | Marketing | Operations`),
+  `is_active`.
+- **Faltan:** `fecha_ultimo_acceso`; `intentos_fallidos` y `bloqueado_hasta` (el bloqueo lo hace el
+  rate limit de Better-Auth sobre la tabla `rate_limits`, 0009).
+- **Cubierto distinto:** la contraseña vive en `accounts.password`; el reset en `verifications`
+  (24 h); la sesión de 8 h en `sessions.expires_at`. `accounts` tiene las columnas OAuth que exige
+  Better-Auth 1.7, siempre vacías (0017).
 
-#### CUENTA_FAMILIAS → no existe
+#### CUENTA_FAMILIAS → sin tabla (`users` + `alumnos`)
 
-Falta crear completa (§3.2): vínculo 1:1 con alumno, DNI como username, `activo` default FALSE, `primer_acceso`, `fecha_envio_credenciales`, `email_contacto`, `whatsapp`, `titular` (Padre_Tutor|Alumno_Adulto) y la creación automática al alta del alumno (RV-12).
+- La cuenta es un `users` con rol `familia` e identidad = email del Tutor 1. `alumnos.familia_user_id`
+  vincula N alumnos a una cuenta y `alumnos.acceso_familia_enviado_at` registra el envío del acceso
+  (0011).
+- Se crea al dar de alta al alumno, manual o por webhook (`asegurarCuentaFamilia`,
+  `src/lib/db/queries/familias.ts`); el acceso se manda aparte, a mano (RV-12).
+- **No existen:** `dni_alumno` desnormalizado (el DNI es selector, no usuario), `primer_acceso` (el
+  alta es por link para crear la contraseña), `titular` (Padre_Tutor / Alumno_Adulto) ni `whatsapp`.
 
-#### COLEGIO_DESTINO → `colegios` (`colegios.ts`)
+#### COLEGIO_DESTINO → `colegios` + `colegio_documento_config` (`colegios.ts`)
 
-- **Modelo distinto:** impl. unifica destino y cliente vía `colegio_tipo = destino | cliente`; el PRD modela el colegio cliente argentino como **atributo de REPRESENTANTE** (`tipo = Colegio_cliente` + `nombre_institucion`), no como fila de colegio. Decidir si se migra o se mantiene la tabla unificada con mapeo.
-- **Falta el bloque `config_*` de documentos** (lo que el prompt de proyecto llama "colegio_documento_config"): `config_application_form`, `config_test_nivel`, `config_parental_consent`, `config_confirmation_letter`, `config_visa_immigration` — todos ENUM `Requerido|Opcional|NA` con defaults específicos. Impl. solo tiene los booleans `requiere_test_nivel` y `requiere_certificado_psicofisico` (este último además es **obsoleto**: por RV-07 el psicofísico depende de `VIAJE.tipo_viaje`, no del colegio).
-- **Falta `tipo_entrada_requerida`** ENUM `ETA|VISA|Ninguna` (novedad v1.7, rige el Paso C1 — RV-C1).
-- **Faltan:** `direccion`, `coordenadas_lat/lon`, `url_parental_consent_menor16` y `url_parental_consent_16_17` (impl. tiene un único `parental_consent_url`), `fecha_actualizacion_app_form`, `url_confirmation_letter`, `url_visa_immigration_template`, `id_organizacion`.
-- **Contactos:** PRD pide columnas planas con teléfono NOT NULL para académico/admin; impl. usa JSON `Contacto { nombre, email, telefono? }` con teléfono opcional.
-- **Enum `estado`:** impl. `activo|inactivo`; PRD agrega `En_negociacion`.
-- **Extra impl.:** `cursos_disponibles`, `tipos_alojamiento`, `comision_agencia_porcentaje` (el PRD pone la comisión en `VIAJE.comision_agencia_pct` como DECIMAL, no en el colegio y no como integer), `pais` como pgEnum cerrado (PRD: VARCHAR(50) libre), `parental_consent_year`.
+- **Config documental** como tabla aparte (0005), una fila por documento
+  (`application_form | test_nivel | parental_consent | confirmation_letter | visa_immigration_letter`)
+  con `requisito = requerido | opcional | na`, unique `(colegio_id, documento)` y trazabilidad
+  (`updated_at`, `updated_by`). Un documento sin fila usa el default de MIN-11
+  (`src/lib/domain/colegios/documentos.ts`). Sigue a la nota del Interno (US-05b), no a las columnas
+  `config_*` de este Modelo.
+- **`tipo_entrada_requerida`** (`eta | visa | ninguna`, default `eta`, 0005) con default por país en
+  el dominio (MIN-14).
+- **Se borraron** `requiere_test_nivel` y `requiere_certificado_psicofisico` (0006).
+- **Modelo distinto:** `colegio_tipo = destino | cliente`; el colegio cliente sigue siendo una fila
+  del catálogo (el Interno lo admite como entrada de directorio).
+- **Faltan:** `direccion`, coordenadas, `fecha_actualizacion_app_form`, las dos URLs del Parental
+  Consent, `url_confirmation_letter`, `url_visa_immigration_template`, estado `En_negociacion`,
+  `id_organizacion`.
+- **Columnas muertas:** impl. tiene `application_form_url`, una sola `parental_consent_url`,
+  `parental_consent_year` y `parental_consent_updated_at`, y **nada en la app escribe ninguna de
+  las cuatro**. Consecuencia: la alerta de Parental Consent trata `null` como desactualizado, así
+  que todo colegio destino activo con el PC en Requerido u Opcional alerta siempre (06 §B M3).
+- **Contactos** en JSON `{ nombre, email, telefono? }` en lugar de columnas planas con teléfono
+  obligatorio.
+- **Extra impl.:** `cursos_disponibles`, `tipos_alojamiento`, `comision_agencia_porcentaje`
+  (integer), `pais` como enum cerrado. Renombre: `notas` (≈ `notas_internas`).
 
-#### REPRESENTANTE → `group_leaders` (`grupos-leaders.ts`)
+#### REPRESENTANTE → no existe
 
-- La entidad actual es un "GL físico" simple. **Faltan:** `tipo` ENUM `Independiente|Instituto|Colegio_cliente|JUK_Directo` (clave para RV-05), `id_cuenta_admin` (vínculo 1:1 con la cuenta del portal y reglas RV-13/RV-14), `nombre_institucion`, `cuil_cuit`, `razon_social`, `condicion_fiscal`, `fee_representante_pct`, `activo`, `notas_internas`, `id_organizacion`, y el deprecado `requiere_psicofisico` (no implementar: obsoleto).
-- Hoy una parte del concepto vive en `viajes.origen` (`representante_independiente|instituto|colegio_cliente`) — en el PRD el tipo es del **representante**, no del viaje, y agrega el valor `JUK_Directo`.
-- **Police check:** impl. lo guarda inline en el GL (`police_check_estado|url|fecha_emision|fecha_vencimiento`); el PRD lo exige **por representante × viaje** (tabla POLICE_CHECK con UNIQUE compuesto). Enum además difiere: impl. `pendiente|en_tramite|aprobado|vencido` vs. PRD `Pendiente|Aprobado|Vencido|Rechazado` (impl. agrega `en_tramite` y le falta `rechazado`).
-- **Extra impl.:** `documento` (DNI/pasaporte del GL), `email` UNIQUE (el PRD no marca UNIQUE en email del representante).
+- El **tipo** vive en `viajes.origen`
+  (`representante_independiente | instituto | colegio_cliente | juk_directo`; `juk_directo` en 0003).
+- `group_leaders` modela al **GL físico**: nombre, apellido, email único, teléfono, documento y el
+  police check inline. `group_leaders_viaje` los asigna a viajes (N:M, `es_principal` booleano, 0002).
+- **Faltan:** vínculo con `users` (cuenta del portal, RV-13), `nombre_institucion`, datos fiscales,
+  `activo`, notas, `id_organizacion`. El fee vive en el viaje.
 
 #### VIAJE → `viajes` (`viajes.ts`)
 
-- **Faltan:** `tipo_viaje` ENUM `Grupal|Individual` (con todo su efecto: capacidad fija 1, estado inicial Confirmado, `paso9_aplica`, RV-24), `id_representante` FK NOT NULL, `flujo_pago` ENUM `Via_agencia|Directo_JUK` calculado (RV-05), `paso9_aplica`, `paso10_aplica`, `comision_agencia_pct`, `id_organizacion`.
-- **`ultimo_pago_presencial`** (text `'si'|'no'`, carga manual — quedó del ex CRIT-01) es el placeholder de `paso10_aplica`; el PRD lo deriva del tipo de representante (RV-05). El ex CRIT-01 ya está resuelto → migrar a campo derivado al implementar las fundaciones (doc 06, ítem 1.1).
-- **`origen`** (enum propio del viaje) debe reemplazarse por la FK al representante + su `tipo`.
-- **`creado_por`:** impl. uuid nullable sin FK; PRD lo exige NOT NULL FK → CUENTA_ADMIN.
-- **Extra impl.** (no está en el PRD, conservar como extensión): `codigo` UNIQUE (`UK-2026-JUL-LONDON`), `nombre` descriptivo separado, `pais_destino`, `colegio_cliente_id`, `curso`, `tipo_alojamiento_solicitado`, `capacidad_minima` (default 5 — en el PRD el umbral 5 es la regla RV-04, no una columna), `updatedAt`.
-- Estado: enum coincide (`inscripcion_abierta|confirmado|en_curso|finalizado|cancelado`). ✓
+- **Tiene:** `tipo = grupal | individual` (0003), `origen` con los 4 tipos de representante,
+  `comision_agencia_pct` (integer), `fee_representante` (numeric) + `fee_representante_es_porcentaje`
+  (0003), `capacidad_maxima` (GL × 12 o 1 si es Individual), `capacidad_minima` (default 5), estados
+  sin Borrador.
+- **Derivado, no persistido** (`src/lib/domain/viajes/flujo-pago.ts`): `flujo_pago`,
+  `paso10_aplica` (B2) y `paso9_aplica` (D2). La columna manual `ultimo_pago_presencial` se borró (0004).
+- **Faltan:** `id_representante` (FK), `id_organizacion`; `creado_por` existe como `created_by` uuid
+  opcional y sin FK.
+- **Extra impl.:** `codigo` único (es el slug de la URL), `pais_destino`, `colegio_cliente_id`,
+  `curso`, `tipo_alojamiento_solicitado`. Renombre: `num_group_leaders` → `cantidad_group_leaders`.
 
 #### ESTUDIANTE → `alumnos` (`alumnos.ts`)
 
-- **Faltan:** `pais_pasaporte`, `origen_alta` ENUM `Google_Form|Manual`, UNIQUE en `dni` (impl. lo tiene NOT NULL pero sin unique), y el desglose de salud del PRD: `alergias_alimentarias`, `alergias_ambientales`, `alergias_medicamentos`, `condiciones_cronicas`, `medicacion_habitual`, `observaciones_salud` — impl. tiene un único `alergias_salud` TEXT.
-- **Facturación:** impl. la guarda como JSON `facturacion` (razonSocial, direccion, localidad, provincia, codigoPostal, cuilCuit, condicionFiscal); el PRD pide columnas planas `cuil_cuit`, `razon_social`, `condicion_fiscal` (sensibles — RV-20). El JSON impl. tiene más campos (dirección fiscal) que el PRD no contempla. ✅ RESUELTO (**MIN-15**, decisión 11/06/2026): pese a la discrepancia con el changelog del Interno v1.13, los datos de facturación del alumno **se conservan**, visibles solo para Admin (RV-20).
-- **Enum `estado`:** impl. `pre_inscripto|inscripto|activo|viajando|finalizado|baja` vs. PRD `Pre-inscripto|Activo|Baja|Pausado`. Falta `pausado`. Los valores `inscripto|viajando|finalizado` de impl. **sí existen en el PRD**: el Interno v1.13 define los 6 estados `Pre-inscripto|Inscripto|Activo|Viajando|Finalizado|Baja` (TEC-11.e); este Modelo solo lista 4.
-- **Extra impl.:** `telefono_alumno`, `preferencias_alojamiento`, `nivel_ingles_autoevaluacion`, `procesado_por`, `fecha_baja`, `motivo_baja`, `updatedAt` (el PRD registra bajas a nivel inscripción, no alumno).
-- Coinciden: `notas_internas` ≈ `observaciones_internas` (renombre menor), tutores 1/2, pasaporte, `fecha_alta`. ✓
+- **Tiene:** `dni` **único** (índice `uniq_alumnos_dni`, 0019), `canal_alta = webhook | alta_manual`
+  (≈ `origen_alta`, 0011), `pasaporte_actualizado_at` (US-18, 0013), `familia_user_id` con índice
+  (0011/0019), los 6 estados del Interno.
+- **Faltan:** `pais_pasaporte`; la salud desglosada en 6 campos (impl. tiene un único
+  `alergias_salud`); el estado `pausado` (solo aparece en este Modelo).
+- **Facturación** en JSON `facturacion`, visible solo para admins (MIN-15), con más campos que el
+  PRD (dirección fiscal).
+- **Extra impl.:** `telefono_alumno`, `preferencias_alojamiento`, `nivel_ingles_autoevaluacion`,
+  `procesado_por`, `fecha_baja`, `motivo_baja`.
+- El DNI no se normaliza (TEC-12).
 
 #### INSCRIPCION_VIAJE → `asignaciones` (`asignaciones.ts`)
 
-- **Enum `estado`:** impl. `activa|viajando|finalizada|cancelada` vs. PRD `Activo|Baja` (estado de viaje/curso se deriva del VIAJE, no se duplica acá).
-- **Renombres:** `fecha_asignacion` → `fecha_inscripcion`; `fecha_cancelacion`/`motivo_cancelacion` → `fecha_baja`/`motivo_baja`.
-- **Faltan:** `accommodation_direccion`, `accommodation_familia`, `accommodation_coordenadas_lat/lon`, `url_certificado`, `fecha_carga_certificado`.
-- `UNIQUE(alumno_id, viaje_id)` ya existe (`uniq_alumno_viaje`) ✓ — pero falta la semántica RV-16 (reactivar el mismo registro al reinscribir, no crear otro).
+- Unique `(alumno_id, viaje_id)` y, al reinscribir, se **reactiva la misma fila** (RV-16, en
+  `asignarConTablero`). Índice `(viaje_id, estado)` (0019).
+- **Estado:** `activa | viajando | finalizada | cancelada` vs. PRD `Activo | Baja`.
+- **Faltan:** `accommodation_direccion`, `accommodation_familia`, coordenadas, `url_certificado`,
+  `fecha_carga_certificado`.
+- Renombres: `fecha_asignacion`, `fecha_cancelacion` / `motivo_cancelacion`.
 
 #### PASO_INSCRIPCION → `pasos_alumno` (`pasos-alumno.ts`)
 
-- **10 pasos vs. 11:** impl. no tiene el **Paso 0** (App Form JUK auto-completado e inmutable — RV-00). Mapeo del enum `paso_tipo` actual a los códigos PRD: `application_form`→A1 · `test_nivel`→A2 · `parental_consent`→A3 · `pagos`→B1 · `ultimo_pago_presencial`→B2 · `eta`→C1 · `immigration_letter`→C2 · `accommodation_letter`→C3 · `autorizacion_escribano`→D1 · `certificado_psicofisico`→D2.
-- **Faltan columnas:** `codigo_paso` VARCHAR(3) y `grupo` VARCHAR(1) (impl. usa el enum `paso_tipo`; falta la noción de grupo 0/A/B/C/D para el tablero), `motivo_bloqueo` (impl. lo mete en `notas`), `url_documento` (impl. lo resuelve con la tabla `documentos` y/o `metadata` — decisión válida, documentarla), `notas_internas` separadas de notas visibles.
-- Estado: enum coincide (`pendiente|en_progreso|completado|bloqueado|na`) ✓. `fecha_limite`, `fecha_completado`, `updated_by`≈`actualizado_por` ✓. UNIQUE por (asignación, tipo) ✓.
-- **Reglas de inicialización** (§3.8) implementadas solo parcialmente en `lib/domain` — verificar contra la lista completa (A2/A3/B2/C1/C2/D1/D2) al construir el módulo de pasos. C1 (ETA) hoy no puede inicializarse según `tipo_entrada_requerida` porque ese campo no existe en `colegios`.
-- **Extra impl.:** `metadata` JSON tipada por paso (extensión propia, conservar).
+- **Implementada** (0007/0008): enum `paso_codigo = paso_0, a1, a2, a3, b1, b2, c1, c2, c3, d1, d2`,
+  unique `(asignacion_id, codigo)`, estado con `vencido` (TEC-11.d resuelto).
+- Las 11 filas las crea `asignarConTablero` con `pasosIniciales` (`src/lib/domain/pasos/inicializacion.ts`),
+  que aplica **todas** las reglas de inicialización de §3.8. Paso 0 nace Completado con la fecha de
+  alta del alumno, pero se crea **al asignar**, no al dar de alta (RV-00).
+- `grupo` no es columna: se deriva del código (`grupoDePaso`).
+- **B1 y B2 son de solo lectura** en el tablero (`esPasoDerivadoDePago`,
+  `src/lib/domain/pasos/estados.ts`): sus estados los fija `sincronizarPasosPago` a partir del plan
+  de cuotas (§10.7).
+- **Reinscribir** (reactivar una asignación cancelada) borra y regenera las 11 filas en el mismo
+  batch de `asignarConTablero`: se pierde la metadata (sub-estados de C1/A3, `archivoUrl`, notas) y
+  los documentos de los pasos viejos quedan huérfanos (§9.3). Es la otra cara de MIN-27, que cubre
+  lo que pasa con las cuotas.
+- **Distinto:** motivo de bloqueo y notas en un único `notas`; el documento en la tabla `documentos`
+  (entidad `paso_alumno`) + `metadata.archivoUrl`; `metadata` JSON con sub-estados (C1, A3), versión
+  del PC, marca `opcional`, `bloqueadoPor`, número de autorización del ETA y conteo de cuotas.
+- `fecha_limite` (A1), `fecha_completado` y `updated_by` coinciden.
+- **No implementado:** el recálculo de A3/D1 al editar las fechas del viaje (RV-23).
 
 #### CUOTA_PAGO → `cuotas` (`cuotas.ts`)
 
-- **Moneda:** impl. `monto` NUMERIC(12,2) + `moneda` default `'GBP'`; PRD `monto_usd` DECIMAL(10,2) en USD. ✅ Resuelto por **CRIT-05** (11/06/2026 — ⭐ validar con Felix): multi-moneda — `moneda` ENUM (`USD|GBP|ARS`) + cotización opcional, **default USD** (ver §3.9).
-- **`es_ultimo_pago`:** impl. lo modela como `es_ultima_cuota` INTEGER 0/1 — pasar a BOOLEAN y agregar el **partial unique index** `UNIQUE(asignacion_id) WHERE es_ultimo_pago = TRUE` (RV-22, hoy inexistente).
-- **Falta** `UNIQUE(asignacion_id, numero)` (PRD: `UNIQUE(id_inscripcion, numero_cuota)`).
-- **Enum `estado`:** impl. `pendiente|pagada|vencida`; PRD agrega `NA`.
-- **Faltan:** `registrado_por` (FK trazabilidad). Renombres: `fecha_pago_efectivo` (timestamp) → `fecha_pago` (DATE); `observaciones` → `notas`.
-- **Extra impl.:** `canal` ENUM `agencia|presencial` — **sí está en el PRD**: el Interno v1.13 lo requiere por cuota en B1/B2 (`'Vía agencia'` \| `'Presencial JUK'` — TEC-11.h), aunque este Modelo no lo lista.
+- **Multi-moneda** (CRIT-05, 0003): `monto` numeric(12,2), `moneda = USD | GBP | ARS` (default USD),
+  `cotizacion_aplicada`; `canal = agencia | presencial` (TEC-11.h resuelto); `registrado_por` (0010);
+  índice por asignación (0019).
+- **Faltan:** unique `(asignacion_id, numero)`; unique parcial de la última cuota (RV-22 → TEC-13:
+  `es_ultima_cuota` es integer 0/1 sin constraint); estado `na`.
+- El estado `vencida` existe en el enum, pero la mora se **deriva por fecha** (`estaVencida` en
+  `src/lib/domain/cuotas/derivaciones.ts`), sin job.
+- Renombres: `fecha_pago_efectivo` (timestamp), `observaciones`.
 
 #### NPS_RESPUESTA → no existe
 
-Falta crear completa (§3.10): 3 scores 0–10 NULLABLE + 3 comentarios, 1:1 con inscripción, `fecha_habilitacion` al Finalizar el viaje (RV-15), inmutabilidad post-respuesta (RV-21) y las vistas computadas de NPS por viaje y por representante. (El prompt del dashboard hoy no tiene fuente de NPS.)
+Falta completa (§3.10): tres puntajes y comentarios, 1:1 con la inscripción, habilitación al
+finalizar el viaje (RV-15) e inmutabilidad después de responder (RV-21).
 
 #### PASO_VIAJE → `pasos_viaje` (`pasos-viaje.ts`)
 
-- **Identificación del paso:** impl. enum `paso_viaje_tipo` (`pasajes|excursiones|transfers|tarjeta_transporte|police_checks`) vs. PRD `numero_paso` INT 1–5 — mismo contenido, representación distinta (aceptable; documentar mapeo 1–5).
-- **Enum `estado`:** impl. `pendiente|en_progreso|completado|bloqueado` — **falta `na`**, necesario para RV-24 (paso 5 = NA en viajes Individuales).
-- Falta `fecha_completado` (impl. no la tiene; sí `updatedAt`).
-- **Extra impl.:** `metadata` JSON validada en `lib/domain/pasos-viaje/metadata.ts` (conservar). RV-10 (Transfers ← Pasajes) sin implementar y con la ambigüedad del estado "Confirmado".
-- `group_leaders_viaje` (N:M GL↔viaje con `es_principal`) no existe en el PRD v1 (que asume 1 representante por viaje) pero anticipa la nota de arquitectura v2; conservar.
+- Enum `paso_viaje_tipo` con los 5 pasos (equivale a `numero_paso` 1–5), unique `(viaje_id, tipo)`,
+  `metadata` JSON validada con Zod en `src/lib/domain/pasos-viaje/metadata.ts` (sub-estados de
+  Pasajes, excursiones, cobertura `porAlumno` de transfers y tarjetas), `updated_by`.
+- **Faltan:** estado `na` (RV-24) y `fecha_completado`.
+- Las filas se crean la primera vez que se abre el detalle del viaje (`listOrInitPasosViaje`), no al
+  crearlo. `police_checks` no se edita: su estado se deriva de los GLs.
 
 #### ACTIVIDAD_VIAJE / SOLICITUD_CAMBIO → no existen
 
-Faltan crear completas (§3.12 y §3.13): calendario de actividades fijas/variables con workflow de aprobación, y solicitudes de cambio del Representante con estados `Enviada|En_revision|Aprobada|Rechazada`.
+Las excursiones del paso 2 son un array en `pasos_viaje.metadata` (nombre, fecha, proveedor,
+`costoGbp`, estado). No hay horario, duración, lugar, tipo Fija/Variable, costo en USD, motivo de
+rechazo ni autor de la propuesta. Las solicitudes de cambio no existen.
 
-#### POLICE_CHECK → no existe como tabla
+#### POLICE_CHECK → columnas en `group_leaders`
 
-Hoy son 4 columnas en `group_leaders` (un check por persona). El PRD lo exige **por representante × viaje** con `UNIQUE(id_representante, id_viaje)`, estado `Pendiente|Aprobado|Vencido|Rechazado` y alerta < 30 días de vigencia. Migrar de campos inline a tabla.
+Cuatro columnas en el GL (`police_check_estado`, `police_check_url` como texto,
+`police_check_fecha_emision`, `police_check_fecha_vencimiento`, en `grupos-leaders.ts`): un check
+por persona, no por GL × viaje. Estados `pendiente | en_tramite | aprobado | vencido` (falta
+`rechazado`, TEC-11.g). **`police_check_url` no la escribe ninguna pantalla**: el form del GL solo
+carga estado y fechas. El estado `vencido` se fija a mano: nada lo deriva de la fecha de vencimiento.
 
 #### LOG_AUDITORIA → `auditoria` (`auditoria.ts`)
 
-- **PK:** impl. UUID; PRD BIGINT autoincremental explícitamente "no UUID, por eficiencia de lectura".
-- **Faltan:** `tipo_cuenta` ENUM `Admin|Representante|Familias` (necesario cuando existan los otros portales); índice en `created_at` (`fecha_hora`).
-- **`accion`:** impl. pgEnum cerrado de 14 valores; PRD VARCHAR(100) libre con códigos (LOGIN, UPDATE_PASO, SEND_CREDENCIALES…). El enum cerrado es más estricto pero exige migración por cada acción nueva — decidir.
-- Renombres: `usuario_id` → `id_cuenta`; `cambios`+`metadata` ≈ `detalles` JSONB. Extra impl.: `user_agent`.
+- **PK** uuid (PRD: BIGINT autoincremental).
+- **`accion`** es un enum cerrado de 13 valores (PRD: texto libre). Las acciones que no están en el
+  enum se registran como `update` con el detalle en `metadata` (ej. `enviar_acceso_familia`).
+- **Faltan:** `tipo_cuenta` (Admin | Representante | Familias) e índice por fecha.
+- **Extra impl.:** `user_agent`, `cambios` (before/after), `metadata`.
 
 #### ENTRADA_DIARIO / MENSAJE_DIARIO → no existen
 
-Faltan crear completas (§3.16 y §3.17). Dependen del Portal de Familias y la Vista del Representante (fases futuras), pero el modelo objetivo ya las define.
+Dependen del diario de viaje (Familias M7 y Representante M4).
 
-### 9.3 Otras brechas transversales
+### 9.3 Brechas transversales
 
-- **Trazabilidad:** el PRD exige `actualizado_por`/`fecha_actualizacion` en toda tabla de estado; impl. lo cumple en pasos (`updated_by`) pero no en `cuotas` (`registrado_por` ausente).
-- **`id_organizacion` (multi-tenant v2):** no existe en ninguna tabla actual; agregarlo a `viajes`, `group_leaders`/representantes y `colegios` cuesta poco ahora y mucho después (§7).
-- **Reglas RV sin soporte de schema hoy:** RV-00 (Paso 0), RV-03/RV-04 para Individuales (`tipo_viaje`), RV-05/RV-06 (flujo de pago — regla ya cerrada, falta el schema), RV-C1 (`tipo_entrada_requerida`), RV-13/RV-14 (cuenta del representante), RV-15/RV-21 (NPS), RV-22 (partial unique), RV-23 (recalculo explícito al editar fechas).
+- **FKs "lazy":** no tienen foreign key los uuid de autoría y trazabilidad (`procesado_por`,
+  `familia_user_id`, `created_by`, `updated_by`, `registrado_por`, `uploaded_by`,
+  `auditoria.usuario_id`, `prospectos.responsable_id`, `prospecto_comunicaciones.creado_por`), las
+  referencias polimórficas (`documentos.entidad_id`, `auditoria.entidad_id`,
+  `notificaciones_enviadas.entidad_id`) ni las columnas de la tabla `alertas` sin uso
+  (`alumno_id`, `viaje_id`, `asignacion_id`, `resuelta_por`).
+- **Integridad y huérfanos:** la integridad la sostiene el código. El teardown de los E2E
+  (`tests/e2e/cleanup.ts`) borra los documentos de los pasos que crea antes de que cascadeen, para
+  no dejar huérfanos. En la app, reinscribir una asignación (`asignarConTablero`) borra y regenera
+  los pasos sin tocar `documentos`: los adjuntos de los pasos anteriores quedan huérfanos y nada
+  los limpia (§10.3).
+- **`id_organizacion`** (multi-tenant v2) no existe en ninguna tabla.
+- **Reglas del PRD sin soporte hoy:** RV-13/RV-14 (cuenta del representante), RV-15/RV-21 (NPS),
+  RV-18 (mail por mora >7 días), RV-22 (TEC-13), RV-23 (recálculo al editar fechas), RV-24 (P5 N/A),
+  RV-C2 (C2 vuelve a Bloqueado si B1 retrocede).
+
+---
+
+## 10. Decisiones de modelado propias
+
+Por qué el schema implementado difiere del modelo objetivo a propósito. Si una de estas decisiones
+cambia, se actualiza acá y en §9.
+
+### 10.1 La asignación es una entidad
+
+Un alumno puede estar en varios viajes el mismo año (pasó en JUK, no es hipotético). Atar el alumno
+al viaje con una FK no alcanza: la asignación es la entidad de la que cuelgan el tablero de pasos y
+el plan de cuotas. Dos viajes = dos tableros independientes.
+
+### 10.2 Metadata JSON en los pasos
+
+Cada paso tiene datos propios (sub-estado y número del ETA, versión del Parental Consent, cobertura
+por alumno de los transfers, sub-estados de Pasajes…). Columnas separadas serían decenas en
+`pasos_alumno` y `pasos_viaje`. La forma se valida en el dominio (en el M7 con los schemas Zod de
+`METADATA_SCHEMAS`).
+
+**Trade-off:** filtrar por un campo del JSON en SQL es incómodo. Se hace puntualmente (la
+completitud del dashboard lee `metadata -> 'opcional'`); si un filtro se vuelve frecuente, el campo
+se promueve a columna con una migración.
+
+### 10.3 Documentos polimórficos
+
+Un documento puede colgar de un alumno, un paso del alumno, un paso del viaje, un viaje, un colegio o
+un group leader: `entidad_tipo` + `entidad_id`, sin FK. La validación (tipo real por magic bytes,
+10 MB, key segura) vive en `putDocumento` y `validarDocumento`, y la lectura siempre pasa por el
+proxy autenticado (ADR-011 en `docs/architecture.md`).
+
+**Trade-off:** sin integridad referencial en la base; los huérfanos se limpian a mano. Hoy la app
+los genera al reinscribir una asignación (§9.3).
+
+### 10.4 La cuenta de familia es un usuario, no una tabla
+
+MIN-07 decidió que la identidad es el email del Tutor 1 y que una cuenta agrupa a los hermanos.
+Una tabla `CUENTA_FAMILIAS` 1:1 con el alumno haría imposible ese caso y duplicaría la autenticación
+que ya resuelve Better-Auth.
+
+### 10.5 La config documental es una tabla
+
+Sigue al Interno (US-05b): una fila por documento, extensible a documentos personalizados en v2 sin
+migrar columnas.
+
+### 10.6 Lo derivable no se persiste
+
+El flujo de pago y los flags de B2 y D2 salen de funciones del dominio a partir del tipo de
+representante y del tipo de viaje. Si el equipo revierte una decisión (ex CRIT-01/03), se cambia una
+función y no hace falta backfill. Lo mismo la mora de una cuota (por fecha) y el estado de Police
+checks (por los GLs).
+
+### 10.7 B2 es una vista sobre la última cuota
+
+El último pago presencial no genera un registro aparte: es la última cuota del plan con canal
+`presencial`. Así no hay doble contabilización (RV-08).
+
+### 10.8 Alertas calculadas en cada request
+
+Las reglas del panel de alertas son funciones puras sobre filas ya cargadas
+(`src/lib/domain/alertas/`), y con el volumen de JUK calcularlas en cada request es barato. La tabla
+`alertas` quedó del diseño original, pensada para descartar alertas e historial, y hoy no tiene uso
+(TEC-16).
+
+### 10.9 Dos tablas de rate limit
+
+`rate_limits` la administra Better-Auth para el login, con su formato y su limpieza.
+`form_rate_limits` es propia para los formularios públicos (ADR-012): mezclar claves ataría la
+captación de leads a un detalle interno de la librería de auth.
+
+### 10.10 Migraciones
+
+Después de cambiar un archivo de `src/lib/db/schema/`: `npm run db:generate` genera el SQL en
+`drizzle/`, se revisa y se commitea junto al cambio (`/juk-migracion`). Nunca `db:push` sobre una
+base con datos. Los cambios con datos existentes se hacen en pasos (columna opcional → backfill →
+obligatoria). Postgres no deja usar un valor de enum nuevo en la misma transacción que lo agrega:
+si la migración también lo usa, va en dos.

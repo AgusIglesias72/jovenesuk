@@ -1,110 +1,128 @@
-# JUK Portal de Gestión Interno
+# JUK Portal
 
-Back-office tool for **Jóvenes en UK** (JUK), an Argentine travel agency organizing English-language study trips to the UK.
+Sistema de gestión de **Jóvenes en UK** (JUK), una agencia argentina de viajes de estudio. Una sola
+app Next.js con tres superficies:
 
-## Stack
+- **Back-office** (`/dashboard`, `/alumnos`, `/viajes`, …): el equipo gestiona colegios, viajes,
+  alumnos, trámites (M6/M7), cuotas, consultas y el CRM de prospectos.
+- **Portal de Familias** (`/familias/<dni>`): documentación, pagos y datos del viaje de cada alumno.
+- **Sitio público** (`/`, `/salidas`, `/notas`, …): marketing y captura de consultas.
 
-- **Framework:** Next.js 16 (App Router, Turbopack default)
-- **Language:** TypeScript (strict)
-- **Database:** PostgreSQL on Neon (region `sa-east-1`)
-- **ORM:** Drizzle ORM
-- **Auth:** Better-Auth (email + password, role-based)
-- **Background jobs:** Trigger.dev v4
-- **Email:** Resend + React Email
-- **File storage:** Cloudflare R2
-- **Hosting:** Vercel (region `gru1` — São Paulo)
-- **Observability:** Sentry
-- **UI:** React 19 + Tailwind CSS + JUK Design System
+Qué está construido y qué falta: [`docs/estado-actual.md`](docs/estado-actual.md).
+
+## Requisitos
+
+- **Node 22** (`.nvmrc`; `engines` pide `>=22`) y npm.
+- Una base **Neon Postgres**, con la URL pooled (`DATABASE_URL`) y la directa (`DATABASE_URL_UNPOOLED`, la usa drizzle-kit).
+- El resto de los servicios (Resend, R2, Trigger.dev, Sentry) **no hacen falta para desarrollar**,
+  siempre que sus variables queden **vacías**: `.env.example` trae placeholders, y un placeholder
+  cuenta como credencial. Después del `cp` del Quickstart, dejá `RESEND_API_KEY=` vacía (o poné
+  `EMAIL_DRY_RUN=1`) para que los mails salgan en dry-run; con el placeholder, los flujos que mandan
+  mail (acceso de familia, alta de usuario, reset) fallan. Vaciá también las `R2_*` para que los
+  documentos vayan directo a `.uploads/` sin intentar R2 primero.
 
 ## Quickstart
 
 ```bash
-# 1. Clone and install
-git clone <repo>
 cd juk-portal
-nvm use         # uses .nvmrc — Node 22 LTS
 npm install
-
-# 2. Set up environment variables
 cp .env.example .env.local
-# Fill in: DATABASE_URL, BETTER_AUTH_SECRET, RESEND_API_KEY,
-#         R2 credentials, TRIGGER_API_KEY, SENTRY_DSN
-
-# 3. Run database migrations
-npm run db:push           # creates tables in Neon
-npm run db:seed           # seeds test data
-
-# 4. Start dev server
-npm run dev               # localhost:3000
+# Completá como mínimo: DATABASE_URL, DATABASE_URL_UNPOOLED, BETTER_AUTH_SECRET,
+# BETTER_AUTH_URL, NEXT_PUBLIC_APP_URL y SEED_TEST_PASSWORD.
 ```
 
-## Project structure
+`next dev`, Playwright y el setup de integración leen `.env.local` solos; **drizzle-kit y los seeds
+(tsx) no**. Cargalo en la shell antes de correrlos:
 
-```
-juk-portal/
-├── src/
-│   ├── app/                          ← Next.js 16 App Router
-│   │   ├── (admin)/                  ← Internal portal (4 admins)
-│   │   ├── (auth)/                   ← Login, password reset
-│   │   ├── api/
-│   │   │   ├── v1/                   ← Public API REST (versioned)
-│   │   │   └── webhooks/             ← Google Form, Trigger callbacks
-│   │   ├── layout.tsx
-│   │   └── globals.css
-│   ├── lib/
-│   │   ├── db/                       ← Drizzle schemas + queries
-│   │   │   ├── schema/               ← One file per entity
-│   │   │   ├── queries/              ← Reusable typed queries
-│   │   │   └── index.ts              ← DB client
-│   │   ├── domain/                   ← Pure business logic (no Next deps)
-│   │   │   ├── alumnos/
-│   │   │   ├── viajes/
-│   │   │   ├── pagos/
-│   │   │   └── pasos/
-│   │   ├── auth/                     ← Better-Auth config + helpers
-│   │   ├── email/                    ← Resend client + templates
-│   │   │   └── templates/            ← React Email components
-│   │   ├── jobs/                     ← Trigger.dev task definitions
-│   │   └── utils/
-│   ├── components/
-│   │   └── ui/                       ← JUK Design System components
-│   ├── styles/
-│   └── trigger/                      ← Trigger.dev v4 task files
-├── drizzle/                          ← Generated migrations
-├── docs/                             ← Architecture decision records
-├── package.json
-├── tsconfig.json
-├── next.config.ts
-├── drizzle.config.ts
-├── tailwind.config.ts
-├── trigger.config.ts
-└── .env.example
+```bash
+# bash / Git Bash
+set -a; source .env.local; set +a
 ```
 
-## Architecture principles
+```powershell
+# PowerShell
+Get-Content .env.local | ForEach-Object { if ($_ -match '^\s*([A-Z0-9_]+)\s*=\s*"?(.*?)"?\s*$') { Set-Item -Path "env:$($matches[1])" -Value $matches[2] } }
+```
 
-1. **Business logic lives in `lib/domain/`**, free of Next.js/React imports. Both the web UI and the future REST API call into it. The day the mobile app arrives, it consumes `api/v1/` which is just a thin REST adapter over the same domain.
+Y después:
 
-2. **Database access goes through `lib/db/queries/`**, not raw drizzle calls scattered across components. Queries are typed and reusable.
+```bash
+npm run db:migrate     # aplica las migraciones de drizzle/
+npm run db:seed        # crea el super_admin: antes editá SEED_EMAIL en src/lib/db/seed.ts.
+                       # Imprime una contraseña temporal: guardala y cambiala al entrar.
+npm run db:seed:demo   # opcional: cuentas test.* + dataset [DEMO] (requiere SEED_TEST_PASSWORD)
+npm run dev            # http://localhost:3000
+```
 
-3. **Server components by default** for read paths; **Server Actions** for mutations triggered from the UI; **Route Handlers** under `api/v1/` for external consumers (future mobile app, integrations).
+Setup de los servicios externos (Neon, Vercel, R2, Resend, Trigger.dev, Sentry): skill
+`/juk-setup`. Operación y deploy: [`../.claude/docs/04-operacion-y-handoff.md`](../.claude/docs/04-operacion-y-handoff.md).
 
-4. **One feature, one folder.** A feature owns its schema slice, its domain logic, its queries, its API routes, and its UI pages. We don't fan files of the same feature across the project.
+## Scripts
 
-## Roles
+| Script | Para qué | ¿Hay que cargar `.env.local` en la shell? |
+|---|---|---|
+| `npm run dev` | Server de desarrollo (Turbopack) en el 3000 | No |
+| `npm run build` / `npm run start` | Build de producción / servirlo | No |
+| `npm run lint` | ESLint (incluye la guarda de tokens STUDIO) | No |
+| `npm run typecheck` | `tsc --noEmit` | No |
+| `npm run format` | Prettier sobre `ts`, `tsx` y `md` | No |
+| `npm run db:generate` | Genera la migración de un cambio de schema (usar `/juk-migracion`) | Sí |
+| `npm run db:migrate` | Aplica las migraciones pendientes | Sí |
+| `npm run db:push` | Empuja el schema sin migración: no se usa para cambios de schema (van con migración) | Sí |
+| `npm run db:studio` | Drizzle Studio | Sí |
+| `npm run db:seed` | Crea el super_admin (idempotente) | Sí |
+| `npm run db:seed:demo` | Cuentas `test.*` + dataset `[DEMO]` (idempotente) | Sí |
+| `npm run trigger:dev` / `npm run trigger:deploy` | Jobs de Trigger.dev en local / deploy | Ver `.claude/docs/04` |
+| `npm run email:dev` | Preview local de las plantillas de mail | No |
+| `npm test` / `npm run test:watch` | Unit tests (Vitest, proyecto `unit`) | No |
+| `npm run test:coverage` | Unit con cobertura; falla si baja del piso de `vitest.config.ts` | No |
+| `npm run test:integration` | Integración contra Postgres real (solo con `INTEGRATION_DATABASE_URL`) | No (lo lee el setup) |
+| `npm run test:e2e` / `npm run test:e2e:mobile` | Playwright: suite completa / solo el proyecto `mobile` | No |
+| `npm run check:tests` | Falla si un archivo nuevo o modificado de domain/utils/actions no tiene su `.test.ts` | No |
+| `npm run hooks:install` | Activa el hook `pre-push` del repo (typecheck, lint, unit, `check:tests`) | No |
 
-The system has 4 roles, modeled in the `user` table:
+> Nunca `npm update` ni `npm audit fix`: crashean en este repo. Para actualizar un paquete:
+> `npm install <paquete>@<versión>`.
 
-- `admin_juk` — internal team (María, Felix, Delfina, Tomas)
-- `super_admin` — admin who can also manage users (subset of admin_juk)
-- `representante` — external group leader (future portal)
-- `familia` — student/parent read-only access (future portal)
+> El detalle operativo de cada script (cuándo se usa, qué variables necesita, las trampas) vive en
+> [`.claude/docs/04-operacion-y-handoff.md`](../.claude/docs/04-operacion-y-handoff.md#scripts-de-packagejson).
 
-This PRD v1.1 covers only the `admin_juk` portal. The other roles' UI is out of scope but their auth tables already exist.
+## Tests
 
-## See also
+La guía completa (qué cubre cada capa, cómo diagnosticar, trampas conocidas):
+[`../.claude/docs/05-testing.md`](../.claude/docs/05-testing.md).
 
-- `docs/architecture.md` — full architectural decisions
-- `docs/phases.md` — implementation plan
-- `docs/data-model.md` — entity relationships
-- [JUK Design System](https://github.com/...) — visual reference
+- **Unit**: `npm test`. No necesita base: `src/**/*.test.ts(x)` al lado de cada archivo, más los
+  tests de `scripts/**/*.test.mjs`.
+- **Integración**: `INTEGRATION_DATABASE_URL=$DATABASE_URL npm run test:integration` (bash, con el
+  env cargado). Crea filas con prefijos `INT-` / `[INT]` / `int+` y las borra al terminar. Sin la
+  variable, los tests se saltean y la base de dev no se toca.
+- **E2E**: antes, `npm run db:seed:demo`; `SEED_TEST_PASSWORD` tiene que estar en `.env.local`.
+  `npm run test:e2e` levanta su propio `next dev` en el **3001** (o reusa uno que ya esté ahí).
+  Para apuntar a un server que ya corre: `PW_PORT=3000 npm run test:e2e`. Un solo spec:
+  `npx playwright test tests/e2e/viajes.spec.ts`. Para diagnosticar: `--trace on` y leer el trace.
+  - `E2E_DATABASE_URL=<url de una branch de Neon>` corre la suite contra esa base sin tocar la de
+    dev (aplica al server que levanta Playwright; con `PW_PORT` manda la base con la que arrancó
+    ese server).
+  - `E2E_SERVER=dev|start` fuerza `next dev` o `next start` sobre el build. Sin la variable, en
+    local es `dev`.
+- **CI** (`../.github/workflows/ci.yml`, en la raíz del repo): corre en cada push y PR a `main` (y
+  a mano). El job `check` no necesita nada; el job `e2e` necesita los secrets de Neon en GitHub y,
+  sin ellos, se saltea con un aviso. Configuración:
+  [`../.claude/docs/04-operacion-y-handoff.md` § CI](../.claude/docs/04-operacion-y-handoff.md#ci-github-actions).
+
+## Documentación
+
+| Qué | Dónde |
+|---|---|
+| Estado: construido, pendiente, depende del dueño, deuda | [`docs/estado-actual.md`](docs/estado-actual.md) |
+| Historial de cambios | [`CHANGELOG.md`](CHANGELOG.md) |
+| Specs funcionales (PRD) | [`docs/prd/00-indice.md`](docs/prd/00-indice.md) |
+| Decisiones de negocio | [`OPEN_DECISIONS.md`](OPEN_DECISIONS.md) |
+| Arquitectura y stack (ADRs) | [`docs/architecture.md`](docs/architecture.md) |
+| Sistema de diseño STUDIO | [`docs/design-system.md`](docs/design-system.md) |
+| Convenciones de código | [`CLAUDE.md`](CLAUDE.md) |
+| Regla de sincronía y cómo se trabaja con Claude Code | [`../CLAUDE.md`](../CLAUDE.md) |
+| Handoff: producto, mapa de archivos, operación, testing, seguridad, performance | [`../.claude/docs/`](../.claude/docs/README.md) |
+| App nativa (Capacitor) | [`docs/mobile-app/`](docs/mobile-app/README.md) |
+| Guía para que terceros prueben el entorno demo (cuentas `test.*`, qué mirar) | [`docs/guia-stakeholders.md`](docs/guia-stakeholders.md) |

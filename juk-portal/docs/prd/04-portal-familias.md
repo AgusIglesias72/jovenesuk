@@ -3,8 +3,8 @@
 > **Fuente:** PRD Portal de Familias **v1.11** (fechado mayo 2026, incorporado al repo en junio 2026).
 > Raw completo en [`fuentes/portal-familias-v1.11.md`](fuentes/portal-familias-v1.11.md).
 >
-> **Estado: NO construido.** Esta es la spec objetivo del portal de cara a las familias. Hoy solo existe
-> el portal interno (admin); el rol `familia` ya está modelado en `users` pero sin portal detrás.
+> **Estado:** construido en buena parte (`src/app/familias/`). Esta es la spec objetivo; qué módulos
+> están hechos, cuáles son parciales y cuáles faltan vive en [`docs/estado-actual.md`](../estado-actual.md).
 
 ---
 
@@ -1042,53 +1042,8 @@ notificaciones), y la política de cierre de acceso post-viaje.
 
 ## Implicancias para el código actual
 
-### Lo que el portal interno ya deja preparado
-
-- **Rol `familia` en `users`** y enforcement de `isActive` en `requireSession` (la base para
-  desactivar credenciales al dar de baja al alumno).
-- **Arquitectura por capas** (`src/lib/domain/` puro, queries separadas) pensada explícitamente para
-  que Representante y Familias compartan el modelo de datos sin duplicar lógica.
-- **ABM de Alumnos** con datos personales, pasaporte, tutores y baja/reactivación — la fuente de los
-  datos maestros y del perfil de cuenta (DNI, fecha de nacimiento, emails de tutores).
-- **ABM de Colegios y Viajes** (fechas, destino, estados) y **Asignaciones** alumno↔viaje — define
-  "el grupo" que segmenta todo el portal de familias.
-- **Better-Auth + Resend** (emails transaccionales) y patrón de password temporal en Gestión de
-  Usuarios, reutilizable para el envío de credenciales.
-- **Seguimiento M7** (pasos del viaje) como patrón probado de máquina de estados con metadata tipada
-  y audit log, extensible al M6.
-
-### Lo que falta para soportar el Portal de Familias
-
-- **Seguimiento M6 (Paso 0 + A/B/C/D) por alumno:** no construido; es el prerequisito directo del
-  Módulo 1 de familias. Ya **desbloqueado**: los ex CRIT-01/03 quedaron resueltos por el PRD
-  Interno v1.13 (D2 es del alumno, en Grupales con GL; B2 = N/A para Colegio cliente y JUK
-  directo). La moneda de B1 también quedó resuelta (**CRIT-05**, 11/06/2026: multi-moneda
-  `USD|GBP|ARS` + cotización opcional, default USD — ⭐ validar con Felix).
-- **Credenciales de familia (US-19b interno):** generación al crear el alumno, botón "Enviar acceso",
-  estado enviado/no enviado, desactivación en baja — nada de esto existe aún.
-- **Login por DNI:** Better-Auth hoy autentica admins por email; el acceso de familias es DNI +
-  contraseña, lo que requiere extender la estrategia de auth.
-- **Upload de archivos a R2:** inexistente (hoy los documentos del M7 van como URL manual). Es
-  crítico: las familias suben Parental Consent, App Form del Colegio, psicofísico, capturas de ETA.
-- **Módulo de Pagos / plan de cuotas:** desbloqueado en lo funcional (ex CRIT-01 resuelto) y en la
-  moneda (**CRIT-05** resuelto 11/06/2026: multi-moneda `USD|GBP|ARS` + cotización opcional,
-  default USD — ⭐ validar con Felix).
-- **Campo `config_parental_consent` (ENUM)** en el ABM de Colegios Destino y la regla de visibilidad
-  de C1 por país de destino.
-- **WhatsApp como canal de notificación:** sin infraestructura; solo existe email (Resend).
-- **Recordatorios automáticos (Trigger.dev):** la batería de notificaciones por umbral de días
-  (30/21/15/7 días, diarias, 48 hs post-rechazo, cierre a 60/30 días, NPS a 3/7/14 días) requiere
-  jobs programados que hoy no existen.
-- **Modelo de datos NPS** (respuesta por alumno, agregados por viaje y representante) y su vista
-  read-only en el dashboard interno.
-- **Diario de viaje, galería multimedia, reacciones, comentarios y mensajería asíncrona:**
-  compartidos con la futura Vista del Representante; nada construido.
-- **Itinerarios** (final y diario), **contenido editable por JUK** (FAQs, guía del destino,
-  checklist, orientación ETA, medios de pago): requieren un mecanismo de gestión de contenido en el
-  panel interno.
-- **Alertas dinámicas en el dashboard interno** (hoy placeholder): varios eventos de familias
-  (rechazo de ETA, datos críticos a <7 días) dependen de ellas.
-- **Política de acceso post-viaje:** decisión de negocio pendiente (recomendación 2 años) + jobs de
-  cierre + descarga masiva en ZIP.
-- **Frontend del portal de familias** completo: app mobile-first separada del admin, con lenguaje
-  contextual por perfil de cuenta, mapa integrado casa-colegio y banner global de mora.
+Qué está construido de este portal, qué falta y en qué orden conviene hacerlo se mantiene en un solo
+lugar, verificado contra el código: [06 §C · Portal de Familias](06-deltas-implementacion.md#portal-de-familias-spec-04)
+y el plan en [06 §D](06-deltas-implementacion.md#d--plan-priorizado-solo-lo-que-falta). Las
+preguntas que surgieron al construirlo (aviso urgente por ETA, FAQ editables, autoreporte del ETA,
+acceso post-viaje) están en `OPEN_DECISIONS.md` como MIN-08, MIN-21, MIN-22 y MIN-25.

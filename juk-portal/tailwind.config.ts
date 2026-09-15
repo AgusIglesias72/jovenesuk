@@ -10,9 +10,9 @@ import type { Config } from "tailwindcss";
  * usar las custom properties directamente (bg-[var(--c-surface)]).
  *
  * El puente son hex CONGELADOS: no siguen a tokens.css, así que hay que
- * borrarlo. Al 10/09/2026 quedan 32 usos en 13 archivos de (admin) —
- * `grep -rn "juk-\(navy\|coral\|gold\)" src/` tiene que dar 0 antes de sacar el
- * bloque `colors` de abajo (lo marca eslint.config.mjs con un warn).
+ * borrarlo. Al 14/09/2026 ya no queda ningún uso en `src/`
+ * (`grep -rnE "juk-(navy|coral|gold)" src/` da 0), así que se puede borrar el
+ * bloque `colors` de abajo junto con su regla en eslint.config.mjs.
  */
 const config: Config = {
   content: [

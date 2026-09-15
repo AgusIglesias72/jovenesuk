@@ -13,11 +13,15 @@ salidas grupales y también de manera individual.
 
 El sistema se compone de **tres portales** sobre una misma base de datos:
 
-| Portal | Usuarios | Estado | Spec |
+| Portal | Usuarios | Estado (11/09/2026) | Spec |
 |---|---|---|---|
-| **Portal de Gestión Interno** | Equipo JUK (4 admins) | En construcción (este repo) | [02](02-portal-interno.md) |
-| **Portal de Familias** | Padres/tutores y alumnos (read-only + NPS) | No construido | [04](04-portal-familias.md) |
+| **Portal de Gestión Interno** | Equipo JUK (4 admins) | Construido; gaps en [06 §B](06-deltas-implementacion.md) | [02](02-portal-interno.md) |
+| **Portal de Familias** | Padres/tutores y alumnos | Parcial: módulos pre-viaje ([06 §C](06-deltas-implementacion.md)) | [04](04-portal-familias.md) |
 | **Vista del Representante** | Group leaders externos | No construida | [05](05-vista-representante.md) |
+
+Fuera de los PRDs de junio, el mismo repo tiene el **sitio público**, el formulario de
+**consultas** y el **CRM de prospectos**: spec [07](07-prospectos-y-web-publica.md). El detalle de
+lo construido vive en [`docs/estado-actual.md`](../estado-actual.md).
 
 ## Roles del sistema
 
@@ -31,6 +35,10 @@ El sistema se compone de **tres portales** sobre una misma base de datos:
 > **Nota de arquitectura — renombre del ENUM:** `Admin_JUK` fue renombrado a `Admin` para
 > preparar multi-tenant v2 (operadores externos a JUK). El cambio no afecta lógica ni permisos.
 > El super-admin de v1 es **María (CEO)** (cerrado por Felix).
+>
+> **En el código** el rol vive en `users.role` con los valores `super_admin`, `admin_juk`,
+> `representante` y `familia` (el renombre a `Admin` no se aplicó porque no cambia lógica). Detalle
+> en [03 §9](03-modelo-datos.md#9-delta-vs-implementación-actual).
 
 ## Conceptos clave de negocio
 
@@ -113,8 +121,9 @@ internas del viaje.
 ### Email del sistema
 
 Las comunicaciones salen desde `info@jovenesenuk.com` (instructivos, credenciales, alertas de
-mora, datos de vuelo, resumen semanal). **Pregunta abierta:** ¿los recordatorios automáticos
-salen de `info@` o de `noreply@`? Pendiente de decisión técnica.
+mora, datos de vuelo, resumen semanal). ✅ **MIN-09, resuelta:** los automáticos (recordatorios,
+reset, avisos) salen de `noreply@`, las comunicaciones que esperan respuesta de `info@`, y el
+outreach comercial de un subdominio de marketing; los remitentes se editan en `/configuracion`.
 
 ## Mapa de versiones de los PRDs
 

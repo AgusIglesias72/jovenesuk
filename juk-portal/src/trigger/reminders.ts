@@ -28,8 +28,10 @@ export const dailyReminderScan = schedules.task({
 });
 
 /**
- * Corrida manual del scan (para probar sin esperar el cron). El parámetro
- * `enviarEmails: false` permite un dry-run que solo registra ocurrencias.
+ * Corrida manual del scan (para probar sin esperar el cron). OJO: con
+ * `enviarEmails: false` NO es un ensayo inocuo. Registra las ocurrencias (el
+ * candado de dedup) sin mandar los mails, así que una corrida real posterior ya
+ * no los manda (TEC-14).
  */
 export const runReminderScan = task({
   id: "run-reminder-scan",
