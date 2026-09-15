@@ -109,7 +109,10 @@ Lo de abajo es lo que se puede afirmar desde el repo (config, código y el `.env
 
 ## 7. Lo que depende del dueño
 
-Nada de esto lo puede hacer el código: son cuentas, DNS, credenciales o decisiones.
+Nada de esto lo puede hacer el código: son cuentas, DNS, credenciales o decisiones. El paso a paso
+de cada uno —dónde hacer clic, qué pegar y cómo verificar que quedó— está en
+[`setup-servicios.md`](setup-servicios.md). Para ver en cualquier momento qué falta:
+`npm run check:env:prod`.
 
 - [ ] **Bucket R2 privado en Cloudflare** (sin dominio público ni `r2.dev`) y en Vercel
   `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` (sin `R2_PUBLIC_URL`).

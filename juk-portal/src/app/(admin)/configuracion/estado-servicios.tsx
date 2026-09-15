@@ -1,6 +1,21 @@
 import { Alert, Badge } from "@/components/ui";
+import type { EstadoEnv } from "@/lib/domain/configuracion/env";
 
 import type { EstadoServicios as Estado } from "./actions";
+
+// Un valor de ejemplo sin reemplazar es peor que la ausencia (una RESEND_API_KEY
+// placeholder apaga el dry-run y hace fallar los envíos): va en rojo, no en ámbar.
+const TONO: Record<EstadoEnv, "success" | "warning" | "danger"> = {
+  ok: "success",
+  falta: "warning",
+  placeholder: "danger",
+};
+
+const ETIQUETA: Record<EstadoEnv, string> = {
+  ok: "OK",
+  falta: "Pendiente",
+  placeholder: "Revisar",
+};
 
 export function EstadoServicios({ estado }: { estado: Estado | null }) {
   return (
@@ -33,7 +48,7 @@ export function EstadoServicios({ estado }: { estado: Estado | null }) {
                     {s.detalle}
                   </p>
                 </div>
-                <Badge tone={s.ok ? "success" : "warning"}>{s.ok ? "OK" : "Pendiente"}</Badge>
+                <Badge tone={TONO[s.estado]}>{ETIQUETA[s.estado]}</Badge>
               </li>
             ))}
           </ul>

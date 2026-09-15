@@ -33,6 +33,18 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
 - **Regla de sincronía** en las reglas de Claude del proyecto: cada cambio trae su test y deja al
   día el PRD, las definiciones, el estado, el changelog y el mapa de archivos, con `/juk-cierre`
   como Definition of Done.
+- **`npm run check:env`**: dice qué variables faltan, cuáles quedaron con el valor de ejemplo de
+  `.env.example` (peor que faltar: una `RESEND_API_KEY` de molde apaga el dry-run y hace fallar los
+  envíos) y cuáles no deberían estar seteadas en un deploy. `npm run check:env:prod` evalúa el
+  perfil de producción, y `npx tsx scripts/check-env.ts --env <archivo>` cualquier otro archivo,
+  por ejemplo el que baja `vercel env pull`. Nunca imprime valores.
+- El catálogo de variables (`src/lib/domain/configuracion/env.ts`) es ahora la fuente única:
+  lo leen el comando y la tarjeta *Estado de servicios* de `/configuracion`, que además distingue
+  "configurado" de "quedó el valor de ejemplo" en vez de dar por presente un `re_xxxx`.
+- Guía nueva [`docs/setup-servicios.md`](docs/setup-servicios.md): alta de R2, secrets de Neon en
+  GitHub, Sentry, Trigger.dev, el outreach de Resend y el dominio, con cómo verificar cada uno.
+- `.env.example` reordenado por servicio y alineado con el catálogo (suma `EMAIL_DRY_RUN`, saca
+  `NODE_ENV`, que lo fija Next).
 - Test unit nuevo de `src/lib/domain/pasos/codigos.ts` (era el único archivo del módulo sin
   compañero): grupo por código, etiquetas únicas, biyección de la numeración vieja y Paso 0 como
   único paso de solo lectura.

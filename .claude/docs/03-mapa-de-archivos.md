@@ -113,6 +113,7 @@ ni `app/` (lo vigila un hook). Detalle en [02](02-arquitectura-y-convenciones.md
 | `estado-actual.md` | **Única fuente del estado**: qué está construido, qué es parcial, qué falta, qué servicios están conectados, la deuda y qué depende del dueño. |
 | `architecture.md` | ADRs: el porqué de cada decisión técnica grande, con contexto, alternativas descartadas y cuándo revisarla. |
 | `design-system.md` | Sistema de diseño STUDIO: tokens (resumen; manda `src/styles/tokens.css`), componentes, reglas de mobile y accesibilidad. |
+| `setup-servicios.md` | Alta de los servicios externos paso a paso (R2 privado, secrets de Neon en GitHub, Sentry, Trigger.dev, outreach de Resend, dominio y branch protection), con cómo verificar cada uno. Es lo único que no puede hacer el código. |
 | `guia-stakeholders.md` | Guía para quien prueba el entorno de prueba desde afuera del equipo: cómo entrar, qué mirar en el back-office y en la web pública, qué feedback sirve. No es doc técnica. |
 | `prd/00-indice.md` | Índice de las specs funcionales (el QUÉ) y tabla de los PRDs originales con su versión. Empezá por acá. |
 | `prd/01-vision-y-dominio.md` | Conceptos transversales: roles, tipos de representante, tipo de viaje, pasaporte. |
@@ -322,9 +323,9 @@ código); colegios, group leaders y prospectos usan el uuid.
 | `page.tsx` | Solo super_admin: remitentes de email, previsualización de templates y estado de servicios; link a "Mi cuenta". |
 | `mails-form.tsx` [client] | Edita los remitentes (automáticos, comunicaciones, marketing, reply-to) y manda un mail de prueba de cualquier template. |
 | `preview-templates.tsx` [client] | Renderiza un template con datos de ejemplo en un iframe `srcDoc`. |
-| `estado-servicios.tsx` | Card con qué servicios están configurados (según variables de entorno) y el host de la base. |
+| `estado-servicios.tsx` | Card con qué servicios están configurados y el host de la base. Tres estados: OK, *Pendiente* (falta una variable) y *Revisar* en rojo (quedó el valor de ejemplo, que rompe distinto). |
 | `mail-templates-meta.ts` | Lista de templates disponibles para prueba y preview, con su tipo de remitente. |
-| `actions.tsx` · `actions.test.ts` [action] | `guardarMailsAction`, `enviarMailPruebaAction`, `previewTemplateAction`, `getEstadoServiciosAction` (expone solo el host de la DB, nunca la URL). Es `.tsx` porque renderiza emails. |
+| `actions.tsx` · `actions.test.ts` [action] | `guardarMailsAction`, `enviarMailPruebaAction`, `previewTemplateAction`, `getEstadoServiciosAction` (sale del catálogo de `domain/configuracion/env.ts`, el mismo que `npm run check:env`; expone solo el host de la DB, nunca la URL; en un deploy evalúa el perfil de producción). Es `.tsx` porque renderiza emails. |
 | `loading.tsx` | `ConfigSkeleton`. |
 | `cuenta/page.tsx` | "Mi cuenta": la abre cualquier usuario del back-office (`requireSession`, no super_admin). |
 | `cuenta/cambiar-password-form.tsx` [client] | Cambio de contraseña con `authClient.changePassword`. |
@@ -530,6 +531,7 @@ mano los `pgEnum` de `lib/db/schema/` (no hay derivación automática): si cambi
 | Archivo | Qué hace |
 |---|---|
 | `index.ts` · `index.test.ts` | `mailSettingsSchema`, `MAIL_SETTINGS_DEFAULT` y `remitenteDe(settings, tipo)` (automáticos desde noreply, comunicaciones desde info, marketing aparte). La lógica está en `index.ts`, que la cobertura excluye por contrato. |
+| `env.ts` · `env.test.ts` | Catálogo de variables de entorno: qué habilita cada una, qué pasa si falta, su nivel (`requerida`, `produccion`, `opcional`) y cuáles aflojarían producción. `esPlaceholder` detecta los moldes de `.env.example` (`re_xxxx`, `<generar…>`, `user:password@`) por forma, nunca por igualdad con el ejemplo. `evaluarEntorno` y `resumenPorServicio` los consumen `npm run check:env` y la card de `/configuracion`. |
 
 ### `src/lib/domain/cuotas/`
 
@@ -907,6 +909,7 @@ se saltea por `isMobile`). `mobile` depende de `setup` y `setup-familia` porque
 
 | Archivo | Qué hace |
 |---|---|
+| `check-env.ts` | `npm run check:env` (corre con tsx): lee `.env.local` y lo evalúa contra el catálogo de `src/lib/domain/configuracion/env.ts`. Marca lo que falta, lo que quedó con el molde de `.env.example` y lo que no debería estar seteado en un deploy; además avisa si la plantilla y el catálogo divergen. `--prod`, `--env <archivo>` y `--soft`. Nunca imprime valores. La lógica testeada vive en el dominio. |
 | `check-test-companions.mjs` · `check-test-companions.test.mjs` | `npm run check:tests`: exige `<archivo>.test.ts(x)` al lado de todo archivo nuevo o modificado en `src/lib/{domain,utils,actions}` (exime `index`, `labels`, `errors`, `types`, tests, `__tests__` y archivos solo de tipos; un `.integration.test.ts` no cuenta). Con `--base auto` compara contra el merge-base de `CHECK_TESTS_BASE`, `origin/main` o `HEAD~1` e incluye cambios sin commitear. Lo corren el pre-push y el CI. El test corre en el proyecto `unit`. |
 
 ---

@@ -28,6 +28,8 @@
     "test:e2e": "playwright test",
     "test:e2e:mobile": "playwright test --project=mobile",
     "check:tests": "node scripts/check-test-companions.mjs --base auto",
+    "check:env": "tsx scripts/check-env.ts",
+    "check:env:prod": "tsx scripts/check-env.ts --prod",
     "hooks:install": "git config core.hooksPath .githooks"
   },
   "dependencies": {

@@ -12,6 +12,12 @@ import { getMailSettings, setMailSettings } from "@/lib/db/queries/configuracion
 import { sendEmail } from "@/lib/email";
 import { construirTemplatePrueba } from "@/lib/email/preview";
 import { mailSettingsSchema, type TipoEmail } from "@/lib/domain/configuracion";
+import {
+  evaluarEntorno,
+  resumenPorServicio,
+  type EstadoEnv,
+  type PerfilEnv,
+} from "@/lib/domain/configuracion/env";
 import { fieldErrorsFromZod } from "@/lib/utils/zod";
 
 import { MAIL_TEMPLATES, type MailTemplateKey } from "./mail-templates-meta";
@@ -118,18 +124,24 @@ export async function previewTemplateAction(input: unknown): Promise<ActionResul
 export type EstadoServicios = {
   nodeEnv: string;
   dbHost: string;
-  servicios: { nombre: string; ok: boolean; detalle: string }[];
+  servicios: { nombre: string; estado: EstadoEnv; detalle: string }[];
   mails: { nombreRemitente: string; automaticos: string; comunicaciones: string };
 };
 
-function hayEnv(...claves: string[]): boolean {
-  return claves.every((c) => {
-    const v = process.env[c];
-    return typeof v === "string" && v.trim().length > 0;
-  });
+/**
+ * En un deploy se exige el perfil de producción (donde la falta de R2 o de
+ * Resend rompe una capacidad); en local alcanza con lo mínimo para desarrollar.
+ */
+function perfilDelEntorno(): PerfilEnv {
+  return process.env.NODE_ENV === "production" || process.env.VERCEL ? "produccion" : "local";
 }
 
-/** Estado de los servicios externos: qué está configurado y qué falta. */
+/**
+ * Estado de los servicios externos: qué está configurado y qué falta. Sale del
+ * mismo catálogo que `npm run check:env`, así la pantalla y la terminal no se
+ * contradicen. Un valor que quedó con el molde de `.env.example` se reporta
+ * aparte: "presente" sería mentira y rompe distinto (ver `esPlaceholder`).
+ */
 export async function getEstadoServiciosAction(): Promise<ActionResult<EstadoServicios>> {
   await requireRole("super_admin");
 
@@ -142,48 +154,23 @@ export async function getEstadoServiciosAction(): Promise<ActionResult<EstadoSer
       dbHost = "(no parseable)";
     }
 
-    const hayR2 = hayEnv(
-      "R2_ACCOUNT_ID",
-      "R2_ACCESS_KEY_ID",
-      "R2_SECRET_ACCESS_KEY",
-      "R2_BUCKET_NAME"
-    );
     const mails = await getMailSettings();
+    const servicios = resumenPorServicio(evaluarEntorno(process.env, perfilDelEntorno())).map(
+      (s) => ({
+        nombre: s.nombre,
+        estado: s.estado,
+        // La base es el único servicio con algo mejor que "configurado" para
+        // mostrar: a qué host está apuntando este deploy.
+        detalle: s.servicio === "neon" && s.estado === "ok" ? dbHost : s.detalle,
+      })
+    );
 
     return {
       ok: true,
       data: {
         nodeEnv: process.env.NODE_ENV ?? "development",
         dbHost,
-        servicios: [
-          { nombre: "Base de datos (Neon)", ok: dbUrl.length > 0, detalle: dbHost },
-          {
-            nombre: "Resend (emails)",
-            ok: hayEnv("RESEND_API_KEY"),
-            detalle: hayEnv("RESEND_API_KEY") ? "API key presente" : "falta RESEND_API_KEY",
-          },
-          {
-            nombre: "Cloudflare R2 (archivos)",
-            ok: hayR2,
-            detalle: hayR2
-              ? "credenciales presentes"
-              : "faltan credenciales R2 (usa fallback a disco en dev)",
-          },
-          {
-            nombre: "Webhook Google Form",
-            ok: hayEnv("GOOGLE_FORM_WEBHOOK_SECRET"),
-            detalle: hayEnv("GOOGLE_FORM_WEBHOOK_SECRET")
-              ? "secret presente"
-              : "falta GOOGLE_FORM_WEBHOOK_SECRET",
-          },
-          {
-            nombre: "Trigger.dev (jobs)",
-            ok: hayEnv("TRIGGER_SECRET_KEY"),
-            detalle: hayEnv("TRIGGER_SECRET_KEY")
-              ? "conectado"
-              : "no conectado (los jobs no corren solos)",
-          },
-        ],
+        servicios,
         mails: {
           nombreRemitente: mails.nombreRemitente,
           automaticos: mails.remitenteAutomaticos,

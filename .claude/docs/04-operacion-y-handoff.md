@@ -66,6 +66,7 @@ npm run db:migrate
 | `test:e2e` | Playwright, todos los proyectos. `setup` dispara al final el proyecto `cleanup` (`global.teardown.ts`), que borra los datos generados por la corrida. Con `E2E_DATABASE_URL` la suite apunta a otra base (una branch de Neon) y no toca la de dev | Al cerrar una feature con UI | Lo carga `playwright.config.ts` |
 | `test:e2e:mobile` | Playwright, solo el proyecto `mobile` | Cambios de layout o de interacción táctil | Ídem |
 | `check:tests` | Exige test compañero para lo nuevo o modificado en `domain`/`utils`/`actions` | Antes de pushear; lo corren el pre-push y el CI | No (usa git) |
+| `check:env` · `check:env:prod` | Evalúa `.env.local` contra el catálogo de `src/lib/domain/configuracion/env.ts`: qué falta, qué quedó con el molde de `.env.example` y qué no debería estar seteada en un deploy. La variante `:prod` usa el perfil de producción. Los demás flags (`--env <archivo>` para evaluar lo que baja `vercel env pull`, `--soft` para no fallar nunca) van invocando el script directo: `npx tsx scripts/check-env.ts --prod --env .env.produccion` — **en PowerShell el `--` de `npm run … -- --flag` se pierde**. Nunca imprime valores | Antes de un deploy, o cuando "no manda mails" / "no sube archivos" | Lo lee el script |
 | `hooks:install` | `git config core.hooksPath .githooks`: activa el pre-push. El hook vive en la **raíz del repo** (`jovenesuk/.githooks/pre-push`), no en `juk-portal/`: git resuelve el path relativo contra la raíz del working tree. Corre `typecheck` → `lint` → `npm test` → `check:tests` (sin cobertura, audit, build ni E2E: eso queda para el CI y `/juk-cierre`) | Una vez por clon | No |
 
 Testing en detalle: [05-testing](05-testing.md).
@@ -152,8 +153,12 @@ necesita un plan pago. Hasta entonces, la disciplina es no mergear con el CI en 
 
 ## Servicios externos y variables
 
-Nombres, nunca valores. La plantilla comentada es `.env.example`, que trae las variables de la app
-y los servicios. Las de tests (`SEED_FAMILIA_PASSWORD`, `INTEGRATION_DATABASE_URL`,
+Nombres, nunca valores. El **catálogo** (qué habilita cada variable, qué pasa si falta, qué nivel
+tiene) vive en `src/lib/domain/configuracion/env.ts` y es el que leen `npm run check:env` y la
+tarjeta de `/configuracion`: si agregás una variable, va ahí y en `.env.example` (el script avisa si
+divergen). El alta de cada servicio, paso a paso, en
+[`docs/setup-servicios.md`](../../juk-portal/docs/setup-servicios.md). La plantilla comentada es
+`.env.example`, que trae las variables de la app y los servicios. Las de tests (`SEED_FAMILIA_PASSWORD`, `INTEGRATION_DATABASE_URL`,
 `E2E_DATABASE_URL`, `PW_PORT`, `E2E_SERVER`, `E2E_EMAIL`/`E2E_PASSWORD`,
 `E2E_FAMILIA_EMAIL`/`E2E_FAMILIA_PASSWORD`, `E2E_COLEGIO`) **no están** en la plantilla: se
 documentan en [05-testing](05-testing.md). El estado de cada servicio (qué

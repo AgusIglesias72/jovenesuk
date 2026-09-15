@@ -54,7 +54,11 @@ npm run db:seed:demo   # opcional: cuentas test.* + dataset [DEMO] (requiere SEE
 npm run dev            # http://localhost:3000
 ```
 
-Setup de los servicios externos (Neon, Vercel, R2, Resend, Trigger.dev, Sentry): skill
+Para ver qué te falta configurar en cualquier momento: `npm run check:env` (y
+`npm run check:env:prod` para lo que tiene que estar en un deploy).
+
+Setup de los servicios externos (Neon, Vercel, R2, Resend, Trigger.dev, Sentry): el paso a paso
+está en [`docs/setup-servicios.md`](docs/setup-servicios.md); para hacerlo acompañado, la skill
 `/juk-setup`. Operación y deploy: [`../.claude/docs/04-operacion-y-handoff.md`](../.claude/docs/04-operacion-y-handoff.md).
 
 ## Scripts
@@ -79,6 +83,7 @@ Setup de los servicios externos (Neon, Vercel, R2, Resend, Trigger.dev, Sentry):
 | `npm run test:integration` | Integración contra Postgres real (solo con `INTEGRATION_DATABASE_URL`) | No (lo lee el setup) |
 | `npm run test:e2e` / `npm run test:e2e:mobile` | Playwright: suite completa / solo el proyecto `mobile` | No |
 | `npm run check:tests` | Falla si un archivo nuevo o modificado de domain/utils/actions no tiene su `.test.ts` | No |
+| `npm run check:env` / `npm run check:env:prod` | Qué variables faltan, cuáles quedaron con el valor de ejemplo y cuáles no deberían estar en producción. La variante `:prod` evalúa el perfil de un deploy | No (lee `.env.local`) |
 | `npm run hooks:install` | Activa el hook `pre-push` del repo (typecheck, lint, unit, `check:tests`) | No |
 
 > Nunca `npm update` ni `npm audit fix`: crashean en este repo. Para actualizar un paquete:

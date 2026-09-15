@@ -64,6 +64,7 @@ Un cambio que no cumple los seis puntos **no está terminado**, aunque compile y
 | Un componente o token (`src/components/ui/**`, `src/styles/**`) | Unit si tiene lógica pura (ej. `popover-position.test.ts`) + el E2E de una pantalla que lo use | `docs/design-system.md` |
 | Acceso o seguridad (`src/proxy.ts`, `src/lib/routes.ts`, `src/lib/auth/**`, `src/app/api/**`, headers de `next.config.ts`) | Unit (`proxy.test.ts`, `routes.test.ts`, `src/lib/auth/*.test.ts`) + E2E de acceso | `.claude/docs/06-seguridad.md`; `docs/architecture.md` si cambia un porqué |
 | Performance (consultas por request, caché, paginación, assets) | El test de la capa que tocaste | `.claude/docs/07-performance.md` |
+| Una variable de entorno o un servicio externo | Unit de `src/lib/domain/configuracion/env.test.ts` (el catálogo) | `.env.example` (lo chequea `npm run check:env`); `juk-portal/docs/setup-servicios.md` si cambia el alta; `.claude/docs/04-operacion-y-handoff.md` |
 | Dependencias (`package.json`, `overrides`) | La suite completa | `CHANGELOG.md`; `.claude/docs/06-seguridad.md` si es por una CVE; `.claude/docs/04` si cambia cómo se actualiza |
 | Tests, CI o hooks (`tests/**`, `vitest.config.ts`, `playwright.config.ts`, `.github/`, `.githooks/`, `scripts/`) | Test del script si tiene lógica (ej. `scripts/check-test-companions.test.mjs`) | `.claude/docs/05-testing.md` |
 | Hooks del harness (`.claude/hooks/**`, `.claude/settings.json`) | `node .claude/hooks/probar-hooks.mjs` | `.claude/hooks/README.md` |
@@ -128,6 +129,7 @@ mapa: no aplica (sin archivos nuevos)
 | Sistema de diseño STUDIO | `juk-portal/docs/design-system.md` |
 | Convenciones de código | `juk-portal/CLAUDE.md` |
 | Levantar el proyecto y scripts | `juk-portal/README.md` |
+| Alta de los servicios externos (R2, Neon en el CI, Sentry, Trigger, Resend, dominio) | `juk-portal/docs/setup-servicios.md` |
 | Handoff: producto, arquitectura, mapa, operación, testing, seguridad, performance | `.claude/docs/` (empezar por `README.md`) |
 | App nativa (Capacitor) | `juk-portal/docs/mobile-app/` |
 | Guía para stakeholders (no técnica) | `juk-portal/docs/guia-stakeholders.md` |

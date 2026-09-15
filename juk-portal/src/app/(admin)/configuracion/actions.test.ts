@@ -34,6 +34,7 @@ const MAILS = {
 const ENV_TOCADAS = [
   "DATABASE_URL",
   "RESEND_API_KEY",
+  "LEADS_NOTIFY_TO",
   "R2_ACCOUNT_ID",
   "R2_ACCESS_KEY_ID",
   "R2_SECRET_ACCESS_KEY",
@@ -79,6 +80,7 @@ describe("actions de /configuracion", () => {
     it("marca cada servicio según las env vars presentes y expone solo el host de la DB", async () => {
       process.env.DATABASE_URL = "postgres://user:secreto@ep-juk.neon.tech:5432/juk";
       process.env.RESEND_API_KEY = "re_123";
+      process.env.LEADS_NOTIFY_TO = "leads@jovenesenuk.com";
 
       const res = await getEstadoServiciosAction();
 
@@ -88,12 +90,26 @@ describe("actions de /configuracion", () => {
       expect(JSON.stringify(res.data)).not.toContain("secreto");
 
       const porNombre = new Map(res.data.servicios.map((s) => [s.nombre, s]));
-      expect(porNombre.get("Base de datos (Neon)")?.ok).toBe(true);
-      expect(porNombre.get("Resend (emails)")?.ok).toBe(true);
-      expect(porNombre.get("Cloudflare R2 (archivos)")?.ok).toBe(false);
-      expect(porNombre.get("Webhook Google Form")?.ok).toBe(false);
-      expect(porNombre.get("Trigger.dev (jobs)")?.ok).toBe(false);
+      expect(porNombre.get("Base de datos (Neon)")?.estado).toBe("ok");
+      expect(porNombre.get("Base de datos (Neon)")?.detalle).toBe("ep-juk.neon.tech:5432");
+      expect(porNombre.get("Resend (emails)")?.estado).toBe("ok");
+      expect(porNombre.get("Cloudflare R2 (archivos)")?.estado).toBe("falta");
+      expect(porNombre.get("Webhook Google Form")?.estado).toBe("falta");
+      expect(porNombre.get("Trigger.dev (jobs)")?.estado).toBe("falta");
       expect(res.data.mails.automaticos).toBe(MAILS.remitenteAutomaticos);
+    });
+
+    it("un valor de ejemplo sin reemplazar no cuenta como configurado", async () => {
+      process.env.DATABASE_URL = "postgres://juk:real@ep-juk.neon.tech:5432/juk";
+      process.env.RESEND_API_KEY = "re_xxxxxxxxxxxx";
+
+      const res = await getEstadoServiciosAction();
+
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      const resend = res.data.servicios.find((s) => s.nombre === "Resend (emails)");
+      expect(resend?.estado).toBe("placeholder");
+      expect(resend?.detalle).toContain("RESEND_API_KEY");
     });
 
     it("una DATABASE_URL ilegible no rompe la card", async () => {
