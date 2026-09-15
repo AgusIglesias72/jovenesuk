@@ -37,3 +37,5 @@ Thumbs.db
 
 # Capturas de sesiones de revisión visual (locales, no se versionan)
 assets/screenshots/
+
+.vercel

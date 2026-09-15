@@ -37,7 +37,9 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
   `.env.example` (peor que faltar: una `RESEND_API_KEY` de molde apaga el dry-run y hace fallar los
   envíos) y cuáles no deberían estar seteadas en un deploy. `npm run check:env:prod` evalúa el
   perfil de producción, y `npx tsx scripts/check-env.ts --env <archivo>` cualquier otro archivo,
-  por ejemplo el que baja `vercel env pull`. Nunca imprime valores.
+  por ejemplo el que baja `vercel env pull` — ese viene con los nombres y los valores vacíos
+  (Vercel no devuelve las encriptadas), así que el script lo detecta y pasa a *modo nombres*:
+  chequea que la variable exista. Nunca imprime valores.
 - El catálogo de variables (`src/lib/domain/configuracion/env.ts`) es ahora la fuente única:
   lo leen el comando y la tarjeta *Estado de servicios* de `/configuracion`, que además distingue
   "configurado" de "quedó el valor de ejemplo" en vez de dar por presente un `re_xxxx`.

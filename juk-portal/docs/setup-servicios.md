@@ -21,13 +21,21 @@ npm run check:env:prod   # perfil producción: qué tiene que estar en Vercel
 El comando lee `.env.local` y marca tres cosas: **falta** (✗), **quedó el valor de ejemplo** (⚠) y
 **seteada donde no debería** (una variable que aflojaría producción). Nunca imprime valores.
 
-Para chequear lo que realmente hay cargado en Vercel, bajalo y evaluá ese archivo:
+Para chequear qué hay cargado en Vercel, bajalo y evaluá ese archivo:
 
 ```bash
 vercel env pull .env.produccion --environment=production
 npx tsx scripts/check-env.ts --prod --env .env.produccion
 rm .env.produccion       # no lo dejes dando vueltas
 ```
+
+⚠️ **Vercel devuelve los nombres, no los valores** (no deja leer una variable encriptada desde el
+CLI: bajan como `NOMBRE=""`). El script lo detecta y pasa a **modo nombres**: chequea que la
+variable *exista*, no qué dice. Sirve para ver qué falta cargar; **no** para descubrir que allá
+quedó un valor de ejemplo. Eso se ve entrando a `/configuracion` en el deploy, o probando la
+capacidad (subir un documento, mandarte un mail).
+
+También podés listar los nombres directo: `vercel env ls production`.
 
 La misma foto, desde adentro de la app: `/configuracion` → *Estado de servicios* (solo `super_admin`).
 

@@ -88,6 +88,19 @@ sesión (prefijos en `src/lib/routes.ts`).
 El estado de las credenciales **en un deploy** se ve en `/configuracion` → *Estado de servicios*.
 Lo de abajo es lo que se puede afirmar desde el repo (config, código y el `.env.local` de desarrollo).
 
+> **Ojo con "falta" vs. "no lo puedo leer" (14/09/2026).** El proyecto de Vercel
+> `agusiglesias72s-projects/jovenesuk` **ya tiene cargadas** por nombre, en Production:
+> `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`,
+> `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SITE_URL`, `RESEND_API_KEY`, `EMAIL_FROM_ADDRESS`,
+> `EMAIL_FROM_NAME`, `EMAIL_REPLY_TO`, las cuatro `R2_*`, `TRIGGER_SECRET_KEY`,
+> `TRIGGER_PROJECT_ID` y `GOOGLE_FORM_WEBHOOK_SECRET` (creadas hace ~92 días). Lo que **no** está:
+> `NEXT_PUBLIC_SENTRY_DSN`, `LEADS_NOTIFY_TO`, `EMAIL_FROM_COMUNICACIONES`, `EMAIL_FROM_OUTREACH`,
+> `RESEND_WEBHOOK_SECRET` y `NEXT_PUBLIC_PORTAL_URL`. Y **`NEXT_PUBLIC_ENABLE_TWEAK` figura en
+> Production**, donde no debería estar (expone el DesignTweaker del sitio público).
+> Desde afuera solo se ven los nombres: Vercel no devuelve los valores encriptados, así que **no se
+> puede afirmar desde acá que sean credenciales reales y no los moldes de `.env.example`**. Eso se
+> confirma mirando `/configuracion` en el deploy, o subiendo un documento de prueba.
+
 | Servicio | Código | Estado |
 |---|---|---|
 | **Neon (Postgres)** | ✅ `src/lib/db/`, migraciones `drizzle/0000…0019` | Conectado en desarrollo. |

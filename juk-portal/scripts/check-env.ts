@@ -13,9 +13,16 @@
  *
  * Uso (desde juk-portal/):
  *   npm run check:env                 perfil local (lo que necesitás para desarrollar)
- *   npm run check:env -- --prod       perfil producción (lo que tiene que estar en Vercel)
- *   npm run check:env -- --env .env.produccion
- *   npm run check:env -- --soft       nunca falla (solo informa)
+ *   npm run check:env:prod            perfil producción (lo que tiene que estar en Vercel)
+ *   npx tsx scripts/check-env.ts --prod --env <archivo>
+ *   npx tsx scripts/check-env.ts --soft      nunca falla (solo informa)
+ *   npx tsx scripts/check-env.ts --nombres   evalúa solo si la variable EXISTE
+ *
+ * En PowerShell los flags van por `npx tsx …`: el `--` de `npm run … -- --flag` se pierde.
+ *
+ * `--nombres` existe por `vercel env pull`: Vercel devuelve los nombres con el
+ * valor VACÍO (no deja leer variables encriptadas desde el CLI). Sin este modo,
+ * ese archivo diría que falta todo. Se activa solo al detectarlo.
  *
  * Sale con código 1 si hay errores para el perfil pedido. Nunca imprime valores.
  */
@@ -34,6 +41,7 @@ import {
 const args = process.argv.slice(2);
 const perfil: PerfilEnv = args.includes("--prod") ? "produccion" : "local";
 const soft = args.includes("--soft");
+const forzarNombres = args.includes("--nombres");
 const archivoEnv = (() => {
   const i = args.indexOf("--env");
   return i >= 0 && args[i + 1] ? args[i + 1]! : ".env.local";
@@ -61,7 +69,9 @@ export function parsearEnv(contenido: string, incluirComentadas = false): Record
 }
 
 function leerArchivo(relativo: string, incluirComentadas = false): Record<string, string> | null {
-  const ruta = path.join(RAIZ, relativo);
+  // resolve, no join: `--env` acepta una ruta absoluta (ej. el archivo que baja
+  // `vercel env pull` a un directorio temporal, fuera del repo).
+  const ruta = path.resolve(RAIZ, relativo);
   if (!existsSync(ruta)) return null;
   return parsearEnv(readFileSync(ruta, "utf8"), incluirComentadas);
 }
@@ -94,7 +104,19 @@ function main(): number {
     console.log("Arrancá con: cp .env.example .env.local\n");
   }
 
-  const env: Record<string, string | undefined> = { ...process.env, ...(delArchivo ?? {}) };
+  // Un archivo con varias variables del catálogo declaradas y vacías es lo que
+  // deja `vercel env pull`: los nombres están, los valores no se pueden leer.
+  const vaciasDelCatalogo = delArchivo
+    ? VARIABLES_ENV.filter((v) => v.nombre in delArchivo && !delArchivo[v.nombre]).length
+    : 0;
+  const modoNombres = forzarNombres || vaciasDelCatalogo >= 3;
+
+  const delArchivoUsable =
+    delArchivo && modoNombres
+      ? Object.fromEntries(Object.entries(delArchivo).map(([k, v]) => [k, v || "(definida)"]))
+      : delArchivo;
+
+  const env: Record<string, string | undefined> = { ...process.env, ...(delArchivoUsable ?? {}) };
   const resumen = evaluarEntorno(env, perfil);
   const porNombre = new Map(resumen.variables.map((v) => [v.nombre, v]));
 
@@ -102,6 +124,14 @@ function main(): number {
     `\nPerfil: ${perfil === "produccion" ? "producción (lo que va en Vercel)" : "local"}` +
       `${delArchivo ? ` · leído ${archivoEnv}` : " · solo variables del entorno"}\n`
   );
+
+  if (modoNombres) {
+    console.log(
+      "Modo nombres: el archivo trae las variables sin valor (es lo que devuelve\n" +
+        "`vercel env pull`: Vercel no deja leer las encriptadas). Se chequea que la\n" +
+        "variable EXISTA, no qué dice. Un valor de ejemplo cargado allá no se detecta.\n"
+    );
+  }
 
   for (const servicio of SERVICIOS_ENV) {
     const suyas = resumen.variables.filter((v) => v.servicio === servicio);
