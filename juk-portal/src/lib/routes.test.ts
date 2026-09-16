@@ -60,8 +60,24 @@ describe("esPaginaPublica", () => {
   it("rechaza subrutas de páginas exactas y parecidos", () => {
     expect(esPaginaPublica("/salidas/algo")).toBe(false);
     expect(esPaginaPublica("/notasx")).toBe(false);
+    expect(esPaginaPublica("/privacidadx")).toBe(false);
     expect(esPaginaPublica("/dashboard")).toBe(false);
     expect(esPaginaPublica("/consultas")).toBe(false);
+  });
+
+  it("la política de privacidad es pública, y también cada versión publicada", () => {
+    expect(esPaginaPublica("/privacidad")).toBe(true);
+    expect(esPaginaPublica("/privacidad/2026-09-16")).toBe(true);
+  });
+
+  it("el querystring no la saca de lo público (el proxy pasa solo el pathname)", () => {
+    // `proxy.ts` llama con `request.nextUrl.pathname`: el `?…` viaja aparte en
+    // `nextUrl.search`. Si alguien pasara la URL entera, `/privacidad?v=…` no
+    // matchearía y la política terminaría rebotando al login.
+    const url = new URL("https://jovenesenuk.com/privacidad?v=2026-09-16&ref=footer");
+    expect(url.pathname).toBe("/privacidad");
+    expect(esPaginaPublica(url.pathname)).toBe(true);
+    expect(esPaginaPublica(url.pathname + url.search)).toBe(false);
   });
 });
 

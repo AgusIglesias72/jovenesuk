@@ -68,10 +68,18 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6">
-          <p className="text-[length:var(--t-label)] text-[var(--c-ink-onbrand-muted)]">
-            © {new Date().getFullYear()} Jóvenes en UK. Todos los derechos reservados.
-          </p>
+        <div className="mt-12 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-white/10 pt-6">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-0">
+            <p className="text-[length:var(--t-label)] text-[var(--c-ink-onbrand-muted)]">
+              © {new Date().getFullYear()} Jóvenes en UK. Todos los derechos reservados.
+            </p>
+            <Link
+              href="/privacidad"
+              className="inline-flex min-h-[40px] items-center text-[length:var(--t-label)] text-[var(--c-ink-onbrand-muted)] underline underline-offset-4 transition-colors hover:text-[var(--c-honey)]"
+            >
+              Política de Privacidad
+            </Link>
+          </div>
           <Link
             href="/login"
             className="font-[family-name:var(--font-mono)] text-[length:var(--t-label)] font-bold uppercase tracking-[0.12em] text-[var(--c-ink-onbrand-muted)] transition-colors hover:text-[var(--c-honey)]"

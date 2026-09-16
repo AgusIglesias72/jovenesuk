@@ -1,8 +1,10 @@
 import { inArray } from "drizzle-orm";
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 
 import { db } from "../../src/lib/db";
 import { consultas, suscriptores } from "../../src/lib/db/schema";
+
+import { esperarHidratacion } from "./helpers";
 
 /*
  * Smoke tests del SITIO PÚBLICO (marketing). Corren sin sesión: el proyecto
@@ -38,6 +40,7 @@ const PAGINAS: Array<[string, RegExp]> = [
   ["/consulta", /Armemos juntos tu viaje/],
   ["/notas", /Guías y consejos para estudiar inglés/],
   ["/notas/study-work-irlanda-guia-argentinos", /Study & Work en Irlanda/],
+  ["/privacidad", /Política de Privacidad/],
 ];
 
 for (const [path, heading] of PAGINAS) {
@@ -99,6 +102,30 @@ test("el newsletter del hero se envía", async ({ page }) => {
   await expect(page.getByText(/Te suscribiste/)).toBeVisible();
 });
 
+/**
+ * Casilla de consentimiento del formulario de consulta. Su nombre accesible es
+ * la frase completa (la fija `aria-label`), justamente para que el link que
+ * lleva adentro no la parta.
+ */
+function consentimiento(page: Page): Locator {
+  return page.getByRole("checkbox", { name: /^Acepto que Jóvenes en UK use mis datos/ });
+}
+
+/**
+ * Tilda el consentimiento clickeando su texto (el <label> envuelve al input).
+ * Se clickea el ARRANQUE de la frase, no el centro: la Política de Privacidad
+ * es un <a> dentro de ese mismo texto y un click al centro puede caerle encima,
+ * que abre una pestaña en vez de tildar la casilla.
+ */
+async function tildarConsentimiento(page: Page) {
+  const casilla = consentimiento(page);
+  await esperarHidratacion(casilla);
+  await page
+    .getByText(/^Acepto que Jóvenes en UK use mis datos/)
+    .click({ position: { x: 4, y: 4 } });
+  await expect(casilla).toBeChecked();
+}
+
 test("el formulario de consulta valida y se envía", async ({ page }) => {
   await page.goto("/consulta");
 
@@ -115,10 +142,40 @@ test("el formulario de consulta valida y se envía", async ({ page }) => {
   await page.getByLabel(/Tel[eé]fono/).fill("1133334444");
   await page.getByLabel("¿Qué te interesa?").selectOption("grupal");
   await page.getByLabel("¿Cuándo te gustaría viajar?").selectOption("proximos_3_meses");
-  await page.getByText(/Acepto que Jóvenes en UK use mis datos/).click();
+  await tildarConsentimiento(page);
   await enviar.click();
 
   await expect(page.getByText("¡Gracias por tu consulta!")).toBeVisible();
+});
+
+test("el consentimiento linkea la Política de Privacidad y el label sigue tildando", async ({
+  page,
+}) => {
+  await page.goto("/consulta");
+
+  // La frase entera tiene que quedar en el nombre accesible: un lector de
+  // pantalla no puede anunciar el consentimiento cortado en el link.
+  await expect(consentimiento(page)).toHaveAccessibleName(/Política de Privacidad\.$/);
+
+  // El footer repite el link, así que se ancla al contenido principal.
+  const link = page
+    .getByRole("main")
+    .getByRole("link", { name: "Política de Privacidad", exact: true });
+  await expect(link).toHaveAttribute("href", "/privacidad");
+  await expect(link).toHaveAttribute("target", "_blank");
+
+  // Borde: el <a> vive DENTRO del <label>, y activar el label no tiene que
+  // tildar la casilla cuando el click apunta a contenido interactivo.
+  await esperarHidratacion(consentimiento(page));
+  const [politica] = await Promise.all([page.waitForEvent("popup"), link.click()]);
+  await expect(
+    politica.getByRole("heading", { level: 1, name: "Política de Privacidad" })
+  ).toBeVisible();
+  await politica.close();
+  await expect(consentimiento(page)).not.toBeChecked();
+
+  // Y el resto del label sigue siendo clickeable.
+  await tildarConsentimiento(page);
 });
 
 test("al elegir colegio aparece el campo de institución", async ({ page }) => {

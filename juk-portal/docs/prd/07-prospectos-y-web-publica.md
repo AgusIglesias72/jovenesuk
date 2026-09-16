@@ -44,7 +44,7 @@ alumnos: el alta de alumnos sigue siendo el webhook del Google Form o la carga m
 | Destino | Opcional (lista de países o "Todavía no lo decidí") |
 | Cuándo | Próximos 3 meses · Este año · El año que viene · Solo averiguando |
 | Mensaje | Opcional |
-| Acepta | Consentimiento obligatorio |
+| Acepta | Consentimiento obligatorio. El texto sale de `TEXTO_CONSENTIMIENTO` (`src/lib/domain/privacidad/politica.ts`), dice para qué se usan los datos y **linkea la [Política de Privacidad](#politica-de-privacidad)** |
 
 Opciones y validación: `src/lib/domain/leads/schema.ts` (la misma para el formulario y la action).
 
@@ -57,6 +57,20 @@ Reglas (`submitLead` en `src/app/(public)/leads/actions.ts`):
 4. **Aviso al equipo** por mail, encolado en Trigger.dev (`notificar-consulta-nueva`) y con envío
    directo si Trigger no responde. Si el mismo email ya consultó por el mismo interés en las
    últimas 24 h, la consulta se guarda igual pero no se repite el aviso.
+
+### Política de Privacidad
+
+`/privacidad` publica el texto vigente y `/privacidad/<version>` una versión anterior. El texto es
+un **dato versionado** (`POLITICA_ACTUAL` e `HISTORIAL_POLITICAS` en
+`src/lib/domain/privacidad/politica.ts`), no markup suelto: cada consentimiento guarda qué versión
+aceptó la persona, así que una versión vieja tiene que poder seguir leyéndose. Editar el copy
+**obliga a subir la versión** (lo exige `politica.test.ts`).
+
+La política declara lo que el sistema hace hoy, incluido lo que todavía no hace: el borrado de la
+ficha de un alumno ya procesado, de sus documentos y de las consultas es manual y a pedido, porque
+la purga automática recién llega con el módulo de inscripciones. Los plazos de retención ya están
+definidos en `src/lib/domain/privacidad/retencion.ts`. Falta la revisión legal del texto y los datos
+registrales del responsable (`docs/estado-actual.md` §7).
 
 ### Newsletter
 
@@ -138,6 +152,8 @@ Ganado.
 
 ## 5. Pendiente y decisiones
 
-- **MIN-16** privacidad de los leads (página de política, retención, borrado).
+- **MIN-16** privacidad de los leads: **parcialmente resuelta** (política publicada y versionada,
+  consentimiento que la linkea, plazos de retención definidos). Queda la purga automática y el
+  borrado a pedido de consultas y suscriptores.
 - **MIN-23** calendario de salidas mantenido a mano.
 - Suscriptores sin pantalla en el back-office.

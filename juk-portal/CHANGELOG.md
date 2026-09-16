@@ -17,6 +17,12 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
 
 ## [Sin publicar]
 
+### Agregado
+- **Política de Privacidad publicada y versionada** en `/privacidad`, con su historial de versiones.
+  El consentimiento del formulario de consulta ahora dice a qué se está aceptando y linkea el texto,
+  y queda registrado qué versión aceptó cada persona. El texto describe lo que el sistema hace hoy,
+  incluido lo que todavía no borra automáticamente. Primer paso del módulo de inscripciones online.
+
 ### Seguridad
 - Se sacó `NEXT_PUBLIC_ENABLE_TWEAK` de Vercel Production: la herramienta de diseño del sitio
   público no puede quedar habilitada para los visitantes.

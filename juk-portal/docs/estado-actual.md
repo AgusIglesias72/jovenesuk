@@ -80,7 +80,7 @@ sesión (prefijos en `src/lib/routes.ts`).
 | Formularios de consulta y newsletter | ✅ | `/consulta`, secciones de la landing | Rate limit propio. Las consultas caen en `/consultas` del back-office. |
 | SEO técnico | ✅ | `sitemap.ts`, `robots.ts`, canonicals, JSON-LD, redirects del sitio Wix en `next.config.ts` | GA4 y Search Console se activan con `NEXT_PUBLIC_GA_ID` / `NEXT_PUBLIC_GSC_VERIFICATION`. |
 | Desuscripción del outreach | ✅ | `/baja?token=…` | — |
-| Política de privacidad | ❌ | — | No existe la página. La exigen las stores (§6) y la Ley 25.326 para los datos de los formularios. Alcance (página, retención, borrado a pedido) abierto en MIN-16 de [`../OPEN_DECISIONS.md`](../OPEN_DECISIONS.md). |
+| Política de privacidad | ✅ | `(public)/privacidad/`, `domain/privacidad/politica.ts` | Publicada y **versionada** (v1 `2026-09-16`): el texto vive en el dominio, cada consentimiento guarda qué versión se aceptó y el historial queda consultable. El checkbox del formulario de consulta la linkea. ⚠️ **Falta la revisión legal** y los datos registrales (razón social, CUIT, domicilio), que el código no puede saber: ver §7. Los plazos de retención ya están definidos en `domain/privacidad/retencion.ts`; la purga automática llega con la etapa 7 del módulo de inscripciones. |
 | Separación de dominios (`portal.*` para la gestión) | 🟡 | `src/proxy.ts` | Preparada pero inactiva: se enciende con `NEXT_PUBLIC_PORTAL_URL` + `NEXT_PUBLIC_SITE_URL` y el DNS del subdominio. |
 
 ## 5. Servicios e integraciones
@@ -150,7 +150,12 @@ de cada uno —dónde hacer clic, qué pegar y cómo verificar que quedó— est
   `portal.*`, si se quiere la separación de dominios (§4).
 - [ ] **App nativa**: appId, URL de producción, cuentas de Google Play y Apple Developer, una Mac
   con Xcode y el keystore de Android. Checklist en [`mobile-app/BLOQUEADO-POR-VOS.md`](mobile-app/BLOQUEADO-POR-VOS.md).
-- [ ] **Política de privacidad** publicada (contenido legal), para las stores y el sitio (§4).
+- [ ] **Revisión legal de la Política de Privacidad** ya publicada en `/privacidad` (§4). El texto
+  describe lo que el sistema hace hoy, pero necesita: razón social, CUIT y domicilio del responsable;
+  confirmación de con quién se comparten los datos de salud fuera del sistema (hoy dice colegio o
+  alojamiento en destino, acompañante y servicio médico ante una urgencia); si hace falta banner de
+  cookies; y si la AAIP exige algo más para la transferencia internacional. Al cambiar el texto hay
+  que **subir la versión** en `domain/privacidad/politica.ts` (lo exige su test).
 - [ ] **Validar con el equipo las decisiones ⭐** CRIT-04 y CRIT-05 y responder las abiertas de
   [`../OPEN_DECISIONS.md`](../OPEN_DECISIONS.md).
 

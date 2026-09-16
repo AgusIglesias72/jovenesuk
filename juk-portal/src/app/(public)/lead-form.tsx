@@ -1,12 +1,26 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field";
 import { CUANDO, DESTINO, MODALIDAD, PARA_QUIEN } from "@/lib/domain/leads";
+import {
+  ENLACE_POLITICA,
+  TEXTO_CONSENTIMIENTO,
+} from "@/lib/domain/privacidad/politica";
 
 import { track } from "./analytics";
 import { submitLead } from "./leads/actions";
+
+/**
+ * El consentimiento se parte en el nombre de la política para poder linkearla
+ * sin reescribir la frase: lo que se muestra tiene que ser palabra por palabra
+ * el texto versionado del dominio. Que `TEXTO_CONSENTIMIENTO` contenga
+ * `ENLACE_POLITICA` lo garantiza `politica.test.ts`.
+ */
+const [ANTES_DEL_ENLACE = "", DESPUES_DEL_ENLACE = ""] =
+  TEXTO_CONSENTIMIENTO.split(ENLACE_POLITICA);
 
 export function LeadForm() {
   const [state, action, pending] = useActionState(submitLead, null);
@@ -116,10 +130,32 @@ export function LeadForm() {
         <Checkbox
           name="acepta"
           required
-          label="Acepto que Jóvenes en UK use mis datos para contactarme por esta consulta."
+          // El <label> del Checkbox envuelve al input, así que el link queda
+          // adentro. No tilda la casilla: el HTML exime a la activación del
+          // label cuando el click apunta a contenido interactivo (un <a href>).
+          // aria-label deja el nombre accesible clavado en la frase completa,
+          // sin depender de cómo cada lector aplane el link.
+          aria-label={TEXTO_CONSENTIMIENTO}
+          aria-invalid={fe("acepta") ? true : undefined}
+          aria-describedby={fe("acepta") ? "error-acepta" : undefined}
+          className="items-start"
+          label={
+            <span className="text-[length:var(--t-small)] leading-[var(--lh-body)]">
+              {ANTES_DEL_ENLACE}
+              <Link
+                href="/privacidad"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-[var(--c-brand)] underline underline-offset-2 hover:text-[var(--c-brand-700)]"
+              >
+                {ENLACE_POLITICA}
+              </Link>
+              {DESPUES_DEL_ENLACE}
+            </span>
+          }
         />
         {fe("acepta") && (
-          <p className="mt-1 text-[length:var(--t-small)] text-[var(--c-danger)]">
+          <p id="error-acepta" className="mt-1 text-[length:var(--t-small)] text-[var(--c-danger)]">
             {fe("acepta")}
           </p>
         )}

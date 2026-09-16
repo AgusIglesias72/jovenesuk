@@ -366,6 +366,9 @@ código); colegios, group leaders y prospectos usan el uuid.
 | `notas/notas-data.ts` | Contenido de las notas (redacción propia; datos migratorios verificados a junio 2026, revisarlos al actualizar). |
 | `notas/[slug]/page.tsx` | Nota individual, estática por `generateStaticParams`, con metadata y JSON-LD. |
 | `notas/[slug]/og/route.tsx` | Imagen Open Graph generada por nota (runtime node, estática). |
+| `privacidad/page.tsx` | Política de Privacidad vigente, con índice de anclas y la franja de versión. El texto NO vive acá: sale de `src/lib/domain/privacidad/politica.ts`, porque la versión aceptada se guarda junto a cada consentimiento. |
+| `privacidad/[version]/page.tsx` | Una versión histórica de la política (`generateStaticParams` desde `HISTORIAL_POLITICAS`, `notFound()` si no existe). El historial se lista en `/privacidad#versiones`: una ruta `/privacidad/versiones` la comería este segmento. |
+| `privacidad/_politica-contenido.tsx` | Render compartido por las dos páginas (secciones, índice y anclas). El `cuerpo` del dominio es texto plano: el parseo de párrafos y viñetas vive acá, no en el dominio. |
 | `_components/nav.tsx` | `TopNav` y `NAV_LINKS`. |
 | `_components/footer.tsx` | Footer con contacto, redes y links. |
 | `_components/primitives.tsx` | Primitivos del sitio: `Cta`, `Kicker`, `SectionTitle`, `CheckItem`, `WhatsAppIcon`, `Wordmark`, `DESTINOS`, `Bandera`, `PublicPageHeader`. No usa `@/components/ui` (que es del portal); **su `SectionTitle` no es el del design system**. |
@@ -532,6 +535,13 @@ mano los `pgEnum` de `lib/db/schema/` (no hay derivación automática): si cambi
 |---|---|
 | `index.ts` · `index.test.ts` | `mailSettingsSchema`, `MAIL_SETTINGS_DEFAULT` y `remitenteDe(settings, tipo)` (automáticos desde noreply, comunicaciones desde info, marketing aparte). La lógica está en `index.ts`, que la cobertura excluye por contrato. |
 | `env.ts` · `env.test.ts` | Catálogo de variables de entorno: qué habilita cada una, qué pasa si falta, su nivel (`requerida`, `produccion`, `opcional`) y cuáles aflojarían producción. `esPlaceholder` detecta los moldes de `.env.example` (`re_xxxx`, `<generar…>`, `user:password@`) por forma, nunca por igualdad con el ejemplo. `evaluarEntorno` y `resumenPorServicio` los consumen `npm run check:env` y la card de `/configuracion`. |
+
+### `src/lib/domain/privacidad/`
+
+| Archivo | Qué hace |
+|---|---|
+| `politica.ts` · `politica.test.ts` | Fuente única del texto legal: `POLITICA_ACTUAL` (versión `AAAA-MM-DD` + secciones), `HISTORIAL_POLITICAS`, `buscarPolitica`, `VERSION_CONSENTIMIENTO` y `TEXTO_CONSENTIMIENTO`. El test obliga a subir la versión si alguien edita el copy: un consentimiento viejo tiene que poder seguir leyendo el texto que aceptó. |
+| `retencion.ts` · `retencion.test.ts` | Plazos (`RETENCION`: 90 días una inscripción procesada, 730 sin procesar, 90 una invitación vencida sin usar) y la decisión pura `debePurgar` / `fechaDeCorte`. Ninguna fecha nace adentro: `ahora` entra por parámetro. El plazo se cumple entero (el día 90 se conserva, el 91 se purga). |
 
 ### `src/lib/domain/cuotas/`
 

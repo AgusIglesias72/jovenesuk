@@ -27,7 +27,7 @@ declare global {
 const RUTAS_ADMIN = ["/dashboard", "/alumnos", "/alumnos/nuevo"] as const;
 
 /** Rutas sin sesión: el portal público y el login. */
-const RUTAS_PUBLICAS = ["/", "/login"] as const;
+const RUTAS_PUBLICAS = ["/", "/privacidad", "/login"] as const;
 
 /**
  * Reglas (a)-(d): se resuelven en una sola pasada por el DOM ya renderizado.

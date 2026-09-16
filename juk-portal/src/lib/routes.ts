@@ -32,8 +32,13 @@ export const PUBLIC_PAGES = [
   "/consulta",
 ] as const;
 
-/** Prefijos públicos adicionales (contenido SEO). */
-export const PUBLIC_PREFIXES = ["/notas"] as const;
+/**
+ * Prefijos públicos adicionales: `/notas` (contenido SEO) y `/privacidad`, que
+ * es prefijo y no página exacta porque cada versión publicada del texto legal
+ * se sirve en `/privacidad/<AAAA-MM-DD>`: un consentimiento guarda la versión
+ * que la familia aceptó y tiene que poder abrirse años después, sin sesión.
+ */
+export const PUBLIC_PREFIXES = ["/notas", "/privacidad"] as const;
 
 /**
  * Rutas sueltas que se sirven sin sesión (páginas utilitarias). `/offline` la

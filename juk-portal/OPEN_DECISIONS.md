@@ -76,9 +76,17 @@ asunción de trabajo mientras no se decida.
 - **Opciones:** (a) página de Política de Privacidad linkeada desde el checkbox y el footer +
   retención definida (con purga automática) + acción de borrar una consulta o un suscriptor a
   pedido; (b) solo la página y borrado manual a pedido.
-- **Hoy:** el formulario exige el consentimiento (`acepta` en `src/lib/domain/leads/schema.ts`). No
-  hay página de privacidad en `src/app/(public)/`, no hay retención ni borrado: `/consultas` solo
-  cambia el estado y los suscriptores no tienen pantalla.
+- **Hoy (16/09/2026): parcialmente resuelta por la opción (a).** Ya está publicada y versionada la
+  página `/privacidad` (`src/app/(public)/privacidad/`, texto en
+  `src/lib/domain/privacidad/politica.ts`), el checkbox del formulario la linkea con el texto de
+  `TEXTO_CONSENTIMIENTO`, y los plazos de retención están definidos y testeados en
+  `src/lib/domain/privacidad/retencion.ts` (90 días una inscripción procesada, 730 sin procesar, 90
+  una invitación vencida sin usar).
+- **Lo que sigue abierto:** la **purga automática** (llega con la etapa 7 del módulo de
+  inscripciones) y el **borrado a pedido** sobre `consultas` y `suscriptores`, que siguen sin
+  pantalla ni acción (`/consultas` solo cambia el estado). La política dice explícitamente que hoy
+  ese borrado se hace a mano, para no prometer lo que el código no hace. Falta además la revisión
+  legal del texto (ver `docs/estado-actual.md` §7).
 
 ### MIN-17 · ¿Un paso "Opcional" cuenta para el filtro "paso pendiente"?
 
