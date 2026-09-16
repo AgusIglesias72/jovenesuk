@@ -20,8 +20,12 @@ export const alumnoEstado = pgEnum("alumno_estado", [
   "baja",
 ]);
 
-/** Canal de ingreso del alumno al sistema (alimenta el Paso 0 del tablero). */
-export const canalAlta = pgEnum("canal_alta", ["webhook", "alta_manual"]);
+/**
+ * Canal de ingreso del alumno al sistema (alimenta el Paso 0 del tablero).
+ * `formulario_web` es el Application Form propio; `webhook` queda para las
+ * fichas que todavía entran por el Google Form.
+ */
+export const canalAlta = pgEnum("canal_alta", ["webhook", "alta_manual", "formulario_web"]);
 
 export const condicionFiscal = pgEnum("condicion_fiscal", [
   "consumidor_final",
@@ -99,9 +103,12 @@ export const alumnos = pgTable(
   // y duplicarlo haría que la ficha resuelva al primero que aparezca.
   // familia_user_id es el filtro de TODO el portal de familias
   // (getAlumnosDeFamilia, alumnosActivosDeCuenta, la baja de la cuenta).
+  // canal_alta lo leen el filtro y los conteos por canal de la bandeja de
+  // inscripciones, sobre una tabla que crece con cada alta.
   (t) => [
     uniqueIndex("uniq_alumnos_dni").on(t.dni),
     index("idx_alumnos_familia_user").on(t.familiaUserId),
+    index("idx_alumnos_canal_alta").on(t.canalAlta),
   ]
 );
 

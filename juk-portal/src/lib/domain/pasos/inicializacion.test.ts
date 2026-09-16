@@ -39,6 +39,9 @@ describe("pasosIniciales — estructura", () => {
     expect(pasoDe({ ...base, canalAlta: "alta_manual" }, "paso_0").metadata.canal).toBe(
       "alta_manual"
     );
+    expect(pasoDe({ ...base, canalAlta: "formulario_web" }, "paso_0").metadata.canal).toBe(
+      "formulario_web"
+    );
   });
 
   it("C2 nace bloqueado por la dependencia con B1", () => {

@@ -141,6 +141,20 @@
       "when": 1788969101421,
       "tag": "0019_fase2_indices",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1789576452791,
+      "tag": "0020_enums_inscripcion",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1789578111533,
+      "tag": "0021_inscripciones",
+      "breakpoints": true
     }
   ]
 }

@@ -36,6 +36,7 @@ export const comunicacionTipoEnum = z.enum([
 
 export const comunicacionEstadoEnum = z.enum([
   "pendiente",
+  "enviando",
   "enviado",
   "entregado",
   "abierto",

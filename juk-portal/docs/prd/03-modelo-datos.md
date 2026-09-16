@@ -285,6 +285,44 @@ Junction N:M entre `ESTUDIANTE` y `VIAJE`; cada fila es la participación de un 
 
 **Constraints:** `UNIQUE(id_estudiante, id_viaje)` — un alumno no puede estar dos veces en el mismo viaje (RV-16; la reinscripción reactiva el mismo registro).
 
+### 3.7-bis INSCRIPCION (formulario propio)
+
+Tabla de **aterrizaje** del Application Form propio (`inscripciones`, implementada el 16/09/2026).
+La ficha que completa una familia se persiste acá **siempre**, antes de tocar `ESTUDIANTE`. Existe
+por una razón de seguridad: una carga anónima no puede crear una cuenta de familia ni colgarse de
+una que ya existe sin que un humano lo mire. El alta del alumno pasa por una **compuerta** (ver
+`estado`). También sostiene la privacidad: guarda qué versión del consentimiento se aceptó y permite
+borrar los datos personales dejando el talón para las estadísticas.
+
+| Campo | Tipo | Oblig. | Notas |
+|---|---|---|---|
+| `id` | UUID (PK) | NOT NULL | |
+| `numero` | INTEGER identity, UNIQUE | NOT NULL | Código público `INS-000123` (`codigoInscripcion`) |
+| `comunicacion_id` | UUID (FK → `prospecto_comunicaciones`, ON DELETE SET NULL) | NULL | La invitación de origen. NULL = carga sin token |
+| `token_hash` | TEXT | NULL | sha256 del token usado. El token en claro solo existe en el mail |
+| `variante` | ENUM `variante_formulario` (`a`\|`b`\|`c`) | NOT NULL | Con qué piel se cargó, para comparar conversión |
+| `viaje_id` | UUID (FK → VIAJE) | NULL | **Derivado del token server-side**, nunca del formulario |
+| *(la ficha)* | | | `nombre`, `apellido`, `fecha_nacimiento`, `dni`, `numero_pasaporte`, `fecha_vencimiento_pasaporte`, `telefono_alumno`, `email_alumno`, `alergias_salud`, `tutor1_nombre`, `tutor1_celular`, `tutor1_email`, `preferencias_alojamiento`, `nivel_ingles_autoevaluacion`. Mismos campos que acepta el webhook del Google Form; el DNI se guarda **en dígitos** |
+| `estado` | ENUM `inscripcion_estado` | NOT NULL | `recibida` \| `procesada` \| `duplicada` \| `requiere_revision` \| `error` \| `anulada`. Default `recibida` |
+| `alumno_id` | UUID (FK → ESTUDIANTE) | NULL | El alumno creado o reusado |
+| `motivo` | TEXT | NULL | Por qué no se procesó, en palabras ("DNI ya cargado", "viaje sin cupo") |
+| `consentimiento_version` · `consentimiento_texto_hash` · `consentimiento_el` | TEXT · TEXT · TIMESTAMP | NOT NULL | Qué texto exacto aceptó y cuándo (`domain/privacidad/politica.ts`). **No se guarda la IP**: decisión de privacidad |
+| `borrado_el` · `borrado_por` · `motivo_borrado` | TIMESTAMP · UUID · TEXT | NULL | Borrado a pedido (etapa 7) |
+| `datos_purgados_el` | TIMESTAMP | NULL | Purga por retención (etapa 7) |
+| `created_at` | TIMESTAMP | NOT NULL | |
+
+**Constraints:** `UNIQUE(comunicacion_id) WHERE estado <> 'anulada'` — una respuesta viva por
+invitación · `UNIQUE(dni) WHERE estado IN ('recibida','requiere_revision')` — frena el doble clic
+también en el camino sin token · índice `(estado, created_at)` para la bandeja. Son los primeros
+índices **parciales** del proyecto. Las colisiones se capturan con `esViolacionUnique` y responden
+"ya recibimos tu ficha", nunca un 500 mudo.
+
+**`prospecto_comunicaciones` suma la invitación** (7 columnas, sin tabla de campañas): token
+hasheado con su unique, viaje, variante, vencimiento, revocación, lote y la reserva del envío por
+tandas. Una invitación es una comunicación más, así hereda la baja del prospecto, el destinatario y
+el tracking de Resend. El enum de estado suma `enviando`; `canal_alta` de ESTUDIANTE suma
+`formulario_web`.
+
 ### 3.8 PASO_INSCRIPCION
 
 Estado de cada uno de los **11 pasos** (Paso 0 + grupos A–D) que cada alumno acumula por viaje. Al crear la inscripción se generan las 11 filas: el Paso 0 siempre inicia en Completado (auto-creado e inmutable); el resto según las reglas del viaje, la config del colegio destino y la edad del alumno. Los pasos de cada grupo son **paralelos** entre sí, excepto C2 que inicia Bloqueado hasta que B1 esté Completado (RV-C2).

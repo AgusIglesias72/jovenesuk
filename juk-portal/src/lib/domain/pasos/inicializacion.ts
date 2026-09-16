@@ -11,7 +11,7 @@ import type { PasoEstado } from "./estados";
  * Reasignación a otro viaje → se recalcula todo contra el viaje nuevo.
  */
 
-export type CanalAlta = "webhook" | "alta_manual";
+export type CanalAlta = "webhook" | "alta_manual" | "formulario_web";
 
 export type ContextoInicializacion = {
   /** Config documental EFECTIVA del colegio destino (defaults + overrides). */

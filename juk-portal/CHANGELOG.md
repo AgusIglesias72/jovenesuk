@@ -23,6 +23,14 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
   y queda registrado qué versión aceptó cada persona. El texto describe lo que el sistema hace hoy,
   incluido lo que todavía no borra automáticamente. Primer paso del módulo de inscripciones online.
 
+### Interno
+- Cimiento del formulario de inscripción propio (etapa 2 de 7, sin pantalla todavía): la ficha y sus
+  reglas en el dominio, la clasificación de qué dato puede salir del sistema y cuál no, la vida de
+  una invitación con vencimiento y revocación, tokens que se guardan **hasheados**, y la tabla de
+  aterrizaje `inscripciones` con su compuerta de alta. El formulario público tolera mejor que varias
+  familias del mismo colegio carguen a la vez desde la misma red, sin aflojar el límite de los otros
+  formularios.
+
 ### Seguridad
 - Se sacó `NEXT_PUBLIC_ENABLE_TWEAK` de Vercel Production: la herramienta de diseño del sitio
   público no puede quedar habilitada para los visitantes.

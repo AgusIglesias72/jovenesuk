@@ -8,10 +8,16 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
 import { colegios, pais } from "./colegios";
+// Mismo patrón que `pais`: el enum se define una vez en el schema de su módulo y
+// se cruza por import. El ciclo con inscripciones.ts (que referencia esta tabla)
+// no rompe: las FK de Drizzle se declaran con callback y se resuelven tarde.
+import { varianteFormulario } from "./inscripciones";
+import { viajes } from "./viajes";
 
 /**
  * CRM de prospectos (colegios/instituciones a captar): pipeline kanban +
@@ -38,8 +44,14 @@ export const prospectoComunicacionTipo = pgEnum("prospecto_comunicacion_tipo", [
   "conversion",
 ]);
 
+/**
+ * `enviando` es el estado intermedio que hace reanudable un envío por lote: la
+ * fila se marca ANTES de llamar a Resend, así un corte no deja "enviado"
+ * fantasmas indistinguibles de una entrega real.
+ */
 export const prospectoComunicacionEstado = pgEnum("prospecto_comunicacion_estado", [
   "pendiente",
+  "enviando",
   "enviado",
   "entregado",
   "abierto",
@@ -94,6 +106,18 @@ export const prospectos = pgTable(
 export type Prospecto = typeof prospectos.$inferSelect;
 export type NewProspecto = typeof prospectos.$inferInsert;
 
+/**
+ * Una invitación al Application Form ES una comunicación más, no una tabla de
+ * campañas aparte. El mail de invitación sale por el mismo camino que el resto
+ * del outreach, así que hereda gratis lo que ya está resuelto acá: el respeto
+ * por la baja (`prospectos.suscritoOutreach`), el destinatario, el
+ * `resendMessageId` y el tracking del webhook de Resend sobre `estado`. Una
+ * tabla propia obligaría a duplicar las cuatro cosas y a que el webhook
+ * adivinara en cuál de las dos buscar el mensaje que le rebotó.
+ *
+ * Las columnas `invitacion*` son NULL en toda comunicación que no sea una
+ * invitación (notas, llamadas, cambios de estado), que son la mayoría.
+ */
 export const prospectoComunicaciones = pgTable(
   "prospecto_comunicaciones",
   {
@@ -110,10 +134,34 @@ export const prospectoComunicaciones = pgTable(
     meta: json("meta").$type<Record<string, unknown> | null>(),
     creadoPor: uuid("creado_por"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+
+    // Solo el hash del token, nunca el token en claro (`hashToken` de
+    // @/lib/utils/token-opaco): con un dump de la tabla nadie abre una
+    // invitación ajena.
+    invitacionTokenHash: text("invitacion_token_hash"),
+    invitacionViajeId: uuid("invitacion_viaje_id").references(() => viajes.id),
+    /** Variante forzada por la campaña; gana sobre la de /configuracion y pierde con el `?v=` del link. */
+    invitacionVariante: varianteFormulario("invitacion_variante"),
+    invitacionExpiraEl: timestamp("invitacion_expira_el"),
+    /** Botón de pánico: revocar corta el link sin borrar la bitácora del envío. */
+    invitacionRevocadaEl: timestamp("invitacion_revocada_el"),
+    /** Agrupa los envíos de una misma tanda. Un uuid alcanza: la campaña no tiene datos propios. */
+    invitacionLoteId: uuid("invitacion_lote_id"),
+    /** Lease de la fase 1 del claim (`reservaVigente`): hace reanudable el envío por lote. */
+    invitacionReservadoEl: timestamp("invitacion_reservado_el"),
   },
   (t) => ({
     idxProspectoId: index("idx_prospecto_com_prospecto_id").on(t.prospectoId),
     idxResendMessageId: index("idx_prospecto_com_resend_message_id").on(t.resendMessageId),
+    // Un token abre UNA invitación. El unique de Postgres no compara NULL con
+    // NULL, así que las comunicaciones que no son invitación no colisionan
+    // entre sí y no hace falta un índice parcial.
+    uniqInvitacionToken: uniqueIndex("uniq_prospecto_com_invitacion_token").on(
+      t.invitacionTokenHash
+    ),
+    // El envío por lote busca "qué falta de esta tanda" (lote + estado): las dos
+    // columnas juntas, en ese orden, resuelven el filtro con un solo índice.
+    idxLote: index("idx_prospecto_com_lote").on(t.invitacionLoteId, t.estado),
   })
 );
 

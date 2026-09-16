@@ -44,6 +44,7 @@ const ESTADO_EMAIL_TONE: Record<
   "neutral" | "info" | "success" | "warning" | "danger"
 > = {
   pendiente: "neutral",
+  enviando: "info",
   enviado: "info",
   entregado: "success",
   abierto: "success",

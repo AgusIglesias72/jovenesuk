@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 
 import {
+  ESTADOS_COMUNICACION,
   enviarOutreachSchema,
   moverEstadoSchema,
   notaSchema,
@@ -130,5 +131,21 @@ describe("prospectoFiltersSchema", () => {
     });
     expect(prospectoFiltersSchema.safeParse({ page: "0" }).success).toBe(false);
     expect(prospectoFiltersSchema.safeParse({ estado: "archivado" }).success).toBe(false);
+  });
+});
+
+describe("comunicacionEstadoEnum", () => {
+  it("tiene 'enviando' entre 'pendiente' y 'enviado' (envío por lote reanudable)", () => {
+    expect(ESTADOS_COMUNICACION).toEqual([
+      "pendiente",
+      "enviando",
+      "enviado",
+      "entregado",
+      "abierto",
+      "click",
+      "rebotado",
+      "spam",
+      "fallido",
+    ]);
   });
 });

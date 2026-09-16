@@ -16,3 +16,4 @@ export * from "./notificaciones";
 export * from "./configuracion";
 export * from "./leads";
 export * from "./prospectos";
+export * from "./inscripciones";

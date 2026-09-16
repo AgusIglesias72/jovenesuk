@@ -534,7 +534,17 @@ mano los `pgEnum` de `lib/db/schema/` (no hay derivación automática): si cambi
 | Archivo | Qué hace |
 |---|---|
 | `index.ts` · `index.test.ts` | `mailSettingsSchema`, `MAIL_SETTINGS_DEFAULT` y `remitenteDe(settings, tipo)` (automáticos desde noreply, comunicaciones desde info, marketing aparte). La lógica está en `index.ts`, que la cobertura excluye por contrato. |
+| `formulario.ts` · `formulario.test.ts` | El setting de la variante visual activa del formulario de inscripción, con el mismo molde que los mails: un valor corrupto o una variante desconocida caen al default y **nunca** rompen el formulario público. |
 | `env.ts` · `env.test.ts` | Catálogo de variables de entorno: qué habilita cada una, qué pasa si falta, su nivel (`requerida`, `produccion`, `opcional`) y cuáles aflojarían producción. `esPlaceholder` detecta los moldes de `.env.example` (`re_xxxx`, `<generar…>`, `user:password@`) por forma, nunca por igualdad con el ejemplo. `evaluarEntorno` y `resumenPorServicio` los consumen `npm run check:env` y la card de `/configuracion`. |
+
+### `src/lib/domain/inscripciones/`
+
+| Archivo | Qué hace |
+|---|---|
+| `schema.ts` · `schema.test.ts` | La ficha del Application Form propio (los mismos campos que acepta el webhook del Google Form), con el DNI normalizado por `soloDigitos` en un `preprocess` y `acepta: z.literal(true)`. **No acepta `viajeId`, `alumnoId`, `comunicacionId` ni `estado`**: se derivan del token server-side. Además: los seis estados de una inscripción, `VARIANTES` a\|b\|c con `resolverVariante` (link > campaña > setting > 'a', tolerante a basura), `codigoInscripcion`/`parsearCodigoInscripcion` (INS-000123) y los filtros de la bandeja. |
+| `niveles.ts` · `niveles.test.ts` | Qué dato puede salir del sistema y cuál no: `CAMPOS_NIVEL_1` (nombre, apellido, tutor, viaje) vs `CAMPOS_NIVEL_2` (DNI, pasaporte, nacimiento, salud, teléfonos). `soloNivel1` filtra por lista blanca y `enmascararDni` deja los últimos 4. El test es de **contrato**: rompe si alguien suma un campo al formulario sin clasificarlo. |
+| `invitacion.ts` · `invitacion.test.ts` | La vida de una invitación: `estadoInvitacion` (respondida > revocada > vencida > vigente), `puedeCargar`, vigencia de 90 días, y el claim en dos fases del envío por lote (reserva de 5 minutos, tandas de 10, tope de 200, pausa entre envíos). Ninguna fecha nace adentro. |
+| `errors.ts` · `labels.ts` | Errores nombrados y las etiquetas en español de estados y variantes. |
 
 ### `src/lib/domain/privacidad/`
 
@@ -691,7 +701,8 @@ Cada cambio acá necesita su migración (`/juk-migracion`).
 | `notificaciones.ts` | `notificaciones_enviadas`: dedup de recordatorios por (tipo, entidad, clave) y resultado del envío. |
 | `configuracion.ts` | `configuracion`: key-value JSON (por ejemplo, la clave `mails`); una clave ausente usa los defaults del código. |
 | `leads.ts` | `suscriptores`, `consultas` (enums tomados de `domain/leads`) y `form_rate_limits` (ventanas del anti-abuso). Su comentario apunta a `src/lib/domain/leads.ts`; hoy es la carpeta `domain/leads/`. |
-| `prospectos.ts` | `prospectos` (pipeline, emails y teléfonos, token de baja, colegio convertido) y `prospecto_comunicaciones` (notas y outreach con el id de Resend). |
+| `prospectos.ts` | `prospectos` (pipeline, emails y teléfonos, token de baja, colegio convertido) y `prospecto_comunicaciones` (notas y outreach con el id de Resend, más las 7 columnas de **invitación** al formulario: token hasheado con su unique, viaje, variante, vencimiento, revocación, lote y la reserva del envío por tandas). Una invitación es una comunicación más: así hereda la baja del prospecto y el tracking de Resend, sin tabla de campañas. |
+| `inscripciones.ts` | Tabla de **aterrizaje** del formulario propio: la ficha se persiste siempre acá antes de tocar `alumnos`, para que una carga anónima no cree ni se cuelgue de una cuenta de familia sin que un humano lo mire. Trae los enums `inscripcion_estado` y `variante_formulario` (derivados del dominio), el sello del consentimiento (versión, hash del texto y fecha; **sin IP**, a propósito), las columnas de borrado y purga, y los dos primeros índices **parciales** del repo: una respuesta viva por invitación y una por DNI en curso. Las fechas van en modo `string` (ISO), no `Date`: convertirlas en el borde corre un cumpleaños un día. |
 
 ### `src/lib/db/queries/` — único lugar con Drizzle
 
@@ -733,6 +744,7 @@ Cada cambio acá necesita su migración (`/juk-migracion`).
 |---|---|
 | `result.ts` | Contrato único `ActionResult<T>`: `{ ok: true, data }` o `{ ok: false, error, fieldErrors?, requiereConfirmacion? }`. |
 | `safe-audit.ts` · `safe-audit.test.ts` | `safeAudit`: auditoría best-effort (si falla, va a Sentry y no rompe la operación). Vive acá y no en `queries/auditoria.ts` para que los jobs no importen `@sentry/nextjs`. |
+| `anti-abuso-request.ts` · `anti-abuso-request.test.ts` | `ipDelRequest` y `dentroDelLimite` compartidos por los formularios públicos (antes vivían locales en `(public)/leads/actions.ts`). Cuentan por IP, por email y —si la carga llegó con un link— por token. **Falla abierto** a propósito: un problema con la tabla de rate limit no puede costar un lead; se reporta a Sentry y se deja pasar. |
 | `asignaciones.ts` · `asignaciones.test.ts` [action] | `asignarAlumnoAction` y `desasignarAlumnoAction`, compartidas por el detalle del viaje y la ficha del alumno: validación de pasaporte y cupo (advertencias confirmables), estado del viaje, alumno de baja, unique del par, auditoría de la auto-confirmación y revalidación de ambas pantallas. |
 | `__tests__/mocks.ts` | Mocks compartidos de los tests de actions (auth con la regla real de roles, `next/cache`, `next/navigation`, Sentry, auditoría). `vi.mock` se declara en cada test con una factory que importa este módulo. |
 
@@ -793,6 +805,8 @@ Cada cambio acá necesita su migración (`/juk-migracion`).
 | `cn.ts` · `cn.test.ts` | `cn()`: `clsx` + `tailwind-merge`. |
 | `date.ts` · `date.test.ts` | Fechas de calendario en UTC (las columnas `date` llegan a medianoche UTC; con la zona local se corren un día): `toDateInput`, `formatFecha` (DD/MM/YYYY), `diaCalendarioUTC`, `diasEntre`. |
 | `dni.ts` · `dni.test.ts` | `formatearDni` (solo visual, con puntos) y `soloDigitos` (lo que se guarda y va en la URL). |
+| `token-opaco.ts` · `token-opaco.test.ts` | `generarTokenOpaco` (32 bytes base64url) y `hashToken` (sha256). En la base se guarda **solo el hash**: un dump no habilita a abrir una invitación. Vive en utils y no en el dominio para no meter `node:crypto` en la capa pura. |
+| `hash-texto.ts` · `hash-texto.test.ts` | `hashTexto`: sha256 del texto normalizado (CRLF→LF, trim). Sella qué copy exacto de consentimiento aceptó cada persona. |
 | `paginate.ts` · `paginate.test.ts` | `PAGE_SIZE` (50), `pagina` (normaliza `?page`, también decimales), `totalDe`, `paginarEnSql` (página fuera de rango → relee la última) y `paginar` en memoria. |
 | `agrupar.ts` · `agrupar.test.ts` | `agruparPor`: agrupa filas por clave para reemplazar N queries por una. |
 | `aria.ts` · `aria.test.ts` | `unirIds` para `aria-describedby`/`aria-labelledby`. |
@@ -955,6 +969,8 @@ Nunca se editan a mano una vez aplicadas.
 | `0017_better_auth_1_7_account_columns.sql` | Columnas de tokens OAuth en accounts que exige Better-Auth 1.7. |
 | `0018_ola2_rol_default_y_rate_limit.sql` | Rol default de `users` pasa a `familia` y tabla `form_rate_limits` (anti-abuso de formularios públicos). |
 | `0019_fase2_indices.sql` | Índices en `alumnos.familia_user_id`, `asignaciones (viaje_id, estado)` y `cuotas.asignacion_id`, y unique de `alumnos.dni`. |
+| `0020_enums_inscripcion.sql` | Solo dos `ALTER TYPE ADD VALUE`: `canal_alta` suma `formulario_web` y `prospecto_comunicacion_estado` suma `enviando`. Va **sola** porque Postgres no deja usar un valor de enum en la misma transacción que lo agrega. |
+| `0021_inscripciones.sql` | Los enums `inscripcion_estado` y `variante_formulario`, la tabla `inscripciones` con sus dos índices parciales, las 7 columnas de invitación de `prospecto_comunicaciones` y el índice de `alumnos.canal_alta`. |
 
 ---
 

@@ -35,6 +35,7 @@ export const TIPO_COMUNICACION_LABELS = {
 
 export const COMUNICACION_ESTADO_LABELS = {
   pendiente: "Pendiente",
+  enviando: "Enviando",
   enviado: "Enviado",
   entregado: "Entregado",
   abierto: "Abierto",

@@ -1,14 +1,16 @@
 /**
- * Política anti-abuso de las superficies públicas (form de consulta y
- * newsletter): ventanas de rate limit y dedup del aviso al equipo.
+ * Política anti-abuso de las superficies públicas (form de consulta,
+ * newsletter y Application Form de inscripción): ventanas de rate limit y
+ * dedup del aviso al equipo.
  *
  * Todo acá es puro y decide sobre timestamps: la persistencia de las ventanas
  * vive en `src/lib/db/queries/rate-limit-formularios.ts` y la lectura de la IP
- * en la server action. Sin captcha ni dependencias externas (decisión
- * 08/09/2026): el honeypot se mantiene y esto acota el volumen por origen.
+ * en `src/lib/actions/anti-abuso-request.ts`. Sin captcha ni dependencias
+ * externas (decisión 08/09/2026): el honeypot se mantiene y esto acota el
+ * volumen por origen.
  */
 
-export type FormularioPublico = "lead" | "newsletter";
+export type FormularioPublico = "lead" | "newsletter" | "inscripcion";
 
 export type VentanaRateLimit = {
   /** Intentos permitidos dentro de la ventana. */
@@ -19,11 +21,33 @@ export type VentanaRateLimit = {
 const MINUTO_MS = 60_000;
 const HORA_MS = 60 * MINUTO_MS;
 
-/** Máximo 5 envíos por IP cada 10 minutos. */
+/** Máximo 5 envíos por IP cada 10 minutos (consulta y newsletter). */
 export const LIMITE_POR_IP: VentanaRateLimit = { maximo: 5, ventanaMs: 10 * MINUTO_MS };
+
+/**
+ * El Application Form tiene su propia ventana por IP, más ancha: varias
+ * familias del mismo colegio completan la ficha desde la misma red (la del
+ * colegio, la de una reunión de padres) o detrás del CGNAT del mismo proveedor,
+ * y salen todas con la misma IP pública. Con 5 cada 10 minutos la sexta familia
+ * se queda afuera por culpa de las otras cinco: justo el escenario para el que
+ * se construyó el formulario. 20 deja pasar a una camada entera y sigue
+ * cortando el scripteo.
+ */
+export const LIMITE_POR_IP_INSCRIPCION: VentanaRateLimit = {
+  maximo: 20,
+  ventanaMs: 10 * MINUTO_MS,
+};
 
 /** Máximo 3 envíos por email por hora. */
 export const LIMITE_POR_EMAIL: VentanaRateLimit = { maximo: 3, ventanaMs: HORA_MS };
+
+/**
+ * Tercera dimensión, solo para los formularios que llegan por link tokenizado:
+ * si un link se filtra (se reenvía a un grupo, queda en un buscador), el abuso
+ * se corta por token sin castigar a la red compartida, que es lo que pasaría si
+ * apretáramos la ventana por IP.
+ */
+export const LIMITE_POR_TOKEN: VentanaRateLimit = { maximo: 60, ventanaMs: HORA_MS };
 
 /** Un mismo email + interés no vuelve a disparar el aviso al equipo por 24 h. */
 export const VENTANA_DEDUP_AVISO_MS = 24 * HORA_MS;
@@ -98,12 +122,25 @@ export function normalizarEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+/** La ventana por IP que le corresponde a cada formulario. */
+export function limiteIpDe(formulario: FormularioPublico): VentanaRateLimit {
+  return formulario === "inscripcion" ? LIMITE_POR_IP_INSCRIPCION : LIMITE_POR_IP;
+}
+
 export function claveIp(formulario: FormularioPublico, ip: string): string {
   return `${formulario}:ip:${normalizarIp(ip)}`;
 }
 
 export function claveEmail(formulario: FormularioPublico, email: string): string {
   return `${formulario}:email:${normalizarEmail(email)}`;
+}
+
+/**
+ * Se indexa por el HASH del token, nunca por el token en claro: la tabla de
+ * rate limit es de datos operativos y no tiene que poder abrir un link.
+ */
+export function claveToken(formulario: FormularioPublico, tokenHash: string): string {
+  return `${formulario}:token:${tokenHash.trim().toLowerCase().slice(0, 128)}`;
 }
 
 /**

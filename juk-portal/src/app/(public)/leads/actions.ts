@@ -5,30 +5,21 @@
  * Persisten en Drizzle y, en el caso del lead, avisan al equipo por email.
  *
  * Las actions se pueden invocar por POST directo (header Next-Action), así que
- * el anti-abuso vive acá y no en el form: honeypot + rate limit por IP y por
- * email (`@/lib/domain/anti-abuso`) + dedup del aviso al equipo.
+ * el anti-abuso corre en el server y no en el form: honeypot + rate limit por
+ * IP y por email (`dentroDelLimite`, compartido con el resto de los
+ * formularios públicos) + dedup del aviso al equipo.
  */
 
-import { headers } from "next/headers";
 import * as Sentry from "@sentry/nextjs";
 
+import { dentroDelLimite } from "@/lib/actions/anti-abuso-request";
 import type { ActionResult } from "@/lib/actions/result";
 import {
   crearConsulta,
   fechaConsultaPreviaSimilar,
   suscribir,
 } from "@/lib/db/queries/leads";
-import { incrementarYVerificar } from "@/lib/db/queries/rate-limit-formularios";
-import {
-  LIMITE_POR_EMAIL,
-  LIMITE_POR_IP,
-  VENTANA_DEDUP_AVISO_MS,
-  claveEmail,
-  claveIp,
-  debeAvisarConsulta,
-  normalizarIp,
-  type FormularioPublico,
-} from "@/lib/domain/anti-abuso";
+import { VENTANA_DEDUP_AVISO_MS, debeAvisarConsulta } from "@/lib/domain/anti-abuso";
 import { leadSchema, newsletterSchema } from "@/lib/domain/leads";
 import type { Consulta } from "@/lib/db/schema/leads";
 import { fieldErrorsFromZod } from "@/lib/utils/zod";
@@ -46,39 +37,6 @@ const ERROR_REINTENTAR =
 
 const ERROR_REINTENTAR_NEWSLETTER =
   "No pudimos procesar tu suscripción en este momento. Probá de nuevo en unos minutos.";
-
-async function ipDelRequest(): Promise<string> {
-  const h = await headers();
-  return normalizarIp(h.get("x-forwarded-for") ?? h.get("x-real-ip"));
-}
-
-/**
- * Registra el intento en las dos ventanas (IP y email) y dice si sigue.
- * Falla abierto a propósito: un problema con la tabla de rate limit no puede
- * costarnos un lead legítimo (el honeypot y la validación siguen en pie).
- */
-async function dentroDelLimite(
-  formulario: FormularioPublico,
-  email: string
-): Promise<boolean> {
-  try {
-    const ahora = new Date();
-    const porIp = await incrementarYVerificar(
-      claveIp(formulario, await ipDelRequest()),
-      LIMITE_POR_IP,
-      ahora
-    );
-    const porEmail = await incrementarYVerificar(
-      claveEmail(formulario, email),
-      LIMITE_POR_EMAIL,
-      ahora
-    );
-    return porIp.permitido && porEmail.permitido;
-  } catch (err) {
-    Sentry.captureException(err);
-    return true;
-  }
-}
 
 /**
  * Dispara el aviso por email al equipo sin bloquear la respuesta. Intenta el
@@ -144,7 +102,7 @@ export async function subscribeNewsletter(
     return { ok: true, data: { mensaje: "¡Listo! Ya estás suscripto." } };
   }
 
-  if (!(await dentroDelLimite("newsletter", parsed.data.email))) {
+  if (!(await dentroDelLimite("newsletter", { email: parsed.data.email }))) {
     return { ok: false, error: ERROR_REINTENTAR_NEWSLETTER };
   }
 
@@ -195,7 +153,7 @@ export async function submitLead(
     return { ok: true, data: { mensaje: "¡Gracias! Te vamos a contactar a la brevedad." } };
   }
 
-  if (!(await dentroDelLimite("lead", parsed.data.email))) {
+  if (!(await dentroDelLimite("lead", { email: parsed.data.email }))) {
     return { ok: false, error: ERROR_REINTENTAR };
   }
 
