@@ -66,6 +66,7 @@ npm run db:migrate
 | `test:e2e` | Playwright, todos los proyectos. `setup` dispara al final el proyecto `cleanup` (`global.teardown.ts`), que borra los datos generados por la corrida. Con `E2E_DATABASE_URL` la suite apunta a otra base (una branch de Neon) y no toca la de dev | Al cerrar una feature con UI | Lo carga `playwright.config.ts` |
 | `test:e2e:mobile` | Playwright, solo el proyecto `mobile` | Cambios de layout o de interacción táctil | Ídem |
 | `check:tests` | Exige test compañero para lo nuevo o modificado en `domain`/`utils`/`actions` | Antes de pushear; lo corren el pre-push y el CI | No (usa git) |
+| `ci:local` | El CI completo en local: rápidos + branch efímera de Neon + integración + Playwright (ver [CI en local](#el-ci-en-local-npm-run-cilocal)) | Antes de cerrar un cambio con base, jobs o pantallas | Lo lee el script |
 | `check:env` · `check:env:prod` | Evalúa `.env.local` contra el catálogo de `src/lib/domain/configuracion/env.ts`: qué falta, qué quedó con el molde de `.env.example` y qué no debería estar seteada en un deploy. La variante `:prod` usa el perfil de producción. Los demás flags (`--env <archivo>` para evaluar lo que baja `vercel env pull`, `--soft` para no fallar nunca, `--nombres` para chequear solo existencia) van invocando el script directo: `npx tsx scripts/check-env.ts --prod --env .env.produccion` — **en PowerShell el `--` de `npm run … -- --flag` se pierde**. Ojo: `vercel env pull` trae los nombres con el valor **vacío** (Vercel no devuelve las encriptadas), así que el script entra solo en modo `--nombres` y solo puede decir qué falta cargar, no si allá quedó un molde. Nunca imprime valores | Antes de un deploy, o cuando "no manda mails" / "no sube archivos" | Lo lee el script |
 | `hooks:install` | `git config core.hooksPath .githooks`: activa el pre-push. El hook vive en la **raíz del repo** (`jovenesuk/.githooks/pre-push`), no en `juk-portal/`: git resuelve el path relativo contra la raíz del working tree. Corre `typecheck` → `lint` → `npm test` → `check:tests` (sin cobertura, audit, build ni E2E: eso queda para el CI y `/juk-cierre`) | Una vez por clon | No |
 
@@ -104,14 +105,17 @@ Testing en detalle: [05-testing](05-testing.md).
 
 ## CI (GitHub Actions)
 
-`.github/workflows/ci.yml` corre en cada push y PR a `main` (y a mano). Un push nuevo a la misma
-rama cancela la corrida anterior.
+`.github/workflows/ci.yml` corre `check` en cada push y PR a `main`. El job `e2e` **solo corre a
+mano** (Actions → CI → *Run workflow*, o `gh workflow run ci.yml`): una corrida son ~30 minutos de
+runner (medido el 15/09/2026: `check` 3 min, `e2e` 31 min) y el dueño prefiere no gastarlos. La
+misma suite corre local con `npm run ci:local` (ver abajo). Un push nuevo a la misma rama cancela
+la corrida anterior.
 
 | Job | Qué corre |
 |---|---|
 | `check` | `npm ci` → `typecheck` → `lint` → `test:coverage` (con piso) → test compañero contra la base del PR o del push → `npm audit --omit=dev --audit-level=high` → `next build` con variables dummy (no apuntan a nada) |
-| `e2e-gate` | Mira si están los secrets de Neon. Si faltan, deja el e2e en *skipped* con un aviso: no lo pone en rojo |
-| `e2e` | Corre solo si `check` pasó y hay secrets de Neon. Crea una branch efímera (se borra al final y vence sola a las 3 h) → `db:migrate` → `db:seed` + `db:seed:demo` → `test:integration` → instala Chromium → Playwright contra **`next dev`** (con `E2E_SERVER=start` hace antes `next build`) → sube reporte y traces. Chromium y Playwright corren si el seed salió bien, aunque haya fallado la integración |
+| `e2e-gate` | Solo en corridas manuales. Mira si están los secrets de Neon. Si faltan, deja el e2e en *skipped* con un aviso: no lo pone en rojo |
+| `e2e` | Corre solo a mano, si `check` pasó y hay secrets de Neon. Crea una branch efímera (se borra al final y vence sola a las 3 h) → `db:migrate` → `db:seed` + `db:seed:demo` → `test:integration` → instala Chromium → Playwright contra **`next dev`** (con `E2E_SERVER=start` hace antes `next build`) → sube reporte y traces. Chromium y Playwright corren si el seed salió bien, aunque haya fallado la integración |
 
 **Por qué el e2e corre sobre `next dev`.** En modo producción rigen el rate limit real de login
 (5 intentos cada 15 minutos) y el storage exige R2. Aflojar eso con un flag en el código de
@@ -137,6 +141,29 @@ y se enmascaran en el log: no se guardan en GitHub.
 `github-actions`). Los artifacts son `unit-coverage` (cobertura + junit) y `playwright-report`
 (reporte html + `test-results/` con traces). En CI Playwright reintenta 2 veces: un test que pasa
 recién al reintentar figura como *flaky* en el reporte, y eso hay que ir a buscarlo.
+
+### El CI en local: `npm run ci:local`
+
+`scripts/ci-local.mjs` hace lo mismo que los dos jobs, en tu máquina:
+
+1. `typecheck` → `lint` → `test:coverage` → `check:tests` (corta en el primero que falle).
+2. Crea la branch `local-AAAAMMDD-HHMMSS`, hija de `ci-base` (sin datos del negocio), con `neonctl`.
+3. `db:migrate` → `db:seed` → `db:seed:demo` → `test:integration` → Playwright.
+4. Borra la branch, aunque algo haya fallado (salvo `--mantener-branch`).
+
+- **No toca la base de dev**: pisa `DATABASE_URL`, `DATABASE_URL_UNPOOLED`,
+  `INTEGRATION_DATABASE_URL` y `E2E_DATABASE_URL` con las de la branch efímera.
+- **Convive con tu `next dev` del 3000**: el server de Playwright compila en `.next-e2e`
+  (`NEXT_DIST_DIR`, leído en `next.config.ts`). Next 16 guarda el candado de "ya hay un dev
+  corriendo" dentro de la carpeta de build. Playwright corre con `CI=1`: nunca reusa un server ajeno
+  en el 3001, y reintenta 2 veces como en GitHub.
+- **Necesita** `neonctl` con sesión (`npx neonctl@4 auth`: espera la autorización solo **60 s**),
+  `NEON_PROJECT_ID` y `SEED_TEST_PASSWORD` en `.env.local`. No corre `next build`: eso queda en el
+  job `check`.
+- Opciones: `--rapido` (solo el paso 1), `--sin-e2e`, `--saltear-rapidos`, `--mantener-branch`.
+  Por el `--` que se come PowerShell, pasalas con `node scripts/ci-local.mjs <opciones>`.
+- Tarda lo mismo que en GitHub la primera vez (Turbopack compila cada pantalla en `.next-e2e`); las
+  siguientes, menos.
 
 Sin GitHub Pro (repo privado), el CI **informa pero no bloquea** merges: la protección de rama
 necesita un plan pago. Hasta entonces, la disciplina es no mergear con el CI en rojo.

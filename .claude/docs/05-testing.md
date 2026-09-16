@@ -65,7 +65,21 @@ $env:INTEGRATION_DATABASE_URL = $env:DATABASE_URL; npm run test:integration   # 
 - Los archivos corren en serie (`fileParallelism: false`) con 30 s de timeout.
 - Importá la query con `await import("./query")` **dentro** de `beforeAll`, después de `fx.iniciar()`:
   `@/lib/db` lee `DATABASE_URL` al importarse.
-- En CI corren contra la branch efímera de Neon, antes de Playwright.
+- En `npm run ci:local` (y en el job `e2e` manual de GitHub) corren contra la branch efímera de
+  Neon, antes de Playwright.
+
+- ⚠️ **No mezcles relojes en un assert.** Comparar una fecha escrita con `new Date()` (reloj de la
+  máquina) contra una escrita por Postgres (`defaultNow()`, `now()`) falla apenas hay unos segundos
+  de desfasaje: pasó el 15/09/2026 con la reactivación de una asignación, y el bug era del código,
+  no del test. Si una columna de fecha ya nace con `defaultNow()`, escribila siempre con `now()`.
+
+## La suite completa en local: `npm run ci:local`
+
+Es la forma recomendada de correr integración + E2E: crea una branch efímera de Neon hija de
+`ci-base` (estructura y registro de migraciones, **sin datos**), migra, siembra, corre todo y la
+borra. No toca la base de dev y convive con el `next dev` del 3000. Detalle y opciones en
+[04 · El CI en local](04-operacion-y-handoff.md#el-ci-en-local-npm-run-cilocal). La lógica del
+script (qué pasos, qué variables pisa) está testeada en `scripts/ci-local.test.mjs`.
 
 ## E2E (Playwright)
 
@@ -83,10 +97,9 @@ $env:INTEGRATION_DATABASE_URL = $env:DATABASE_URL; npm run test:integration   # 
 sobre `next dev` **a propósito** (`E2E_SERVER=dev` en `ci.yml`): en modo producción rigen el rate
 limit real de login (5 cada 15 min) y la exigencia de R2, y aflojarlos con un flag sería un bypass
 de seguridad activable por variable de entorno. El build de producción ya se valida en el job
-`check`. Ojo: el comentario de `playwright.config.ts` que dice "en CI se prueba `next start`" quedó
-viejo; manda `ci.yml`. El job `e2e` depende de que pase `check` y se saltea **sin fallar** si faltan
-los secrets `NEON_API_KEY`/`NEON_PROJECT_ID`. Secrets y variables del job en
-[04 · CI](04-operacion-y-handoff.md#ci-github-actions).
+`check`. En GitHub el job `e2e` **solo corre a mano** (por costo), depende de que pase `check` y se
+saltea **sin fallar** si faltan los secrets `NEON_API_KEY`/`NEON_PROJECT_ID`. Secrets y variables
+del job en [04 · CI](04-operacion-y-handoff.md#ci-github-actions).
 
 ```bash
 npm run test:e2e                                   # toda la suite

@@ -355,6 +355,15 @@ export const VARIABLES_ENV: readonly VariableEnv[] = [
     enPlantilla: true,
   },
   {
+    nombre: "NEON_PROJECT_ID",
+    servicio: "tests",
+    nivel: "opcional",
+    habilita: "`npm run ci:local`: el proyecto donde se crean las branches efímeras (hijas de `ci-base`).",
+    siFalta: "`ci:local` corre solo los chequeos rápidos; la integración y Playwright piden el id.",
+    ejemplo: "<id-del-proyecto-neon>",
+    enPlantilla: true,
+  },
+  {
     nombre: "SEED_FAMILIA_PASSWORD",
     servicio: "tests",
     nivel: "opcional",

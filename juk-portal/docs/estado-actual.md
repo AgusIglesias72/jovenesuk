@@ -88,28 +88,29 @@ sesión (prefijos en `src/lib/routes.ts`).
 El estado de las credenciales **en un deploy** se ve en `/configuracion` → *Estado de servicios*.
 Lo de abajo es lo que se puede afirmar desde el repo (config, código y el `.env.local` de desarrollo).
 
-> **Ojo con "falta" vs. "no lo puedo leer" (14/09/2026).** El proyecto de Vercel
-> `agusiglesias72s-projects/jovenesuk` **ya tiene cargadas** por nombre, en Production:
-> `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`,
-> `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SITE_URL`, `RESEND_API_KEY`, `EMAIL_FROM_ADDRESS`,
-> `EMAIL_FROM_NAME`, `EMAIL_REPLY_TO`, las cuatro `R2_*`, `TRIGGER_SECRET_KEY`,
-> `TRIGGER_PROJECT_ID` y `GOOGLE_FORM_WEBHOOK_SECRET` (creadas hace ~92 días). Lo que **no** está:
-> `NEXT_PUBLIC_SENTRY_DSN`, `LEADS_NOTIFY_TO`, `EMAIL_FROM_COMUNICACIONES`, `EMAIL_FROM_OUTREACH`,
-> `RESEND_WEBHOOK_SECRET` y `NEXT_PUBLIC_PORTAL_URL`. Y **`NEXT_PUBLIC_ENABLE_TWEAK` figura en
-> Production**, donde no debería estar (expone el DesignTweaker del sitio público).
+> **Variables en Vercel Production (15/09/2026).** El proyecto `agusiglesias72s-projects/jovenesuk`
+> tiene cargadas por nombre: `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `BETTER_AUTH_SECRET`,
+> `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SITE_URL`, `RESEND_API_KEY`,
+> `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME`, `EMAIL_REPLY_TO`, las cuatro `R2_*`,
+> `TRIGGER_SECRET_KEY`, `TRIGGER_PROJECT_ID` y `GOOGLE_FORM_WEBHOOK_SECRET` (desde junio);
+> `LEADS_NOTIFY_TO` (**provisoria**: el Gmail del dueño hasta tener el dominio) y las cuatro de Sentry
+> (desde el 15/09). Se sacó `NEXT_PUBLIC_ENABLE_TWEAK`, que estaba en Production. Faltan
+> `EMAIL_FROM_COMUNICACIONES`, `EMAIL_FROM_OUTREACH` y `RESEND_WEBHOOK_SECRET` (esperan el dominio de
+> mails; un remitente `@gmail.com` haría fallar los envíos, porque Resend solo manda desde un dominio
+> verificado) y `NEXT_PUBLIC_PORTAL_URL` (opcional).
 > Desde afuera solo se ven los nombres: Vercel no devuelve los valores encriptados, así que **no se
-> puede afirmar desde acá que sean credenciales reales y no los moldes de `.env.example`**. Eso se
-> confirma mirando `/configuracion` en el deploy, o subiendo un documento de prueba.
+> puede afirmar desde acá que R2, Resend y Trigger tengan credenciales reales y no los moldes de
+> `.env.example`**. Eso se confirma en `/configuracion` del deploy, o subiendo un documento de prueba.
 
 | Servicio | Código | Estado |
 |---|---|---|
-| **Neon (Postgres)** | ✅ `src/lib/db/`, migraciones `drizzle/0000…0019` | Conectado en desarrollo. |
+| **Neon (Postgres)** | ✅ `src/lib/db/`, migraciones `drizzle/0000…0019` | Proyecto `jovenes-uk` (`snowy-pine-02594515`, sa-east-1), dado de alta **por la integración de Vercel** (organización de Neon *"Vercel: agusiglesias72's projects"*: se factura por Vercel). Branches: `main` (default), `dev` (la del `.env.local`, con datos reales) y `ci-base` (padre del CI: estructura y registro de migraciones, **sin datos**). |
 | **Better-Auth** | ✅ `src/lib/auth/` | Operativo. |
 | **Webhook del Google Form** | ✅ `api/webhooks/google-form` | Necesita `GOOGLE_FORM_WEBHOOK_SECRET` en el deploy y el form apuntando al endpoint. |
 | **Trigger.dev (jobs)** | ✅ `src/trigger/`: `daily-reminder-scan` (cron 09:00 UTC = 06:00 ART: transiciones de viajes por fecha + recordatorios), `run-reminder-scan` (manual, con dry-run), `notificar-cancelacion-viaje`, `notificar-consulta-nueva` | ⚠️ **No desplegado.** En el repo no hay deploy de Trigger (el CI no lo corre, `trigger.config.ts` cae a un placeholder sin `TRIGGER_PROJECT_ID`, y las credenciales de dev son placeholders). Consecuencias mientras siga así: **no hay recordatorios automáticos, A1 no pasa solo a *vencido* y los viajes no pasan solos a *en curso* / *finalizado***. El aviso por cancelación de un viaje no sale (la cancelación sí se hace y el error va a Sentry). El aviso de consulta nueva cae a un envío directo. |
 | **Cloudflare R2 (documentos)** | ✅ `src/lib/storage/` | En dev usa el fallback a disco `.uploads/`: directo si alguna `R2_*` está vacía, o después de un intento fallido contra R2 (con un `console.error`) si tienen placeholders. **En producción sin R2 la subida falla a propósito** (`StorageNoConfiguradoError`): no se guardan pasaportes en el disco efímero de Vercel. |
 | **Resend (mails)** | ✅ `src/lib/email/` | Dry-run con `EMAIL_DRY_RUN=1`, o implícito fuera de producción si `RESEND_API_KEY` está **vacía o ausente**. Un placeholder (el de `.env.example`, que es el que tiene hoy el `.env.local` de dev, sin `EMAIL_DRY_RUN`) desactiva el dry-run y los envíos fallan con `EmailEnvioError`. **Outreach de Prospectos**: sin `EMAIL_FROM_OUTREACH` ni `RESEND_WEBHOOK_SECRET`, y sin el DNS de `mkt.jovenesenuk.com` (§7). |
-| **Sentry** | ✅ `src/instrumentation*.ts`, CSP en `next.config.ts` | Queda **desactivado sin `NEXT_PUBLIC_SENTRY_DSN`**: los errores de producción no se ven y la CSP no reporta. Los source maps se activan con `SENTRY_AUTH_TOKEN` + `SENTRY_ORG` + `SENTRY_PROJECT`. |
+| **Sentry** | ✅ `src/instrumentation*.ts`, CSP en `next.config.ts` | **Conectado en producción (15/09/2026)**: organización `aiglesias`, proyecto `javascript-nextjs` (región US). DSN, org, proyecto y token de CI en Vercel; el build sube los source maps con el release = commit (verificado en el log: *Uploaded files to Sentry*). Fuera de producción sigue desactivado (sin DSN en `.env.local`). |
 | **Vercel** | ✅ `vercel.json` (región `gru1`) | Root Directory = `juk-portal`. Operación en `../../.claude/docs/04-operacion-y-handoff.md`. |
 
 ## 6. Mobile
@@ -135,18 +136,14 @@ de cada uno —dónde hacer clic, qué pegar y cómo verificar que quedó— est
   las variables que usan los jobs (`DATABASE_URL`, `RESEND_API_KEY` y remitentes). Verificar con una
   corrida de `run-reminder-scan` con `enviarEmails: false`. *Destraba:* recordatorios, vencimiento
   de A1, transiciones de viajes por fecha, aviso de cancelación.
-- [ ] **Sentry**: `NEXT_PUBLIC_SENTRY_DSN` en Vercel (opcional: `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`,
-  `SENTRY_PROJECT` para los source maps). *Destraba:* ver los errores de producción y los reportes
-  de la CSP, que es el requisito para pasarla a enforce.
+- [x] **Sentry** (15/09/2026): DSN y source maps en producción (§5). Queda dejar correr una o dos
+  semanas los reportes de la CSP antes de pasarla a enforce.
 - [ ] **Resend, outreach de Prospectos**: alta del dominio `mkt.jovenesenuk.com` con sus registros DNS
   (SPF/DKIM/return-path) en Cloudflare; `EMAIL_FROM_OUTREACH` y `RESEND_WEBHOOK_SECRET` en Vercel;
   webhook de Resend apuntando a `/api/webhooks/resend`. *Destraba:* el envío y el tracking del CRM.
-- [ ] **Secrets de Neon en GitHub** (Settings → Secrets and variables → Actions): `NEON_API_KEY` y
-  `NEON_PROJECT_ID`; recomendada la variable `NEON_PARENT_BRANCH`, apuntando a una branch sin datos
-  reales para que el runner no reciba una copia; opcional `SEED_TEST_PASSWORD`. La tabla completa
-  (qué puede ir como variable y los opcionales) está en
-  [`../../.claude/docs/04-operacion-y-handoff.md` § CI](../../.claude/docs/04-operacion-y-handoff.md#ci-github-actions).
-  *Destraba:* el job `e2e` del CI (integración + Playwright), que hoy se saltea con un aviso.
+- [x] **Neon en GitHub** (15/09/2026): secret `NEON_API_KEY` (key acotada al proyecto `jovenes-uk`,
+  nombre `github-actions-ci-jovenesuk`) y variables `NEON_PROJECT_ID` y `NEON_PARENT_BRANCH=ci-base`.
+  Cómo se armó `ci-base`, en [`setup-servicios.md` §2](setup-servicios.md#2-secrets-de-neon-en-github--ci).
 - [ ] **GitHub Pro** (o repo público), para una branch protection que exija el CI en verde. Sin eso
   el CI informa, pero no bloquea merges.
 - [ ] **Dominio definitivo**: `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_PORTAL_URL` y el DNS de
@@ -169,7 +166,8 @@ Cómo correr cada suite y el porqué de sus reglas: [`../../.claude/docs/05-test
 | E2E (`npm run test:e2e`) | ✅ Proyectos `setup` (con su teardown `cleanup`, que limpia los datos de la corrida), `setup-familia`, `chromium`, `mobile` (`@mobile`), `familias` y `public`. |
 | Hook pre-push | ✅ Opt-in: `npm run hooks:install`. |
 | CI · job `check` | ✅ En cada push y PR a `main`: typecheck, lint, cobertura con piso, `check:tests`, `npm audit --omit=dev --audit-level=high` y `next build`. |
-| CI · job `e2e` | ⏸ Se saltea sin fallar hasta que estén los secrets de Neon (§7). |
+| CI · job `e2e` | ✅ Configurado y probado (15/09/2026: 33 de integración y 142 E2E en verde, 31 min). **Solo corre a mano** en GitHub, por costo. Quedó marcado como *flaky* `viajes-estado.spec.ts` ("la edición de viaje solo ofrece transiciones válidas"): pasó al reintentar, sin diagnosticar. |
+| CI en local (`npm run ci:local`) | ✅ La misma suite en la máquina del dueño, sobre una branch efímera de Neon hija de `ci-base`. Es la forma habitual de correr integración + E2E. |
 
 ## 9. Deuda conocida
 

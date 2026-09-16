@@ -99,6 +99,12 @@ const config: NextConfig = {
     ];
   },
 
+  // Carpeta de build aparte para el server de `npm run ci:local`. Next 16 guarda
+  // el candado de "ya hay un next dev corriendo" dentro de la carpeta de build:
+  // con otra carpeta, la corrida local convive con el dev del dueño en el 3000 y
+  // no le pisa la caché. Sin la variable, `.next` como siempre.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
+
   // Externalize Drizzle DB driver from the bundle to avoid edge issues
   serverExternalPackages: ["@neondatabase/serverless"],
 

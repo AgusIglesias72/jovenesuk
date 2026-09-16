@@ -52,6 +52,9 @@ const eslintConfig = [
   {
     ignores: [
       ".next/**",
+      // Build del server de `npm run ci:local` (NEXT_DIST_DIR): son los mismos
+      // archivos generados que `.next`, y sin esto el lint los analiza.
+      ".next-e2e/**",
       "node_modules/**",
       "drizzle/**",
       "docs/**",

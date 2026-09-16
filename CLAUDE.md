@@ -16,7 +16,7 @@ jovenesuk/
 │   ├── docs/                 ← documentación de handoff (empezar por README.md)
 │   └── settings.json         ← hooks + permisos
 ├── .githooks/pre-push        ← typecheck + lint + unit + check:tests antes de pushear (opt-in: npm run hooks:install)
-├── .github/workflows/ci.yml  ← CI: job check (siempre) + job e2e (integración + Playwright sobre una branch efímera de Neon; se saltea sin los secrets NEON_API_KEY/NEON_PROJECT_ID)
+├── .github/workflows/ci.yml  ← CI: job check (cada push/PR) + job e2e (integración + Playwright sobre una branch efímera de Neon; SOLO a mano, para no gastar minutos: lo mismo corre local con `npm run ci:local`)
 ├── assets/screenshots/       ← capturas locales de revisión (ignorado por git)
 └── juk-portal/               ← la app: código, tests, migraciones y docs del producto
     └── CLAUDE.md             ← convenciones de código (importado abajo)
@@ -84,7 +84,9 @@ Un cambio que no cumple los seis puntos **no está terminado**, aunque compile y
   - El job `check` del CI además corre typecheck, lint, el piso de cobertura, el audit de producción
     y `next build`. Hoy **informa pero no bloquea** merges: bloquear requiere branch protection
     (GitHub Pro o repo público; pendiente en `docs/estado-actual.md`). El job `e2e` (integración +
-    Playwright) no corre hasta que estén los secrets de Neon: mientras tanto, corrélos a mano.
+    Playwright) solo corre a mano en GitHub, por costo: antes de cerrar un cambio con base o
+    pantallas, corré **`npm run ci:local`** (la misma suite, en tu máquina, sobre una branch
+    efímera de Neon sin datos).
 - **Hooks de Claude Code** (`.claude/settings.json`, detalle en `.claude/hooks/README.md`). Avisan,
   no reemplazan al cierre:
   - `test-companion-check.mjs` (PostToolUse): al editar en `src/lib/`, avisa si falta el test

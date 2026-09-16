@@ -83,6 +83,7 @@ está en [`docs/setup-servicios.md`](docs/setup-servicios.md); para hacerlo acom
 | `npm run test:integration` | Integración contra Postgres real (solo con `INTEGRATION_DATABASE_URL`) | No (lo lee el setup) |
 | `npm run test:e2e` / `npm run test:e2e:mobile` | Playwright: suite completa / solo el proyecto `mobile` | No |
 | `npm run check:tests` | Falla si un archivo nuevo o modificado de domain/utils/actions no tiene su `.test.ts` | No |
+| `npm run ci:local` | El CI completo en tu máquina: rápidos + integración + Playwright sobre una branch efímera de Neon | No (lee `.env.local`; necesita `NEON_PROJECT_ID` y `neonctl` logueado) |
 | `npm run check:env` / `npm run check:env:prod` | Qué variables faltan, cuáles quedaron con el valor de ejemplo y cuáles no deberían estar en producción. La variante `:prod` evalúa el perfil de un deploy | No (lee `.env.local`) |
 | `npm run hooks:install` | Activa el hook `pre-push` del repo (typecheck, lint, unit, `check:tests`) | No |
 
@@ -111,9 +112,13 @@ La guía completa (qué cubre cada capa, cómo diagnosticar, trampas conocidas):
     ese server).
   - `E2E_SERVER=dev|start` fuerza `next dev` o `next start` sobre el build. Sin la variable, en
     local es `dev`.
-- **CI** (`../.github/workflows/ci.yml`, en la raíz del repo): corre en cada push y PR a `main` (y
-  a mano). El job `check` no necesita nada; el job `e2e` necesita los secrets de Neon en GitHub y,
-  sin ellos, se saltea con un aviso. Configuración:
+- **Todo junto, en local**: `npm run ci:local`. Chequeos rápidos + una branch efímera de Neon (hija
+  de `ci-base`, sin datos) con migraciones, seeds, integración y Playwright; al final la borra. No
+  toca la base de dev y convive con tu `next dev` del 3000. Opciones: `--rapido`, `--sin-e2e`,
+  `--saltear-rapidos`, `--mantener-branch` (con `node scripts/ci-local.mjs …`).
+- **CI** (`../.github/workflows/ci.yml`, en la raíz del repo): el job `check` corre en cada push y
+  PR a `main`; el job `e2e` **solo a mano** (Actions → CI → *Run workflow*), porque son ~30 minutos
+  de runner. Configuración:
   [`../.claude/docs/04-operacion-y-handoff.md` § CI](../.claude/docs/04-operacion-y-handoff.md#ci-github-actions).
 
 ## Documentación

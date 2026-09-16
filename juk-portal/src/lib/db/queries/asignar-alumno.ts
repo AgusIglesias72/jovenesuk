@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { alumnos, type Alumno } from "@/lib/db/schema/alumnos";
@@ -102,7 +102,11 @@ export async function asignarConTablero(opts: {
           .update(asignaciones)
           .set({
             estado: "activa",
-            fechaAsignacion: ahora,
+            // `now()` de Postgres, igual que el `defaultNow()` del INSERT: con
+            // `new Date()` la reactivación podía quedar ANTES de la asignación
+            // original si el reloj de la máquina va atrasado respecto del de la
+            // base (pasó en una corrida local).
+            fechaAsignacion: sql`now()`,
             fechaCancelacion: null,
             motivoCancelacion: null,
           })

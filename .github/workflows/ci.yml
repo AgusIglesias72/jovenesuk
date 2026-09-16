@@ -1,8 +1,11 @@
 name: CI
 
-# Gate de calidad del JUK Portal. Nada llega a main sin:
-#   check → typecheck, lint, unit + piso de cobertura, test compañero, audit de prod, next build
-#   e2e   → integración + Playwright sobre `next dev`, contra una branch efímera de Neon
+# Gate de calidad del JUK Portal:
+#   check → typecheck, lint, unit + piso de cobertura, test compañero, audit de prod, next build.
+#           Corre en cada push y PR (~3 min).
+#   e2e   → integración + Playwright sobre `next dev`, contra una branch efímera de Neon.
+#           SOLO A MANO (Actions → CI → Run workflow): son ~30 min de runner por corrida y el
+#           dueño prefiere no gastarlos. Lo mismo corre local con `npm run ci:local`.
 # Configuración que necesita el repo: ver .claude/docs/04-operacion-y-handoff.md (sección CI).
 
 on:
@@ -106,6 +109,8 @@ jobs:
   # un output. Sin Neon configurado el e2e queda "skipped" con un aviso, no en rojo.
   e2e-gate:
     name: e2e · ¿Neon configurado?
+    # Solo en corridas manuales: en push/PR el e2e queda skipped (ver cabecera).
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 2
     outputs:

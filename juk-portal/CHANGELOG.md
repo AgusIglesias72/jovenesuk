@@ -17,7 +17,26 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
 
 ## [Sin publicar]
 
+### Seguridad
+- Se sacó `NEXT_PUBLIC_ENABLE_TWEAK` de Vercel Production: la herramienta de diseño del sitio
+  público no puede quedar habilitada para los visitantes.
+
+### Corregido
+- Al **reasignar** a un alumno que había sido dado de baja de un viaje, la fecha de asignación podía
+  quedar *anterior* a la original, y la fecha de baja tenía el mismo problema: se tomaban del reloj
+  del servidor de la app, mientras que el alta original la toma del reloj de la base. Ahora las tres
+  salen del mismo reloj.
+
 ### Interno
+- **Sentry conectado en producción**: los errores del portal se reportan con stack traces legibles
+  (source maps subidos en cada build, release = commit).
+- **`npm run ci:local`**: la suite completa (rápidos + integración + Playwright) en la máquina del
+  dueño, sobre una branch efímera de Neon hija de `ci-base` (sin datos del negocio), sin gastar
+  minutos de GitHub y sin apagar el `next dev` del 3000 (compila en `.next-e2e`).
+- En GitHub, el job `e2e` quedó configurado (secret `NEON_API_KEY` acotado al proyecto) y probado en
+  verde, pero **solo corre a mano**: `check` sigue en cada push.
+- Los avisos de consultas nuevas del sitio llegan por mail (`LEADS_NOTIFY_TO`, provisorio hasta tener
+  el dominio de mails).
 - Documentación reorganizada con una fuente de verdad por tema: `docs/estado-actual.md` (qué está
   construido, qué falta, qué depende del dueño y la deuda), este CHANGELOG, un README real y las
   convenciones de `CLAUDE.md` alineadas con el código. PRD `00`-`06` puestos al día y `06-deltas`

@@ -72,7 +72,10 @@ export async function cancelarAsignacion(
   // asignación de otro viaje o re-cancelar una ya cancelada.
   const rows = await db
     .update(asignaciones)
-    .set({ estado: "cancelada", fechaCancelacion: new Date(), motivoCancelacion: motivo })
+    // `now()` y no `new Date()`: la fila nace con `fechaAsignacion` del reloj de
+    // Postgres (defaultNow), y mezclar relojes deja fechas incoherentes entre sí
+    // cuando el de la app corre unos segundos atrasado.
+    .set({ estado: "cancelada", fechaCancelacion: sql`now()`, motivoCancelacion: motivo })
     .where(
       and(
         eq(asignaciones.id, id),

@@ -104,10 +104,9 @@ import type { ActionResult } from "@/lib/actions/result";
 
 - Todo cambio de schema lleva su migración generada (`npm run db:generate`), commiteada junto al
   cambio: `/juk-migracion`. No se empujan cambios de schema con `db:push`.
-- Los cambios de schema se prueban en una branch de Neon antes de mergear. El CI tiene un job que
-  corre integración y E2E sobre una branch efímera, pero solo cuando están los secrets
-  `NEON_API_KEY` y `NEON_PROJECT_ID` (pendientes: ver `docs/estado-actual.md`). Mientras tanto,
-  corrélos a mano.
+- Los cambios de schema se prueban en una branch de Neon antes de mergear: `npm run ci:local` crea
+  una branch efímera hija de `ci-base` (sin datos), migra, siembra y corre integración y E2E, y la
+  borra. En GitHub el mismo job existe pero solo se dispara a mano (cuesta ~30 min de runner).
 - Soft-delete por estado (ENUM), no por un `activo` booleano (TEC-03).
 
 ## UI y sistema de diseño

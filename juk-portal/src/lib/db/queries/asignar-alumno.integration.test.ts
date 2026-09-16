@@ -160,7 +160,12 @@ describe.skipIf(!integracionHabilitada)("asignarConTablero contra Postgres", () 
     expect(segunda.asignacionId).toBe(primera.asignacionId);
     const reactivada = await fx.asignacionPorId(segunda.asignacionId);
     expect(reactivada).toMatchObject({ estado: "activa", fechaCancelacion: null, motivoCancelacion: null });
+    // Las tres fechas salen del reloj de Postgres (defaultNow / now()), así que
+    // el orden se sostiene aunque el reloj de la máquina esté desfasado.
     expect(reactivada.fechaAsignacion.getTime()).toBeGreaterThan(cancelada.fechaAsignacion.getTime());
+    expect(reactivada.fechaAsignacion.getTime()).toBeGreaterThanOrEqual(
+      cancelada.fechaCancelacion!.getTime()
+    );
 
     const filasDelPar = await fx
       .db()

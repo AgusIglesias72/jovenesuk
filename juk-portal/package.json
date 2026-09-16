@@ -30,6 +30,7 @@
     "check:tests": "node scripts/check-test-companions.mjs --base auto",
     "check:env": "tsx scripts/check-env.ts",
     "check:env:prod": "tsx scripts/check-env.ts --prod",
+    "ci:local": "node scripts/ci-local.mjs",
     "hooks:install": "git config core.hooksPath .githooks"
   },
   "dependencies": {

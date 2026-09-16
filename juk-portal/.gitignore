@@ -2,5 +2,8 @@
 # lo cubre el .gitignore de la raíz del workspace. Acá solo lo propio de la app.
 .env.local*
 
+# Build del server de `npm run ci:local` (NEXT_DIST_DIR), separado del .next del dev
+.next-e2e/
+
 # Storage local de documentos (fallback dev sin R2)
 .uploads/

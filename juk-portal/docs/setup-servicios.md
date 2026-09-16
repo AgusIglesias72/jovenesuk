@@ -108,6 +108,20 @@ del negocio.
 **Verificá.** `gh secret list` los muestra por nombre. Después de un push, `gh run list` tiene que
 mostrar el job `e2e` corriendo en vez de salteado.
 
+> **Hecho el 15/09/2026**, y así quedó (para rehacerlo si hiciera falta):
+>
+> - Login: `npx neonctl@latest auth`. Espera la autorización **60 segundos**: lanzalo recién cuando
+>   estés frente al navegador.
+> - La key se creó acotada al proyecto y se mandó directo al secret, sin mostrarla:
+>   `neonctl api-keys create --name github-actions-ci-jovenesuk --project-id <id> --output json` →
+>   campo `key` → `gh secret set NEON_API_KEY`. `NEON_PROJECT_ID` va como **variable** (no es secreta).
+> - ⚠️ **`ci-base` no puede ser una branch "solo estructura" pelada.** El CI corre `db:migrate` sobre
+>   la branch hija: con la tabla `drizzle.__drizzle_migrations` vacía, drizzle intenta recrear todas
+>   las tablas y falla. Se creó con `neonctl branches create --name ci-base --parent dev
+>   --schema-only` y después se le copiaron **solo** las filas de `drizzle.__drizzle_migrations`
+>   desde `dev` (un SELECT sobre `dev`, INSERTs sobre `ci-base`). Resultado: 25 tablas, 0 filas de
+>   negocio. No hace falta refrescarla: cada corrida aplica las migraciones que falten.
+
 ---
 
 ## 3. Sentry — errores de producción
@@ -122,6 +136,20 @@ pasar la CSP de *Report-Only* a enforce.
 
 **Verificá.** Después del deploy, `/configuracion` → *Sentry (errores)* en OK. Dejá correr una o dos
 semanas mirando los reportes de CSP antes de endurecerla.
+
+> **Hecho el 15/09/2026**: organización `aiglesias`, proyecto `javascript-nextjs`. Las credenciales se
+> obtuvieron con el flujo de login del instalador oficial (`@sentry/wizard`) sin correr el
+> instalador, que reescribe archivos del proyecto: `GET https://sentry.io/api/0/wizard/` da un hash,
+> se abre `https://sentry.io/account/settings/wizard/<hash>/`, el dueño inicia sesión y elige el
+> proyecto, y un polling a `/api/0/wizard/<hash>/` devuelve el token y el DSN.
+>
+> - El token es de **CI** (`org:ci`): sube releases y source maps, pero la API le responde 403 para
+>   leer el proyecto. Es lo esperado, no un error.
+> - ⚠️ Cargá `SENTRY_AUTH_TOKEN` con `vercel env add … --value`. Por pipe (`… | vercel env add`) desde
+>   PowerShell quedó vacío, y el build lo mostró como *Authentication credentials were not provided
+>   (401)*.
+> - Chequeo real: en el log del build (`vercel inspect <url> --logs`) tiene que aparecer *Uploaded
+>   files to Sentry*.
 
 ---
 
