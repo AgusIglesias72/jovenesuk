@@ -82,6 +82,20 @@ Reglas (`enviarInscripcion` en `src/app/inscripcion/actions.ts`), en este orden:
 Abrir el link **no escribe nada**: solo un envío del formulario crea la ficha. Es deliberado — los
 escáneres de links de Outlook y los antivirus corporativos abren las URLs de un mail solos.
 
+**El alta del alumno (ADR-018).** Con una invitación válida, enviar la ficha crea el alumno
+`pre_inscripto` con canal `formulario_web`, le arma la cuenta del Portal de Familias y lo asigna al
+viaje de la campaña. Tres frenos, y ninguno es negociable:
+
+- **Sin invitación válida no hay alta automática.** La ficha queda `requiere_revision`.
+- **Si el email del tutor ya tiene cuenta de familia**, el alta se marca para revisión aunque se
+  haya hecho (caso *vincular*), y no se hace sola si la cuenta tiene alumnos de otro apellido o es
+  de alguien del equipo: ahí el alumno se crea sin cuenta y resuelve un admin con confirmación.
+- **Un DNI ya cargado no toca al alumno existente** ni a su cuenta: la ficha queda `duplicada`.
+
+Desde la bandeja, el equipo puede procesar una ficha pendiente, reintentar un alta que falló (con el
+motivo a la vista), resolver un vínculo en conflicto o anularla. El listado de alumnos filtra por
+**canal de alta** para ver las que entraron por el formulario.
+
 Estados de una ficha: `recibida` · `procesada` · `duplicada` (ese DNI ya estaba) ·
 `requiere_revision` (llegó sin token válido, o el alta tocaría una cuenta de familia que ya existe)
 · `error` (con el motivo, y se puede reintentar) · `anulada`. La bandeja `/inscripciones` los filtra

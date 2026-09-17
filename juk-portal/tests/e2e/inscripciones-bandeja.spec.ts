@@ -11,7 +11,7 @@ import {
 import { formatearDni } from "../../src/lib/utils/dni";
 import { hashTexto } from "../../src/lib/utils/hash-texto";
 
-import { ocultarOverlayDeDev } from "./helpers";
+import { confirmarModal, esperarHidratacion, ocultarOverlayDeDev } from "./helpers";
 import { sufijoUnico } from "./helpers-flujos";
 
 /*
@@ -225,11 +225,20 @@ test("el detalle abre por código y muestra la ficha completa, con su consentimi
     alergias
   );
 
-  // Estado con su motivo, y el lugar donde van a ir las acciones de la etapa 4.
+  // Estado con su motivo, y las acciones que corresponden a ESTA ficha: llegó
+  // sin invitación y todavía no creó al alumno, así que se da de alta a mano o
+  // se descarta. Reintentar (es para las que fallaron) y confirmar la cuenta de
+  // familia (para las que ya crearon al alumno) no se ofrecen: el panel aplica
+  // la misma regla de dominio que la server action.
   const estado = page.getByRole("region", { name: "Estado" });
   await expect(estado).toContainText("Necesita revisión");
   await expect(estado).toContainText(`Llegó sin invitación ${sufijo}`);
-  await expect(estado).toContainText("Las acciones llegan con el alta automática");
+  await expect(estado.getByRole("button", { name: "Dar de alta al alumno" })).toBeVisible();
+  await expect(estado.getByRole("button", { name: "Anular la ficha" })).toBeVisible();
+  await expect(estado.getByRole("button", { name: "Reintentar el alta" })).toHaveCount(0);
+  await expect(
+    estado.getByRole("button", { name: "Confirmar la cuenta de familia" })
+  ).toHaveCount(0);
 
   // Contexto de campaña: el viaje sale del token, no del formulario.
   const origen = page.getByRole("region", { name: "Origen y campaña" });
@@ -250,6 +259,40 @@ test("el detalle abre por código y muestra la ficha completa, con su consentimi
   await abrirBandeja(page, sufijo);
   await page.getByRole("row").filter({ hasText: codigo }).getByRole("link", { name: "Ver" }).click();
   await page.waitForURL(`**/inscripciones/${codigo}`);
+});
+
+test("anular desde el detalle descarta la ficha y deja el motivo del equipo", async ({
+  page,
+}) => {
+  const sufijo = sufijoUnico();
+  const [fila] = await insertar([
+    ficha(sufijo, { estado: "requiere_revision", motivo: `Llegó sin invitación ${sufijo}` }),
+  ]);
+  if (!fila) throw new Error("no se insertó la ficha del test");
+
+  await page.goto(`/inscripciones/${codigoDe(fila)}`);
+  await ocultarOverlayDeDev(page);
+
+  const estado = page.getByRole("region", { name: "Estado" });
+  const anular = estado.getByRole("button", { name: "Anular la ficha" });
+  await esperarHidratacion(anular);
+  await anular.click();
+
+  // El diálogo del design system con su campo de texto (el reemplazo de
+  // window.prompt): el motivo es opcional y queda escrito en la ficha.
+  await page.getByRole("dialog").getByLabel("Motivo (opcional)").fill(`Cargada dos veces ${sufijo}`);
+  await confirmarModal(page, "Sí, anular la ficha");
+
+  await expect(estado.getByText("Anulada", { exact: true })).toBeVisible();
+  await expect(estado).toContainText(`Anulada por el equipo: Cargada dos veces ${sufijo}`);
+
+  // Anulada es un estado cerrado: no queda ninguna acción que ofrecer, y la
+  // invitación (si hubiera) queda libre para que la familia vuelva a cargar.
+  await expect(estado.getByRole("button")).toHaveCount(0);
+
+  // Y la bandeja la muestra con su estado nuevo.
+  await abrirBandeja(page, sufijo, "&estado=anulada");
+  await expect(page.getByRole("row").filter({ hasText: codigoDe(fila) })).toBeVisible();
 });
 
 test("un código que no existe muestra el 404 del back-office", async ({ page }) => {

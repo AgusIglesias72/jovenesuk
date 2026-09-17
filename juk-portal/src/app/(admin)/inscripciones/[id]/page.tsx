@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { Alert, Badge, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
+import { Alert, Badge, PageHeader, SectionTitle } from "@/components/ui";
 import { getInscripcionByNumero } from "@/lib/db/queries/inscripciones";
 import {
   INSCRIPCION_ESTADO_LABELS,
@@ -16,6 +16,8 @@ import {
 } from "@/lib/domain/inscripciones/schema";
 import { formatFecha } from "@/lib/utils/date";
 import { formatearDni } from "@/lib/utils/dni";
+
+import { ProcesarPanel } from "./procesar-panel";
 
 /**
  * El detalle de una ficha. Es el ÚNICO lugar donde se ve completa: la bandeja
@@ -242,12 +244,13 @@ export default async function InscripcionDetallePage({
               </Dato>
             </dl>
 
-            <div className="mt-5">
-              <EmptyState compact title="Las acciones llegan con el alta automática">
-                Procesar, reintentar y anular se suman en la etapa siguiente. Por ahora esta
-                pantalla solo lee: nada de acá modifica la ficha ni crea al alumno.
-              </EmptyState>
-            </div>
+            <ProcesarPanel
+              codigo={codigo}
+              estado={inscripcion.estado}
+              alumnoId={inscripcion.alumnoId}
+              dni={inscripcion.dni}
+              vinoPorInvitacion={vinoPorInvitacion}
+            />
           </Panel>
 
           <Panel id="origen-campana" titulo="Origen y campaña">

@@ -55,6 +55,8 @@ function condicionesAlumnos(filters: AlumnoFilters): SQL | undefined {
     if (match) conditions.push(match);
   }
   if (filters.estado) conditions.push(eq(alumnos.estado, filters.estado));
+  // Por dónde entró la ficha: apoyado en idx_alumnos_canal_alta.
+  if (filters.canalAlta) conditions.push(eq(alumnos.canalAlta, filters.canalAlta));
 
   if (filters.alerta === "pasos_bloqueados") {
     conditions.push(inArray(alumnos.id, alumnosConPasosEnAlerta()));

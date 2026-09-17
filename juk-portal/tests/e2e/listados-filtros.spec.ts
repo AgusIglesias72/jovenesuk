@@ -5,6 +5,7 @@ import {
   asignarAlumnoAlViaje,
   crearAlumno,
   crearViaje,
+  esperarHidratacion,
   panelAlumnosAsignados,
   panelGroupLeaders,
 } from "./helpers";
@@ -84,6 +85,32 @@ test("el listado de alumnos muestra el viaje y filtra por viaje y paso pendiente
   await expect(page.getByRole("row").filter({ hasText: sinViaje.label }).getByText("Sin viaje")).toBeVisible();
   await filtroViaje.selectOption({ label: opcionViaje });
   await expect(page.getByText("Sin resultados para estos filtros")).toBeVisible();
+});
+
+test("el listado de alumnos filtra por canal de alta y vuelve a la primera página", async ({
+  page,
+}) => {
+  // Cargado desde el back-office: su canal es "Carga manual".
+  const alumno = await crearAlumno(page);
+
+  await page.goto(`/alumnos?q=${alumno.apellido}&page=2`);
+  const canal = page.getByLabel("Filtrar por canal de alta", { exact: true });
+  await esperarHidratacion(canal);
+
+  await canal.selectOption("alta_manual");
+  await expect(page).toHaveURL(/canal=alta_manual/);
+  // Cambiar el filtro descarta la página vieja: el resultado nuevo empieza en la 1.
+  await expect(page).not.toHaveURL(/page=/);
+  await expect(page.getByRole("row").filter({ hasText: alumno.label })).toBeVisible();
+
+  // Los que entraron por el formulario público son otros: este queda afuera.
+  await canal.selectOption("formulario_web");
+  await expect(page).toHaveURL(/canal=formulario_web/);
+  await expect(page.getByText("Sin resultados para estos filtros")).toBeVisible();
+
+  // Un canal inventado en la URL se descarta sin tirar abajo el resto.
+  await page.goto(`/alumnos?q=${alumno.apellido}&canal=telegrama`);
+  await expect(page.getByRole("row").filter({ hasText: alumno.label })).toBeVisible();
 });
 
 test("el detalle del viaje tiene resumen, subnavegación con anclas y alertas propias", async ({

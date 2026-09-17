@@ -18,6 +18,12 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
 ## [Sin publicar]
 
 ### Agregado
+- **El formulario ya da de alta al alumno solo.** Si la familia llegó por el link que ustedes
+  enviaron, al enviar la ficha se crea el alumno como pre-inscripto, se le arma la cuenta del Portal
+  de Familias y queda asignado al viaje de esa campaña. Las cargas que llegan sin link, o las que
+  tocarían una cuenta de familia que ya existe, **no se automatizan**: quedan en la bandeja con el
+  motivo a la vista y se resuelven con un clic. Un DNI ya cargado nunca modifica al alumno existente.
+  El listado de alumnos suma el filtro **Canal de alta** para ver los que entraron por el formulario.
 - **Formulario de inscripción propio** en `/inscripcion`: las familias llegan desde el link de un
   mail, completan la ficha del alumno y reciben un acuse por mail con su código de seguimiento. El
   equipo recibe el aviso y ve todas las fichas en una bandeja nueva, con filtros y conteos por

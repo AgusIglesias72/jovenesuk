@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CANALES_ALTA,
   PASOS_FILTRABLES,
   alumnoCreateSchema,
   alumnoFiltersSchema,
@@ -226,21 +227,34 @@ describe("alumnoFiltersSchema", () => {
     expect(alumnoFiltersSchema.parse({ paso: "paso_0" }).paso).toBeUndefined();
   });
 
+  it("acepta el canal de alta y lo descarta si no es uno de los tres", () => {
+    expect(alumnoFiltersSchema.parse({ canalAlta: "formulario_web" }).canalAlta).toBe(
+      "formulario_web"
+    );
+    expect(alumnoFiltersSchema.parse({ canalAlta: "webhook" }).canalAlta).toBe("webhook");
+    expect(alumnoFiltersSchema.parse({ canalAlta: "alta_manual" }).canalAlta).toBe("alta_manual");
+
+    expect(CANALES_ALTA).toEqual(["formulario_web", "webhook", "alta_manual"]);
+    expect(alumnoFiltersSchema.parse({ canalAlta: "telegrama" }).canalAlta).toBeUndefined();
+  });
+
   it("descarta solo el valor inválido y conserva el resto", () => {
     const r = alumnoFiltersSchema.parse({
       q: "gomez",
       viajeId: "UK-2027-JUL-LONDON",
       paso: "z9",
       estado: "inexistente",
+      canalAlta: "paloma_mensajera",
     });
     expect(r.q).toBe("gomez");
     expect(r.viajeId).toBeUndefined();
     expect(r.paso).toBeUndefined();
     expect(r.estado).toBeUndefined();
+    expect(r.canalAlta).toBeUndefined();
   });
 
   it("params vacíos cuentan como no filtrados", () => {
-    const r = alumnoFiltersSchema.parse({ q: "", viajeId: "", paso: "" });
+    const r = alumnoFiltersSchema.parse({ q: "", viajeId: "", paso: "", canalAlta: "" });
     expect(Object.values(r).some((v) => v !== undefined)).toBe(false);
   });
 });

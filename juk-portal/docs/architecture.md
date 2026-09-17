@@ -414,6 +414,40 @@ link que caduca no.
 
 ---
 
+## ADR-018 · Tabla de aterrizaje y compuerta del alta pública (sept 2026)
+
+**Contexto:** el Application Form propio (`/inscripcion`) recolecta la misma ficha que entraba por
+el webhook del Google Form y tiene que terminar creando al alumno. Pero el webhook puede hacerlo
+porque va detrás de un secreto compartido de 32+ caracteres, y un formulario abierto en un navegador
+no tiene ese secreto. El alta llama a `asegurarCuentaFamilia`, que **vincula el alumno a una cuenta
+del Portal de Familias que ya existe** cuando el email del tutor coincide: copiar el flujo tal cual
+habría dejado que cualquiera, desde internet, le cuelgue un alumno inventado a la cuenta real de
+otra familia.
+
+**Decisión:** dos piezas.
+
+1. **Tabla de aterrizaje `inscripciones`.** La ficha se persiste siempre ahí antes de tocar
+   `alumnos`. Una carga que no puede —o no debe— convertirse en alumno tiene dónde quedarse, con su
+   estado y su motivo, en vez de perderse o forzar el alta.
+2. **Compuerta.** El alta no se dispara porque la ficha exista, sino por una **capacidad** que el
+   equipo entregó: un token de invitación válido, o una persona con sesión apretando el botón. Sin
+   eso, la ficha espera en la bandeja. Y aun con la capacidad, manda la rama del vínculo: *crear* es
+   automático; *vincular* se hace pero queda marcado para revisión y auditado; *conflicto* y
+   *email del equipo* nunca son automáticos (el alumno se crea sin cuenta y resuelve un humano).
+   La idempotencia por DNI corta antes de todo: mandar la ficha de un alumno ya cargado no puede
+   cambiarle la cuenta de familia.
+
+La política vive en UN solo lugar (`src/lib/actions/alta-inscripcion.ts`) y la comparten el
+formulario público, la bandeja y el webhook legacy, que pasó a delegar: dos implementaciones del
+alta se desincronizan y una de las dos termina siendo la insegura.
+
+**Por qué:** lo encontró la revisión adversarial del diseño, no un incidente. El costo de la tabla
+—una migración y una pantalla— es chico al lado de una filtración de datos de menores entre familias.
+El precio aceptado es que una parte de las cargas requiere un clic humano; a cambio, ninguna carga
+anónima puede tocar una cuenta existente.
+
+---
+
 ## Costos estimados
 
 Estimación de mayo 2026, no verificada contra facturas.

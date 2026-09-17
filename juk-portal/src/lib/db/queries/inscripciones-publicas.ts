@@ -128,6 +128,12 @@ export type NuevaInscripcion = {
    * carga llegó sin token. Los demás estados nacen de la etapa 4, no de acá.
    */
   estado: Extract<InscripcionEstado, "recibida" | "requiere_revision">;
+  /**
+   * Por qué quedó así, en palabras y en español: es lo que lee el equipo en la
+   * bandeja. Una ficha que espera a una persona sin decir por qué obliga a
+   * adivinar, que es exactamente lo que la bandeja viene a evitar.
+   */
+  motivo?: string | null;
   /** La que se le mostró a la familia, ya resuelta con `resolverVariante`. */
   variante: Variante;
   /**
@@ -212,6 +218,7 @@ export async function crearInscripcion(
         viajeId: origen?.viajeId ?? null,
         variante: datos.variante,
         estado: datos.estado,
+        motivo: datos.motivo ?? null,
 
         nombre: ficha.nombre,
         apellido: ficha.apellido,

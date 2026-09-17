@@ -8,7 +8,9 @@ import {
   consultas,
   documentos,
   groupLeaders,
+  inscripciones,
   pasosAlumno,
+  prospectoComunicaciones,
   prospectos,
   suscriptores,
   users,
@@ -82,6 +84,20 @@ export async function cleanupE2EData() {
   // asignaciones primero (RESTRICT hacia alumnos/viajes); cuotas y pasos_alumno cascadean.
   if (vids.length) await db.delete(asignaciones).where(inArray(asignaciones.viajeId, vids));
   if (aids.length) await db.delete(asignaciones).where(inArray(asignaciones.alumnoId, aids));
+
+  // Fichas de inscripción: apuntan al alumno y al viaje sin cascada, así que si
+  // quedaran vivas bloquearían los dos borrados de abajo.
+  if (vids.length) await db.delete(inscripciones).where(inArray(inscripciones.viajeId, vids));
+  if (aids.length) await db.delete(inscripciones).where(inArray(inscripciones.alumnoId, aids));
+
+  // Invitaciones al formulario: viven en la bitácora del CRM y referencian el
+  // viaje de su campaña (FK sin cascada). Se borran las de los viajes de la
+  // corrida; el resto de la bitácora la cascadea el borrado del prospecto.
+  if (vids.length) {
+    await db
+      .delete(prospectoComunicaciones)
+      .where(inArray(prospectoComunicaciones.invitacionViajeId, vids));
+  }
 
   // viajes (cascadea pasos_viaje + group_leaders_viaje) y group_leaders.
   if (vids.length) await db.delete(viajes).where(inArray(viajes.id, vids));

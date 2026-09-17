@@ -9,6 +9,7 @@ const q = vi.hoisted(() => ({
   dentroDelLimite: vi.fn(),
   sendInscripcionRecibidaEmail: vi.fn(),
   sendInscripcionNuevaEmail: vi.fn(),
+  procesarAltaInscripcion: vi.fn(),
 }));
 
 vi.mock("@sentry/nextjs", async () => (await import("@/lib/actions/__tests__/mocks")).sentry);
@@ -18,6 +19,12 @@ vi.mock("@/lib/db/queries/inscripciones-publicas", () => ({
   marcarInvitacionRespondida: q.marcarInvitacionRespondida,
 }));
 vi.mock("@/lib/actions/anti-abuso-request", () => ({ dentroDelLimite: q.dentroDelLimite }));
+vi.mock("@/lib/actions/alta-inscripcion", () => ({
+  procesarAltaInscripcion: q.procesarAltaInscripcion,
+  // La action lo escribe como `motivo` de la ficha que queda esperando a una
+  // persona: si el mock no lo exporta, el import falla y no se ve por qué.
+  MOTIVO_SIN_INVITACION: "sin invitación válida (texto de prueba)",
+}));
 vi.mock("@/lib/email/send-inscripcion-recibida", () => ({
   sendInscripcionRecibidaEmail: q.sendInscripcionRecibidaEmail,
 }));
@@ -85,6 +92,7 @@ function datosPersistidos() {
   return q.crearInscripcion.mock.calls[0]?.[0] as {
     ficha: Record<string, unknown>;
     estado: string;
+    motivo: string | null;
     variante: string;
     origen: { comunicacionId: string; tokenHash: string; viajeId: string | null } | null;
     consentimiento: { version: string; textoHash: string; el: Date };
@@ -98,6 +106,12 @@ beforeEach(() => {
   q.marcarInvitacionRespondida.mockResolvedValue(true);
   q.sendInscripcionRecibidaEmail.mockResolvedValue(undefined);
   q.sendInscripcionNuevaEmail.mockResolvedValue(undefined);
+  q.procesarAltaInscripcion.mockResolvedValue({
+    estado: "procesada",
+    motivo: null,
+    alumnoId: "alumno-1",
+    altaEjecutada: true,
+  });
   q.crearInscripcion.mockImplementation(
     async (datos: { ficha: Record<string, unknown>; estado: string }) => ({
       ok: true,
@@ -186,6 +200,18 @@ describe("enviarInscripcion — contexto de campaña", () => {
     expect(q.marcarInvitacionRespondida).not.toHaveBeenCalled();
   });
 
+  it("la ficha que queda esperando a una persona guarda POR QUÉ", async () => {
+    // Sin esto la bandeja muestra "sin motivo registrado" y el equipo tiene que
+    // adivinar si fue un link vencido, un bot o un error del sistema.
+    q.getInvitacionByTokenHash.mockResolvedValue(null);
+
+    await enviarInscripcion(null, formulario({ token: "token-que-no-existe" }));
+
+    const datos = datosPersistidos();
+    expect(datos.estado).toBe("requiere_revision");
+    expect(datos.motivo).toBeTruthy();
+  });
+
   it("un token revocado guarda igual, sin contexto y en requiere_revision", async () => {
     q.getInvitacionByTokenHash.mockResolvedValue(
       invitacionVigente({ revocadaEl: new Date(Date.now() - 1000) })
@@ -228,6 +254,58 @@ describe("enviarInscripcion — contexto de campaña", () => {
     expect(res.ok).toBe(true);
     expect(datosPersistidos().estado).toBe("requiere_revision");
     expect(sentry.captureException).toHaveBeenCalled();
+  });
+});
+
+describe("enviarInscripcion — el alta del alumno", () => {
+  it("con invitación válida dispara el alta sobre la ficha ya guardada", async () => {
+    await enviarInscripcion(null, formulario({ token: TOKEN }));
+
+    expect(q.procesarAltaInscripcion).toHaveBeenCalledTimes(1);
+    const [inscripcion, autorizacion] = q.procesarAltaInscripcion.mock.calls[0] as [
+      { id: string },
+      { via: string; comunicacionId?: string },
+    ];
+    expect(inscripcion.id).toBe("ins-1");
+    expect(autorizacion).toEqual({ via: "invitacion", comunicacionId: COMUNICACION_ID });
+  });
+
+  it("sin token NO se dispara el alta: la ficha la procesa una persona", async () => {
+    await enviarInscripcion(null, formulario());
+
+    expect(datosPersistidos().estado).toBe("requiere_revision");
+    expect(q.procesarAltaInscripcion).not.toHaveBeenCalled();
+  });
+
+  it("un token vencido tampoco alcanza para el alta automática", async () => {
+    q.getInvitacionByTokenHash.mockResolvedValue(
+      invitacionVigente({ expiraEl: new Date(Date.now() - DIA_MS) })
+    );
+
+    await enviarInscripcion(null, formulario({ token: TOKEN }));
+
+    expect(q.procesarAltaInscripcion).not.toHaveBeenCalled();
+  });
+
+  it("una ficha rechazada por el unique no dispara el alta", async () => {
+    q.crearInscripcion.mockResolvedValue({ ok: false, motivo: "dni_ya_cargado" });
+
+    await enviarInscripcion(null, formulario({ token: TOKEN }));
+
+    expect(q.procesarAltaInscripcion).not.toHaveBeenCalled();
+  });
+
+  it("si el alta se cae, la familia igual ve que su ficha entró", async () => {
+    q.procesarAltaInscripcion.mockRejectedValue(new Error("neon caído"));
+
+    const res = await enviarInscripcion(null, formulario({ token: TOKEN }));
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error("debía guardar");
+    expect(res.data.codigo).toBe("INS-000123");
+    expect(sentry.captureException).toHaveBeenCalledTimes(1);
+    // Los mails salen igual: el alta no los bloquea.
+    expect(q.sendInscripcionRecibidaEmail).toHaveBeenCalledTimes(1);
   });
 });
 

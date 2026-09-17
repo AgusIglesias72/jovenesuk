@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { test, expect } from "@playwright/test";
 
 import { db } from "../../src/lib/db";
-import { alumnos } from "../../src/lib/db/schema";
+import { alumnos, users } from "../../src/lib/db/schema";
 
 import { codigoViajeUnico, panelAlumnosAsignados } from "./helpers";
 import {
@@ -10,6 +10,7 @@ import {
   crearAlumnoPorWebhook,
   crearViajeConTipo,
   dniE2E,
+  sufijoUnico,
   webhookSecret,
 } from "./helpers-flujos";
 
@@ -17,16 +18,23 @@ import {
  * Ramas del webhook del Application Form que webhook-google-form.spec.ts no
  * cubre (ese prueba "sin secret → 401", el camino feliz y el reintento
  * idempotente por DNI): payload inválido, JSON roto, secreto parecido al real,
- * viaje inexistente y viaje sin cupo. En todas se verifica en la DB qué quedó
- * creado y qué no. El largo mínimo del secreto configurado se prueba en
- * src/lib/domain/webhooks/secreto.test.ts: desde acá no se puede cambiar el
- * env del server.
+ * viaje inexistente, viaje sin cupo, el DNI con puntos y —desde que el webhook
+ * DELEGA el alta en `altaDesdeInscripcion`— que un envío con un DNI que ya
+ * existe siga sin poder tocar la cuenta de familia de ese alumno. En todas se
+ * verifica en la DB qué quedó creado y qué no. El largo mínimo del secreto
+ * configurado se prueba en src/lib/domain/webhooks/secreto.test.ts: desde acá
+ * no se puede cambiar el env del server.
  */
 
 const URL_WEBHOOK = "/api/webhooks/google-form";
 
 async function alumnosConDni(dni: string) {
   return db.select({ id: alumnos.id }).from(alumnos).where(eq(alumnos.dni, dni));
+}
+
+async function alumnoPorId(id: string) {
+  const [fila] = await db.select().from(alumnos).where(eq(alumnos.id, id));
+  return fila;
 }
 
 test("un payload incompleto responde 422 con los campos que faltan y no crea nada", async ({
@@ -118,4 +126,99 @@ test("en un viaje individual ya ocupado, el segundo alumno queda pre-inscripto s
   await expect(roster.getByText("1 / 1 cupos")).toBeVisible();
   await expect(roster.getByRole("link", { name: primero.label })).toBeVisible();
   await expect(roster.getByRole("link", { name: segundo.label })).toHaveCount(0);
+});
+
+/*
+ * El caso que blinda el alta compartida. El webhook y el formulario público
+ * corren el MISMO alta (`altaDesdeInscripcion`), y ese alta corta por DNI antes
+ * de tocar nada justo para esto: un envío con los datos de un alumno que ya
+ * existe, pero con el email de otro tutor, no puede reasignarle la cuenta de
+ * familia ni crear una cuenta nueva a nombre de nadie.
+ */
+test("un envío con un DNI que ya existe no toca al alumno ni su cuenta de familia", async ({
+  request,
+}) => {
+  const original = await crearAlumnoPorWebhook(request, { etiqueta: "WQ" });
+  const antes = await alumnoPorId(original.alumnoId);
+  expect(antes?.familiaUserId, "el alumno nace con su cuenta de familia").toBeTruthy();
+
+  const emailAjeno = `tutora.ajena.${sufijoUnico().toLowerCase()}@e2e.jovenesenuk.com`;
+  const res = await request.post(URL_WEBHOOK, {
+    headers: { "x-webhook-secret": webhookSecret() },
+    data: {
+      nombre: "Inventado",
+      apellido: "Inventado E2E",
+      fechaNacimiento: "2012-02-02",
+      dni: original.dni,
+      numeroPasaporte: `WQ${original.dni.slice(-8)}`,
+      fechaVencimientoPasaporte: "2035-01-01",
+      tutor1Nombre: "Tutora Ajena",
+      tutor1Celular: "+54 9 11 4444-4444",
+      tutor1Email: emailAjeno,
+    },
+  });
+
+  expect(res.status()).toBe(200);
+  expect(await res.json()).toMatchObject({
+    ok: true,
+    duplicado: true,
+    alumnoId: original.alumnoId,
+  });
+
+  const despues = await alumnoPorId(original.alumnoId);
+  expect(despues?.familiaUserId).toBe(antes?.familiaUserId);
+  expect(despues?.tutor1Email).toBe(original.tutorEmail);
+  expect(despues?.nombre).toBe(original.nombre);
+  expect(despues?.apellido).toBe(original.apellido);
+  expect(await alumnosConDni(original.dni)).toHaveLength(1);
+
+  // Y el email de la carga que perdió tampoco estrenó cuenta del Portal.
+  const cuentasAjenas = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, emailAjeno));
+  expect(cuentasAjenas).toHaveLength(0);
+});
+
+/*
+ * TEC-12 en el borde del webhook: el campo del Google Form es texto libre y la
+ * familia escribe el DNI como lo lee en el documento. Si se guardara con puntos,
+ * el slug de /alumnos/<dni> no resolvería y el mismo documento entraría dos
+ * veces. El DNI al azar podría existir (como en `crearAlumnoUI`): si pasara, el
+ * envío responde duplicado y el caso se corta acá sin tocar a ese alumno.
+ */
+test("un DNI con puntos se guarda en dígitos y la ficha resuelve por el slug", async ({
+  page,
+  request,
+}) => {
+  const digitos = `9${String(Math.floor(Math.random() * 10_000_000)).padStart(7, "0")}`;
+  const conPuntos = `${digitos.slice(0, 2)}.${digitos.slice(2, 5)}.${digitos.slice(5)}`;
+  const apellido = `Puntos E2E ${sufijoUnico()}`;
+
+  const res = await request.post(URL_WEBHOOK, {
+    headers: { "x-webhook-secret": webhookSecret() },
+    data: {
+      nombre: "Ficha",
+      apellido,
+      fechaNacimiento: "2010-03-03",
+      dni: conPuntos,
+      numeroPasaporte: `WP${digitos}`,
+      fechaVencimientoPasaporte: "2034-06-01",
+      tutor1Nombre: "Tutora Puntos",
+      tutor1Celular: "+54 9 11 3333-3333",
+      tutor1Email: `tutora.${digitos}@e2e.jovenesenuk.com`,
+    },
+  });
+
+  expect(res.status()).toBe(200);
+  const body = (await res.json()) as { duplicado?: boolean; alumnoId: string };
+  expect(body.duplicado, `el DNI ${digitos} ya existía`).toBeFalsy();
+
+  expect(await alumnosConDni(conPuntos)).toHaveLength(0);
+  const fila = await alumnoPorId(body.alumnoId);
+  expect(fila?.dni).toBe(digitos);
+  expect(fila?.canalAlta).toBe("webhook");
+
+  await page.goto(`/alumnos/${digitos}`);
+  await expect(page.getByText(`${apellido}, Ficha`)).toBeVisible();
 });

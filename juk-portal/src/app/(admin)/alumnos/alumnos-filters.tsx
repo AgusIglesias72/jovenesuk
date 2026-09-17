@@ -4,12 +4,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useId, useRef, useState, useTransition } from "react";
 
 import { Button, Input, Select } from "@/components/ui";
-import { ALUMNO_ESTADO_LABELS, ALUMNO_ESTADOS, PASOS_FILTRABLES } from "@/lib/domain/alumnos";
+import {
+  ALUMNO_ESTADO_LABELS,
+  ALUMNO_ESTADOS,
+  CANAL_ALTA_LABELS,
+  CANALES_ALTA,
+  PASOS_FILTRABLES,
+} from "@/lib/domain/alumnos";
 import { PASO_LABELS } from "@/lib/domain/pasos/codigos";
 import { cn } from "@/lib/utils/cn";
 
 /** Params que filtran (la URL es la fuente de verdad; `page` no cuenta). */
-const PARAMS_FILTRO = ["q", "viaje", "paso", "estado", "alerta"] as const;
+const PARAMS_FILTRO = ["q", "viaje", "paso", "estado", "alerta", "canal"] as const;
 
 export function AlumnosFilters({
   viajes,
@@ -124,6 +130,21 @@ export function AlumnosFilters({
             {ALUMNO_ESTADOS.map((e) => (
               <option key={e} value={e}>
                 {ALUMNO_ESTADO_LABELS[e]}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div className="w-full sm:w-52">
+          <Select
+            aria-label="Filtrar por canal de alta"
+            value={sp.get("canal") ?? ""}
+            onChange={(e) => pushParam("canal", e.target.value || null)}
+          >
+            <option value="">Canal de alta</option>
+            {CANALES_ALTA.map((c) => (
+              <option key={c} value={c}>
+                {CANAL_ALTA_LABELS[c]}
               </option>
             ))}
           </Select>

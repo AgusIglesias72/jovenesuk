@@ -27,6 +27,7 @@ export default async function AlumnosPage({
     alerta: str(sp.alerta),
     viajeId: str(sp.viaje),
     paso: str(sp.paso),
+    canalAlta: str(sp.canal),
   });
 
   const [{ items: alumnos, total, page, pages }, viajes] = await Promise.all([

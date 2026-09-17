@@ -6,11 +6,16 @@
  * lee (el precedente malo es `src/app/baja/page.tsx`, que hace un UPDATE en el
  * render y un prefetch del cliente de correo lo dispara solo).
  *
- * Esta etapa PERSISTE la ficha y no crea al alumno ni la cuenta de familia:
- * el alta automática es la etapa 4. Acá una carga entra como `recibida` si
+ * La ficha se PERSISTE siempre primero. Una carga entra como `recibida` si
  * llegó por una invitación que todavía abre, o como `requiere_revision` si
  * llegó sin token válido — la compuerta para que una carga anónima no se
  * cuelgue de la campaña de otro.
+ *
+ * El alta del alumno corre DESPUÉS y solo con invitación válida, con la política
+ * compartida de `@/lib/actions/alta-inscripcion` (ahí está el porqué: sin token
+ * no hay capacidad, y una carga anónima no puede colgarse de la cuenta de otra
+ * familia). Como todo lo que pasa después de guardar, no puede cambiar el
+ * `ActionResult` que ve la familia: ella mandó sus datos y eso salió bien.
  *
  * El contexto de campaña (viaje, comunicación, variante) se deriva SERVER-SIDE
  * del hash del token. Nunca del body: si viajara desde el cliente, cualquiera
@@ -19,6 +24,10 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+import {
+  MOTIVO_SIN_INVITACION,
+  procesarAltaInscripcion,
+} from "@/lib/actions/alta-inscripcion";
 import { dentroDelLimite } from "@/lib/actions/anti-abuso-request";
 import type { ActionResult } from "@/lib/actions/result";
 import {
@@ -99,9 +108,13 @@ async function invitacionQueAbre(tokenHash: string): Promise<InvitacionPublica |
 
 /**
  * Todo lo que pasa DESPUÉS de que la ficha ya está persistida: el sello en la
- * bitácora del prospecto y los dos mails. Cada paso va en su propio try/catch y
- * ninguno cambia el `ActionResult` que ve la familia — una caída de Resend no
- * puede convertir en error una carga que se guardó bien.
+ * bitácora del prospecto, el alta del alumno y los dos mails. Cada paso va en su
+ * propio try/catch y ninguno cambia el `ActionResult` que ve la familia — ni una
+ * caída de Resend ni un alta que no pudo completarse convierten en error una
+ * carga que se guardó bien.
+ *
+ * El alta va antes de los mails porque es el efecto que importa: si el request
+ * se corta en el medio, lo que no puede faltar es el alumno.
  */
 async function despuesDeGuardar(
   inscripcion: Inscripcion,
@@ -110,6 +123,18 @@ async function despuesDeGuardar(
   if (invitacion !== null) {
     try {
       await marcarInvitacionRespondida(invitacion.comunicacionId);
+    } catch (err) {
+      Sentry.captureException(err);
+    }
+
+    // Solo con invitación válida: es la capacidad que entregó el equipo, el
+    // equivalente del secreto del webhook. Sin ella la ficha ya quedó en
+    // `requiere_revision` y no se llama al alta.
+    try {
+      await procesarAltaInscripcion(inscripcion, {
+        via: "invitacion",
+        comunicacionId: invitacion.comunicacionId,
+      });
     } catch (err) {
       Sentry.captureException(err);
     }
@@ -207,6 +232,9 @@ export async function enviarInscripcion(
     resultado = await crearInscripcion({
       ficha,
       estado: invitacion === null ? "requiere_revision" : "recibida",
+      // Si la ficha queda esperando a una persona, la bandeja tiene que decir
+      // POR QUÉ: sin esto se lee como un fallo mudo y el equipo adivina.
+      motivo: invitacion === null ? MOTIVO_SIN_INVITACION : null,
       variante,
       origen:
         invitacion === null || tokenHash === null

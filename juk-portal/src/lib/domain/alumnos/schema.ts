@@ -10,6 +10,11 @@ export const alumnoEstadoEnum = z.enum([
   "finalizado",
   "baja",
 ]);
+/**
+ * Cómo entró el alumno al sistema (`canal_alta` en la base). El orden es el de
+ * la UI: primero el canal propio, después el Google Form que está de salida.
+ */
+export const canalAltaEnum = z.enum(["formulario_web", "webhook", "alta_manual"]);
 export const condicionFiscalEnum = z.enum([
   "consumidor_final",
   "responsable_inscripto",
@@ -19,6 +24,7 @@ export const condicionFiscalEnum = z.enum([
 ]);
 
 export const ALUMNO_ESTADOS = alumnoEstadoEnum.options;
+export const CANALES_ALTA = canalAltaEnum.options;
 export const CONDICIONES_FISCALES = condicionFiscalEnum.options;
 
 const emptyToNull = (v: unknown) =>
@@ -106,13 +112,18 @@ const filtroUrl = <T extends z.ZodTypeAny>(schema: T) =>
 export const pasoFiltrableEnum = z.enum(PASO_CODIGOS).exclude(["paso_0"]);
 export const PASOS_FILTRABLES = pasoFiltrableEnum.options;
 
-/** US-17: viaje, estado general, alertas activas y paso de trámite pendiente. */
+/**
+ * US-17: viaje, estado general, alertas activas y paso de trámite pendiente.
+ * `canalAlta` se suma para poder ver de un vistazo los que entraron por el
+ * formulario público.
+ */
 export const alumnoFiltersSchema = z.object({
   q: filtroUrl(z.string().trim()),
   estado: filtroUrl(alumnoEstadoEnum),
   alerta: filtroUrl(z.enum(["pasos_bloqueados"])),
   viajeId: filtroUrl(z.string().uuid()),
   paso: filtroUrl(pasoFiltrableEnum),
+  canalAlta: filtroUrl(canalAltaEnum),
 });
 
 export type AlumnoCreateData = z.output<typeof alumnoCreateSchema>;
