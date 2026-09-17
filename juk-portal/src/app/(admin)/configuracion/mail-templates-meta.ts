@@ -9,6 +9,13 @@ export const MAIL_TEMPLATES = [
   { key: "viaje-cancelado", label: "Viaje cancelado", tipo: "comunicacion" },
   { key: "inscripcion-recibida", label: "Acuse del Application Form (familia)", tipo: "comunicacion" },
   { key: "inscripcion-nueva-equipo", label: "Inscripción nueva (aviso al equipo)", tipo: "automatico" },
+  {
+    key: "invitacion-inscripcion",
+    label: "Invitación al Application Form (link)",
+    // Sale desde info@ y no desde mkt.*: es el trámite que la familia espera, y
+    // el remitente de marketing todavía no tiene DNS.
+    tipo: "comunicacion",
+  },
   { key: "outreach-colegio", label: "Outreach a colegio", tipo: "marketing" },
 ] as const satisfies readonly { key: string; label: string; tipo: TipoEmail }[];
 

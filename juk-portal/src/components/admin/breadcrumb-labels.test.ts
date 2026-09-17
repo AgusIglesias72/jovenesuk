@@ -16,6 +16,10 @@ describe("buildBreadcrumb", () => {
     expect(labels("/prospectos/importar")).toEqual(["Prospectos", "Importar"]);
   });
 
+  it("nombra la sección de invitaciones del CRM", () => {
+    expect(labels("/prospectos/invitaciones")).toEqual(["Prospectos", "Invitaciones"]);
+  });
+
   it("formatea el DNI del alumno", () => {
     expect(labels("/alumnos/45102338/editar")).toEqual([
       "Alumnos",

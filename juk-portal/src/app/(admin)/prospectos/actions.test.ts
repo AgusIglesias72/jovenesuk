@@ -23,6 +23,11 @@ const q = vi.hoisted(() => ({
   updateProspecto: vi.fn(),
   sendOutreachEmail: vi.fn(),
   putDocumento: vi.fn(),
+  destinatariosDesdeProspectos: vi.fn(),
+  crearLoteInvitaciones: vi.fn(),
+  resumenLote: vi.fn(),
+  revocarInvitacion: vi.fn(),
+  enviarTandaDelLote: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/helpers", async () => (await import("@/lib/actions/__tests__/mocks")).authHelpers);
@@ -39,22 +44,38 @@ vi.mock("@/lib/db/queries/prospectos", () => ({
   registrarComunicacion: q.registrarComunicacion,
   updateProspecto: q.updateProspecto,
 }));
+vi.mock("@/lib/db/queries/invitaciones", () => ({
+  destinatariosDesdeProspectos: q.destinatariosDesdeProspectos,
+  crearLoteInvitaciones: q.crearLoteInvitaciones,
+  resumenLote: q.resumenLote,
+  revocarInvitacion: q.revocarInvitacion,
+}));
+vi.mock("@/lib/jobs/enviar-lote-invitaciones", () => ({
+  enviarTandaDelLote: q.enviarTandaDelLote,
+}));
 vi.mock("@/lib/email/send-outreach", () => ({ sendOutreachEmail: q.sendOutreachEmail }));
 vi.mock("@/lib/storage", () => ({ putDocumento: q.putDocumento }));
 
 import { ProspectoNotFoundError } from "@/lib/domain/prospectos";
 
 import {
+  continuarLoteAction,
   convertirAColegioAction,
+  crearLoteInvitacionesAction,
   createProspectoAction,
   darDeBajaProspectoAction,
+  enviarInvitacionIndividualAction,
   enviarOutreachAction,
   importarProspectosAction,
   moverProspectoAction,
+  revocarInvitacionAction,
   subirImagenAction,
 } from "./actions";
 
 const PROSPECTO_ID = "cdcdcdcd-0000-4000-8000-000000000001";
+const LOTE_ID = "efefefef-0000-4000-8000-000000000001";
+const COMUNICACION_ID = "dfdfdfdf-0000-4000-8000-000000000001";
+const VIAJE_ID = "bcbcbcbc-0000-4000-8000-000000000001";
 
 const prospecto = {
   id: PROSPECTO_ID,
@@ -74,7 +95,30 @@ beforeEach(() => {
   q.createProspecto.mockImplementation(async (data: Record<string, unknown>) => ({ id: PROSPECTO_ID, ...data }));
   q.sendOutreachEmail.mockResolvedValue({ id: "resend-msg-1" });
   q.convertirAColegio.mockResolvedValue({ colegio: { id: "colegio-1" } });
+  q.destinatariosDesdeProspectos.mockResolvedValue({
+    incluidos: [
+      {
+        prospectoId: PROSPECTO_ID,
+        prospectoNombre: prospecto.nombre,
+        email: prospecto.emails[0],
+      },
+    ],
+    excluidos: [],
+  });
+  q.crearLoteInvitaciones.mockResolvedValue({ loteId: LOTE_ID, invitaciones: [] });
+  q.resumenLote.mockResolvedValue({ loteId: LOTE_ID, total: 20, pendientes: 20 });
+  q.enviarTandaDelLote.mockResolvedValue({ enviados: 10, fallidos: 0, restantes: 10 });
+  q.revocarInvitacion.mockResolvedValue(true);
 });
+
+/** N destinatarios válidos, para probar el tope de la campaña. */
+function destinatarios(n: number) {
+  return Array.from({ length: n }, (_, i) => ({
+    prospectoId: `cdcdcdcd-0000-4000-8000-${String(i).padStart(12, "0")}`,
+    prospectoNombre: `[INT] Colegio ${i}`,
+    email: `int+colegio${i}@int.jovenesenuk.com`,
+  }));
+}
 
 describe("moverProspectoAction", () => {
   it("sin sesión redirige sin mover nada", async () => {
@@ -311,6 +355,233 @@ describe("subirImagenAction", () => {
 
     expect(await urlDeRedirect(() => subirImagenAction(conImagen("image/png", 100)))).toBe("/familias");
     expect(q.putDocumento).not.toHaveBeenCalled();
+  });
+});
+
+describe("crearLoteInvitacionesAction", () => {
+  const campana = { ids: [PROSPECTO_ID], viajeId: VIAJE_ID, variante: "b" };
+
+  it("sin sesión no arma ninguna campaña", async () => {
+    sinSesion();
+
+    expect(await urlDeRedirect(() => crearLoteInvitacionesAction(campana))).toBe("/login");
+    expect(q.destinatariosDesdeProspectos).not.toHaveBeenCalled();
+    expect(q.crearLoteInvitaciones).not.toHaveBeenCalled();
+  });
+
+  it("una familia no manda invitaciones masivas", async () => {
+    loguearComo("familia");
+
+    expect(await urlDeRedirect(() => crearLoteInvitacionesAction(campana))).toBe("/familias");
+    expect(q.crearLoteInvitaciones).not.toHaveBeenCalled();
+  });
+
+  it("más de 200 destinatarios no se arma: hay que partir la campaña", async () => {
+    q.destinatariosDesdeProspectos.mockResolvedValue({
+      incluidos: destinatarios(201),
+      excluidos: [],
+    });
+
+    const r = await crearLoteInvitacionesAction({ viajeId: VIAJE_ID });
+
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error("debería fallar");
+    expect(r.error).toContain("201");
+    expect(r.error).toContain("200");
+    expect(q.crearLoteInvitaciones).not.toHaveBeenCalled();
+  });
+
+  it("justo 200 sí entra", async () => {
+    q.destinatariosDesdeProspectos.mockResolvedValue({
+      incluidos: destinatarios(200),
+      excluidos: [],
+    });
+
+    const r = await crearLoteInvitacionesAction({ viajeId: VIAJE_ID });
+
+    expect(r).toEqual({ ok: true, data: { loteId: LOTE_ID, total: 200, excluidos: 0 } });
+  });
+
+  it("el dado de baja queda afuera y no hay forma de forzarlo desde el cliente", async () => {
+    q.destinatariosDesdeProspectos.mockResolvedValue({
+      incluidos: [],
+      excluidos: [
+        { prospectoId: PROSPECTO_ID, prospectoNombre: prospecto.nombre, motivo: "dado_de_baja" },
+      ],
+    });
+
+    const r = await crearLoteInvitacionesAction({
+      ...campana,
+      // Lo que podría mandar un cliente modificado: se descarta al parsear y
+      // nunca llega a la query que decide a quién se le manda.
+      forzar: true,
+      incluirBajas: true,
+      emails: ["int+cualquiera@int.jovenesenuk.com"],
+    });
+
+    expect(r.ok).toBe(false);
+    expect(q.destinatariosDesdeProspectos).toHaveBeenCalledWith({ ids: [PROSPECTO_ID] });
+    expect(q.crearLoteInvitaciones).not.toHaveBeenCalled();
+  });
+
+  it("el destinatario sale de la base, nunca del cliente", async () => {
+    await crearLoteInvitacionesAction(campana);
+
+    expect(q.crearLoteInvitaciones).toHaveBeenCalledWith(
+      expect.objectContaining({
+        destinatarios: [{ prospectoId: PROSPECTO_ID, destinatario: prospecto.emails[0] }],
+        viajeId: VIAJE_ID,
+        variante: "b",
+        creadoPor: IDS.admin,
+      })
+    );
+    expect(auditoriasDe("create")).toEqual([
+      expect.objectContaining({ entidadTipo: "invitacion_lote", entidadId: LOTE_ID }),
+    ]);
+  });
+
+  it("el lote se crea aunque el envío falle: crear no manda un solo mail", async () => {
+    q.enviarTandaDelLote.mockRejectedValue(new Error("Resend caído"));
+
+    const creado = await crearLoteInvitacionesAction(campana);
+
+    expect(creado).toEqual({ ok: true, data: { loteId: LOTE_ID, total: 1, excluidos: 0 } });
+    expect(q.enviarTandaDelLote).not.toHaveBeenCalled();
+
+    // Y si la primera tanda se cae, la campaña sigue en pie con su id.
+    const avance = await continuarLoteAction({ loteId: LOTE_ID });
+
+    expect(avance.ok).toBe(false);
+    if (avance.ok) throw new Error("debería fallar");
+    expect(avance.error).toContain("no se reenvía");
+  });
+});
+
+describe("continuarLoteAction", () => {
+  it("una familia no puede empujar una campaña", async () => {
+    loguearComo("familia");
+
+    expect(await urlDeRedirect(() => continuarLoteAction({ loteId: LOTE_ID }))).toBe("/familias");
+    expect(q.enviarTandaDelLote).not.toHaveBeenCalled();
+  });
+
+  it("una campaña inexistente no dispara ningún envío", async () => {
+    q.resumenLote.mockResolvedValue(null);
+
+    expect(await continuarLoteAction({ loteId: LOTE_ID })).toEqual({
+      ok: false,
+      error: "Esa campaña no existe.",
+    });
+    expect(q.enviarTandaDelLote).not.toHaveBeenCalled();
+  });
+
+  it("es reanudable: cada llamada manda una tanda y devuelve lo que queda", async () => {
+    q.enviarTandaDelLote
+      .mockResolvedValueOnce({ enviados: 10, fallidos: 0, restantes: 10 })
+      .mockResolvedValueOnce({ enviados: 9, fallidos: 1, restantes: 0 });
+
+    const primera = await continuarLoteAction({ loteId: LOTE_ID });
+    const segunda = await continuarLoteAction({ loteId: LOTE_ID });
+
+    expect(primera).toEqual({ ok: true, data: { enviados: 10, fallidos: 0, restantes: 10 } });
+    expect(segunda).toEqual({ ok: true, data: { enviados: 9, fallidos: 1, restantes: 0 } });
+    expect(q.enviarTandaDelLote).toHaveBeenCalledTimes(2);
+    expect(q.enviarTandaDelLote).toHaveBeenCalledWith(LOTE_ID);
+  });
+
+  it("una tanda que no movió nada no ensucia la auditoría", async () => {
+    q.enviarTandaDelLote.mockResolvedValue({ enviados: 0, fallidos: 0, restantes: 0 });
+
+    const r = await continuarLoteAction({ loteId: LOTE_ID });
+
+    expect(r.ok).toBe(true);
+    expect(auditoriasDe("update")).toHaveLength(0);
+  });
+});
+
+describe("revocarInvitacionAction", () => {
+  it("una familia no puede revocar", async () => {
+    loguearComo("familia");
+
+    expect(await urlDeRedirect(() => revocarInvitacionAction(COMUNICACION_ID))).toBe("/familias");
+    expect(q.revocarInvitacion).not.toHaveBeenCalled();
+  });
+
+  it("corta el link y lo deja auditado", async () => {
+    const r = await revocarInvitacionAction(COMUNICACION_ID);
+
+    expect(r).toEqual({ ok: true, data: { comunicacionId: COMUNICACION_ID } });
+    expect(q.revocarInvitacion).toHaveBeenCalledWith(COMUNICACION_ID);
+    expect(auditoriasDe("update")).toEqual([
+      expect.objectContaining({ entidadTipo: "invitacion", entidadId: COMUNICACION_ID }),
+    ]);
+  });
+
+  it("una comunicación que no es invitación no se revoca", async () => {
+    q.revocarInvitacion.mockResolvedValue(false);
+
+    expect(await revocarInvitacionAction(COMUNICACION_ID)).toEqual({
+      ok: false,
+      error: "Esa invitación no existe.",
+    });
+    expect(auditoriasDe("update")).toHaveLength(0);
+  });
+
+  it("valida el id", async () => {
+    expect(await revocarInvitacionAction("no-es-uuid")).toEqual({
+      ok: false,
+      error: "Invitación inválida.",
+    });
+    expect(q.revocarInvitacion).not.toHaveBeenCalled();
+  });
+});
+
+describe("enviarInvitacionIndividualAction", () => {
+  const envio = { prospectoId: PROSPECTO_ID, viajeId: VIAJE_ID };
+
+  it("una familia no puede invitar desde la ficha", async () => {
+    loguearComo("familia");
+
+    expect(await urlDeRedirect(() => enviarInvitacionIndividualAction(envio))).toBe("/familias");
+    expect(q.crearLoteInvitaciones).not.toHaveBeenCalled();
+  });
+
+  it("no le manda al que se dio de baja", async () => {
+    q.destinatariosDesdeProspectos.mockResolvedValue({
+      incluidos: [],
+      excluidos: [
+        { prospectoId: PROSPECTO_ID, prospectoNombre: prospecto.nombre, motivo: "dado_de_baja" },
+      ],
+    });
+
+    expect(await enviarInvitacionIndividualAction(envio)).toEqual({
+      ok: false,
+      error: "El prospecto se dio de baja de los correos.",
+    });
+    expect(q.crearLoteInvitaciones).not.toHaveBeenCalled();
+    expect(q.enviarTandaDelLote).not.toHaveBeenCalled();
+  });
+
+  it("manda un lote de uno y devuelve la casilla real", async () => {
+    q.enviarTandaDelLote.mockResolvedValue({ enviados: 1, fallidos: 0, restantes: 0 });
+
+    const r = await enviarInvitacionIndividualAction(envio);
+
+    expect(r).toEqual({
+      ok: true,
+      data: { loteId: LOTE_ID, destinatario: prospecto.emails[0] },
+    });
+    expect(q.enviarTandaDelLote).toHaveBeenCalledWith(LOTE_ID, { tamanio: 1 });
+  });
+
+  it("si el mail no sale, lo dice en vez de festejar", async () => {
+    q.enviarTandaDelLote.mockResolvedValue({ enviados: 0, fallidos: 1, restantes: 0 });
+
+    const r = await enviarInvitacionIndividualAction(envio);
+
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error("debería fallar");
+    expect(r.error).toContain("historial");
   });
 });
 

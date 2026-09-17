@@ -101,6 +101,28 @@ Estados de una ficha: `recibida` · `procesada` · `duplicada` (ese DNI ya estab
 · `error` (con el motivo, y se puede reintentar) · `anulada`. La bandeja `/inscripciones` los filtra
 y muestra los conteos por estado y por variante.
 
+### Invitaciones al formulario (campañas)
+
+Desde `/prospectos/invitaciones` el equipo arma una **campaña**: elige el viaje, la variante visual
+y a qué prospectos. Cada destinatario recibe **su propio link**, con un token que identifica a la
+campaña —nunca a la persona—, así que un colegio puede reenviárselo a todas sus familias sin que
+ninguna vea datos de otra.
+
+Reglas:
+
+1. **Quién queda afuera y por qué.** Un prospecto dado de baja del outreach se excluye **sin opción
+   de forzar**; también los que no tienen email y los que repiten casilla. La pantalla lo muestra
+   antes de mandar. La baja se vuelve a chequear al enviar cada mail, no solo al armar el lote.
+2. **Tope de 200 destinatarios** por campaña.
+3. **Reanudable.** El envío avanza por tandas: cada fila se marca *enviando* antes de salir y
+   *enviado* (con el id de Resend) después. Si se cierra la pestaña, al volver retoma lo pendiente y
+   **no reenvía** lo que ya salió. Una reserva trabada más de 5 minutos vuelve sola a la cola.
+4. **Revocar** una invitación corta el link en el acto, incluso si el mail todavía no salió.
+5. La invitación **vence a los 90 días**.
+
+⚠️ Mientras Trigger.dev no esté desplegado, el envío avanza con la pantalla abierta (200
+destinatarios ≈ un par de minutos). La pantalla lo dice.
+
 ### Política de Privacidad
 
 `/privacidad` publica el texto vigente y `/privacidad/<version>` una versión anterior. El texto es

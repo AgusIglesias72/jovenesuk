@@ -63,6 +63,13 @@ export default async function ProspectosPage({
         actions={
           <>
             <LinkButton
+              href="/prospectos/invitaciones"
+              variant="secondary"
+              className="w-full sm:w-auto"
+            >
+              Invitaciones
+            </LinkButton>
+            <LinkButton
               href="/prospectos/importar"
               variant="secondary"
               className="w-full sm:w-auto"

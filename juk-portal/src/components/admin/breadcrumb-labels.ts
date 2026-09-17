@@ -25,6 +25,7 @@ const LABEL_MAP: Record<string, string> = {
   pagos: "Pagos",
   consultas: "Consultas",
   inscripciones: "Inscripciones",
+  invitaciones: "Invitaciones",
   usuarios: "Usuarios",
   configuracion: "Configuración",
   cuenta: "Mi cuenta",

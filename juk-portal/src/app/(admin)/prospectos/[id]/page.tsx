@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Badge, LinkButton, PageHeader } from "@/components/ui";
 import { getComunicaciones, getProspectoById } from "@/lib/db/queries/prospectos";
 import { getUsuarioById } from "@/lib/db/queries/usuarios";
+import { listViajesParaFiltro } from "@/lib/db/queries/viajes";
 import { PAIS_LABELS } from "@/lib/domain/colegios";
 import {
   PROSPECTO_ESTADO_LABELS,
@@ -12,6 +13,7 @@ import { formatFecha } from "@/lib/utils/date";
 
 import { ComunicacionesPanel } from "./comunicaciones-panel";
 import { ConvertirButton } from "./convertir-button";
+import { InvitarInscripcion, type MotivoBloqueo } from "./invitar-inscripcion";
 
 export const metadata = { title: "Prospecto" };
 
@@ -38,10 +40,20 @@ export default async function ProspectoDetailPage({
   const prospecto = await getProspectoById(id);
   if (!prospecto) notFound();
 
-  const [comunicaciones, responsable] = await Promise.all([
+  const [comunicaciones, responsable, viajes] = await Promise.all([
     getComunicaciones(prospecto.id),
     prospecto.responsableId ? getUsuarioById(prospecto.responsableId) : null,
+    listViajesParaFiltro(),
   ]);
+
+  // Las mismas dos reglas que aplica el servidor al mandar (la baja gana sobre
+  // todo): acá solo deciden si el bloque muestra el botón o el motivo.
+  const destinatario = prospecto.emails.map((e) => e.trim()).find((e) => e.length > 0) ?? null;
+  const bloqueoInvitacion: MotivoBloqueo | null = !prospecto.suscritoOutreach
+    ? "dado_de_baja"
+    : !destinatario
+      ? "sin_email"
+      : null;
 
   const ubicacion = [
     prospecto.ciudad,
@@ -180,6 +192,13 @@ export default async function ProspectoDetailPage({
               </dd>
             </div>
           )}
+
+          <InvitarInscripcion
+            prospectoId={prospecto.id}
+            destinatario={destinatario}
+            bloqueo={bloqueoInvitacion}
+            viajes={viajes}
+          />
         </section>
 
         <ComunicacionesPanel prospecto={prospecto} comunicaciones={comunicaciones} />

@@ -1,5 +1,9 @@
+import { fechaDeVencimiento } from "@/lib/domain/inscripciones/invitacion";
+import { formatFecha } from "@/lib/utils/date";
+
 import { InscripcionNuevaEquipoEmail } from "./templates/inscripcion-nueva-equipo";
 import { InscripcionRecibidaEmail } from "./templates/inscripcion-recibida";
+import { InvitacionInscripcionEmail } from "./templates/invitacion-inscripcion";
 import { OutreachColegioEmail } from "./templates/outreach-colegio";
 import { PasswordChangedEmail } from "./templates/password-changed-email";
 import { RecordatorioEmail } from "./templates/recordatorio-email";
@@ -88,6 +92,22 @@ export function construirTemplatePrueba(
             requiereRevision
             motivo="La carga llegó sin invitación: nadie la puede vincular a una campaña."
             fichaUrl={`${appUrl}/inscripciones/INS-000123`}
+          />
+        ),
+      };
+    // El token del ejemplo es literalmente "ejemplo": la previsualización se
+    // mira en pantalla compartida y un token de verdad abriría el formulario.
+    case "invitacion-inscripcion":
+      return {
+        subject: "Completá la inscripción · Londres en Julio",
+        react: (
+          <InvitacionInscripcionEmail
+            contactoNombre="Prof. Laura"
+            prospectoNombre="Colegio Ejemplo"
+            viajeNombre="Londres en Julio"
+            formularioUrl={`${appUrl}/inscripcion?t=ejemplo&v=b`}
+            venceEl={formatFecha(fechaDeVencimiento(now))}
+            unsubscribeUrl={`${appUrl}/baja?token=ejemplo`}
           />
         ),
       };

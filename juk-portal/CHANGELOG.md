@@ -18,6 +18,11 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
 ## [Sin publicar]
 
 ### Agregado
+- **Invitaciones por lote desde el CRM.** Se arma una campaña eligiendo el viaje y a qué prospectos,
+  y el sistema manda a cada uno su propio link al formulario. La pantalla muestra el avance y se
+  puede **cerrar y retomar**: lo ya enviado no se reenvía. Los colegios dados de baja quedan
+  excluidos —sin opción de forzar— y la pantalla dice cuántos quedaron afuera y por qué. Cada
+  invitación se puede revocar: el link deja de abrir el formulario en el acto.
 - **El formulario ya da de alta al alumno solo.** Si la familia llegó por el link que ustedes
   enviaron, al enviar la ficha se crea el alumno como pre-inscripto, se le arma la cuenta del Portal
   de Familias y queda asignado al viaje de esa campaña. Las cargas que llegan sin link, o las que
