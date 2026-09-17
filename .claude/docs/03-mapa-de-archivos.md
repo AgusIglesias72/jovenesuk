@@ -305,6 +305,24 @@ código); colegios, group leaders y prospectos usan el uuid.
 | `actions.ts` [action] | `cambiarEstadoConsultaAction` (queda auditado). |
 | `loading.tsx` | Skeleton del listado. |
 
+### `src/app/(admin)/inscripciones/` — fichas del Application Form propio
+
+| Archivo | Qué hace |
+|---|---|
+| `page.tsx` | Bandeja paginada con filtros en la URL (estado, viaje, variante, búsqueda) y una tira de StatCards con los conteos **agregados en SQL sobre el universo filtrado**, incluidos los de cada variante visual. |
+| `[id]/page.tsx` | Detalle por **código** `INS-000123` (no uuid: toda ruta de detalle nueva nace con slug legible). Muestra la ficha completa —acá sí se ven los datos sensibles, es el back-office—, el contexto de campaña y el sello del consentimiento con link a esa versión de la política. |
+| `loading.tsx` | Skeleton del listado. |
+
+### `src/app/inscripcion/` — el formulario público (fuera de `(public)`)
+
+| Archivo | Qué hace |
+|---|---|
+| `page.tsx` | Resuelve el link tokenizado con un **SELECT puro** y decide qué mostrar: formulario, "ya recibimos tu ficha" o un único copy genérico para inválido/vencido/revocado (no le confirma a nadie qué token existe). `robots: noindex`. Vive fuera de `(public)` a propósito: ese layout monta `<Analytics/>` y el token viajaría a GA en `page_location`. |
+| `layout.tsx` | Shell propio, sin la navegación de marketing. |
+| `inscripcion-form.tsx` [client] | La ficha con `useActionState`, honeypot oculto, componentes del design system, consentimiento que linkea `/privacidad` y éxito inline (el sitio público no monta `ToastProvider`). |
+| `actions.ts` · `actions.test.ts` [action] | `enviarInscripcion`: Zod → honeypot → rate limit (IP, email y token) → resuelve la invitación **server-side** → persiste SIEMPRE → mails best-effort. No toca `alumnos`: el alta automática es la etapa 4. |
+| `loading.tsx` | `FormPageSkeleton`. |
+
 ### `src/app/(admin)/usuarios/` — cuentas del equipo (solo super_admin)
 
 | Archivo | Qué hace |
@@ -727,6 +745,8 @@ Cada cambio acá necesita su migración (`/juk-migracion`).
 | `pagos.ts` · `pagos.integration.test.ts` | Vistas consolidadas: `condicionesEstadoEfectivo` (vencida = venció antes de hoy), `listCuotasGlobal` con ORDER BY total (sin desempate se repetían o salteaban filas entre páginas), `resumenPagosGlobal` por moneda, `viajesConCuotas`, `resumenPagosPorViaje`. |
 | `pasos-alumno.ts` | `listPasosByAsignacion(es)` (una sola query para varias asignaciones: con neon-http cada query es un HTTPS), `getPasoAlumnoById`, `updatePasoAlumno`, `crearPasosParaAsignacion`. |
 | `pasos-viaje.ts` | `listOrInitPasosViaje` (crea en pendiente los que falten), `updateEstadoPasoViaje`, `updateMetadataPasoViaje`, `listGroupLeadersDeViaje`. |
+| `inscripciones-publicas.ts` · su integración | Lo que toca el formulario público: `getInvitacionByTokenHash` (**SELECT puro**, verificado en el test comparando la fila entera antes y después: la página se abre con un GET y un prefetch de Outlook lo dispararía), `crearInscripcion` (traduce las colisiones de los índices únicos a un motivo nombrado, nunca una excepción cruda) y `marcarInvitacionRespondida`. |
+| `inscripciones.ts` · su integración | Lo que toca el back-office: `listInscripciones` con paginación en SQL y orden total, `getInscripcionByNumero` (el slug `INS-000123`) y `resumenInscripciones`, que agrega por estado y por variante sobre el universo filtrado, no sobre la página. Las fichas con datos borrados quedan fuera de los tres. |
 | `prospectos.ts` | `listProspectos`, `listProspectosKanban`, `getProspectoById`, `createProspecto`, `crearProspectosMasivo`, `updateProspecto`, `moverProspecto`, `getComunicaciones`, `registrarComunicacion`, `convertirAColegio`, `darDeBajaOutreach`. |
 | `prospecto-tracking.ts` | `actualizarEstadoComunicacion`, `getProspectoByUnsubToken`, `darDeBajaPorToken`. Separado de `prospectos.ts` porque lo usan endpoints públicos (webhook de Resend y `/baja`), sin guards de admin. |
 | `rate-limit-formularios.ts` | `incrementarYVerificar`: registra el intento y decide en un solo upsert atómico (leer y después escribir dejaría pasar requests simultáneos). `purgarVentanasVencidas` existe pero hoy no la llama nadie. |
@@ -771,6 +791,8 @@ Cada cambio acá necesita su migración (`/juk-migracion`).
 | `send-consulta-nueva.tsx` | Aviso de consulta nueva a todos los admins activos; sin admins cae a `LEADS_NOTIFY_TO` o al reply-to. |
 | `send-reporte-dato.tsx` · `send-reporte-dato.test.ts` | Aviso al equipo cuando una familia reporta un dato incorrecto, con link a la edición del alumno por DNI. |
 | `send-outreach.tsx` | Outreach a colegios desde el remitente de marketing, con headers `List-Unsubscribe` one-click; devuelve el id de Resend. |
+| `send-inscripcion-recibida.tsx` · su test | Acuse a quien completó el formulario (tipo `comunicacion`, invita a responder). **No lleva ni un campo de Nivel 2**: el test falla si el HTML contiene el DNI o el pasaporte, porque un acuse queda en un buzón ajeno. |
+| `send-inscripcion-nueva.tsx` · su test | Aviso al equipo con el link a la ficha en el back-office y el motivo si quedó para revisión. Misma cadena de destinatarios que el resto: admins activos → `LEADS_NOTIFY_TO` → reply-to. |
 | `templates/_layout.tsx` | `EmailLayout` y piezas (`EmailHeading`, `EmailParagraph`, `EmailButton`, `EmailCallout`, `EmailMonoCode`). |
 | `templates/welcome-email.tsx` | Invitación al portal. |
 | `templates/reset-password-email.tsx` | Restablecer contraseña (link de 24 h, un solo uso). |
@@ -908,6 +930,7 @@ se saltea por `isMobile`). `mobile` depende de `setup` y `setup-familia` porque
 | `usuarios-abm.spec.ts` | Cambio de rol con confirmación, activar y desactivar, y login de un usuario desactivado (se queda en el login con el aviso). |
 | `configuracion.spec.ts` | Guardar remitentes y UI de prueba; guarda y restaura la configuración real del entorno. |
 | `configuracion-servicios.spec.ts` | Estado de servicios y preview de templates; el viejo playground `/tests` ya no existe. |
+| `inscripciones-bandeja.spec.ts` | La bandeja lista, filtra y pagina; el detalle abre por código `INS-000123`; los datos sensibles se ven en el back-office; y un caso `@mobile` de la tabla en modo tarjeta. |
 | `familias.spec.ts` | Proyecto `familias`: resumen, breadcrumb, navegación, Pagos, Documentación, Mis datos y que no se vea el alumno de otra familia. Solo lectura sobre el seed demo. |
 | `familias-ux.spec.ts` | Proyecto `familias`: documentación por etapa, "Tuve un problema" del ETA, Ayuda, aviso de cuota vencida, confirmación al reportar un dato; en teléfono, Ayuda en el header (se saltea fuera de mobile). |
 | `familias-acciones.spec.ts` | Acciones reales de familia con cuentas creadas por el spec: subir A1 y descargarlo, otra familia no lo ve, reportar ETA en trámite y con problema, confirmar D1, reportar un dato. |

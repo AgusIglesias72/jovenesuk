@@ -1,3 +1,5 @@
+import { InscripcionNuevaEquipoEmail } from "./templates/inscripcion-nueva-equipo";
+import { InscripcionRecibidaEmail } from "./templates/inscripcion-recibida";
 import { OutreachColegioEmail } from "./templates/outreach-colegio";
 import { PasswordChangedEmail } from "./templates/password-changed-email";
 import { RecordatorioEmail } from "./templates/recordatorio-email";
@@ -53,6 +55,39 @@ export function construirTemplatePrueba(
             alumnoNombre="Alumno Ejemplo"
             viajeNombre="Londres en Julio"
             viajeCodigo="UK-2026-JUL-LONDON"
+          />
+        ),
+      };
+    // Los datos de ejemplo son de Nivel 1 a propósito: la previsualización se
+    // mira en pantalla compartida y no tiene por qué mostrar un DNI, ni
+    // siquiera inventado (`src/lib/domain/inscripciones/niveles.ts`).
+    case "inscripcion-recibida":
+      return {
+        subject: "Recibimos la ficha de Alumno Ejemplo · INS-000123",
+        react: (
+          <InscripcionRecibidaEmail
+            tutorNombre="Tutora de Ejemplo"
+            alumnoNombre="Alumno Ejemplo"
+            codigo="INS-000123"
+            viajeNombre="Londres en Julio"
+          />
+        ),
+      };
+    case "inscripcion-nueva-equipo":
+      return {
+        subject: "Inscripción para revisar · INS-000123 · Alumno Ejemplo",
+        react: (
+          <InscripcionNuevaEquipoEmail
+            codigo="INS-000123"
+            alumnoNombre="Alumno Ejemplo"
+            tutorNombre="Tutora de Ejemplo"
+            tutorEmail={destinatario}
+            viaje="Londres en Julio (UK-2026-JUL-LONDON)"
+            variante="B"
+            estadoLabel="Necesita revisión"
+            requiereRevision
+            motivo="La carga llegó sin invitación: nadie la puede vincular a una campaña."
+            fichaUrl={`${appUrl}/inscripciones/INS-000123`}
           />
         ),
       };

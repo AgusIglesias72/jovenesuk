@@ -24,6 +24,7 @@ const LABEL_MAP: Record<string, string> = {
   "group-leaders": "Group Leaders",
   pagos: "Pagos",
   consultas: "Consultas",
+  inscripciones: "Inscripciones",
   usuarios: "Usuarios",
   configuracion: "Configuración",
   cuenta: "Mi cuenta",

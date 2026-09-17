@@ -15,5 +15,8 @@ export * from "./auditoria";
 export * from "./notificaciones";
 export * from "./configuracion";
 export * from "./leads";
+// Antes que las dos tablas que los usan: los comparten `inscripciones` y
+// `prospecto_comunicaciones`, que se referencian entre sí.
+export * from "./enums-inscripciones";
 export * from "./prospectos";
 export * from "./inscripciones";

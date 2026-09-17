@@ -18,6 +18,12 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
 ## [Sin publicar]
 
 ### Agregado
+- **Formulario de inscripción propio** en `/inscripcion`: las familias llegan desde el link de un
+  mail, completan la ficha del alumno y reciben un acuse por mail con su código de seguimiento. El
+  equipo recibe el aviso y ve todas las fichas en una bandeja nueva, con filtros y conteos por
+  estado y por variante. Por ahora cada ficha se procesa a mano: el alta automática del alumno llega
+  en el próximo paso. El link puede reenviarse sin riesgo — no lleva datos de nadie, así que un
+  colegio puede mandárselo a todas sus familias.
 - **Política de Privacidad publicada y versionada** en `/privacidad`, con su historial de versiones.
   El consentimiento del formulario de consulta ahora dice a qué se está aceptando y linkea el texto,
   y queda registrado qué versión aceptó cada persona. El texto describe lo que el sistema hace hoy,

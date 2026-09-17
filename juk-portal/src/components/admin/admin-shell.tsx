@@ -269,6 +269,13 @@ function SidebarBody({
             active={pathname.startsWith("/consultas")}
             onNavigate={onNavigate}
           />
+          <SidebarItem
+            icon={<IconForm />}
+            label="Inscripciones"
+            href="/inscripciones"
+            active={pathname.startsWith("/inscripciones")}
+            onNavigate={onNavigate}
+          />
         </SidebarSection>
 
         {user.role === "super_admin" && (
@@ -502,6 +509,14 @@ function IconInbox() {
   return (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6}>
       <path d="M2 9l2-6h8l2 6M2 9v4h12V9M2 9h3l1 2h4l1-2h3" />
+    </svg>
+  );
+}
+function IconForm() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6}>
+      <rect x={3} y={2} width={10} height={12} rx={1} />
+      <path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3" />
     </svg>
   );
 }

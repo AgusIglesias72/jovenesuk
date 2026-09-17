@@ -409,3 +409,17 @@ export async function esperarHidratacion(control: Locator): Promise<void> {
     )
     .toBe(true);
 }
+
+/**
+ * Esconde el overlay de `next dev` (`<nextjs-portal>`), que en viewport de
+ * teléfono queda fijo abajo y se come los clicks de lo que esté en esa franja:
+ * Playwright reporta "nextjs-portal intercepts pointer events" y reintenta hasta
+ * el timeout. Es un artefacto del server de desarrollo —la suite corre sobre
+ * `next dev` a propósito— y no existe en producción, así que taparlo no oculta
+ * ningún problema real de la pantalla.
+ *
+ * Se llama después de `goto`, antes de tapear algo cerca del borde inferior.
+ */
+export async function ocultarOverlayDeDev(page: Page): Promise<void> {
+  await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
+}

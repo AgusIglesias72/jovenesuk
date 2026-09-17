@@ -13,10 +13,11 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { colegios, pais } from "./colegios";
-// Mismo patrón que `pais`: el enum se define una vez en el schema de su módulo y
-// se cruza por import. El ciclo con inscripciones.ts (que referencia esta tabla)
-// no rompe: las FK de Drizzle se declaran con callback y se resuelven tarde.
-import { varianteFormulario } from "./inscripciones";
+// El enum vive en su propio módulo, y no en `inscripciones.ts`, porque esa tabla
+// referencia a ésta: declararlo allá cerraba un ciclo que explotaba al evaluar
+// los módulos (la FK es un callback y se resuelve tarde, pero el enum se invoca
+// en el acto). Ver el comentario de ./enums-inscripciones.
+import { varianteFormulario } from "./enums-inscripciones";
 import { viajes } from "./viajes";
 
 /**

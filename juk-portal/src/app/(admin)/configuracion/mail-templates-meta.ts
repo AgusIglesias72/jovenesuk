@@ -7,6 +7,8 @@ export const MAIL_TEMPLATES = [
   { key: "password-changed", label: "Contraseña cambiada", tipo: "automatico" },
   { key: "recordatorio", label: "Recordatorio a la familia (A1/D1)", tipo: "automatico" },
   { key: "viaje-cancelado", label: "Viaje cancelado", tipo: "comunicacion" },
+  { key: "inscripcion-recibida", label: "Acuse del Application Form (familia)", tipo: "comunicacion" },
+  { key: "inscripcion-nueva-equipo", label: "Inscripción nueva (aviso al equipo)", tipo: "automatico" },
   { key: "outreach-colegio", label: "Outreach a colegio", tipo: "marketing" },
 ] as const satisfies readonly { key: string; label: string; tipo: TipoEmail }[];
 

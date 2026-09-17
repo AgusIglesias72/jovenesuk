@@ -12,6 +12,11 @@ export const PORTAL_PREFIXES = [
   "/colegios",
   "/prospectos",
   "/consultas",
+  // La BANDEJA del back-office. Se parece a `/inscripcion` (el formulario
+  // público, que va en STANDALONE_PUBLIC_PATHS) pero no lo pisa: `empiezaCon`
+  // compara el prefijo exacto o con `/` atrás, así que "/inscripcion" nunca
+  // matchea "/inscripciones" ni al revés.
+  "/inscripciones",
   "/group-leaders",
   "/usuarios",
   "/pagos",
@@ -43,9 +48,15 @@ export const PUBLIC_PREFIXES = ["/notas", "/privacidad"] as const;
 /**
  * Rutas sueltas que se sirven sin sesión (páginas utilitarias). `/offline` la
  * cachea el service worker en el install; `/baja` se abre desde el link del
- * email con `?token=` y valida server-side.
+ * email con `?token=` y valida server-side; `/inscripcion` es el Application
+ * Form público, que se abre con `?t=<token>` desde la invitación (o sin token,
+ * y entonces la ficha queda para revisión manual).
+ *
+ * `/inscripcion` NO va en `PUBLIC_PAGES`: no es marketing y vive fuera del
+ * route group `(public)` para no heredar nav, footer ni Analytics — el token no
+ * puede viajar a Google Analytics dentro de `page_location`.
  */
-export const STANDALONE_PUBLIC_PATHS = ["/baja", "/offline"] as const;
+export const STANDALONE_PUBLIC_PATHS = ["/baja", "/inscripcion", "/offline"] as const;
 
 export const HOME_BY_ROLE = {
   super_admin: "/dashboard",

@@ -58,6 +58,35 @@ Reglas (`submitLead` en `src/app/(public)/leads/actions.ts`):
    directo si Trigger no responde. Si el mismo email ya consultó por el mismo interés en las
    últimas 24 h, la consulta se guarda igual pero no se repite el aviso.
 
+### Formulario de inscripción (`/inscripcion`)
+
+El **Application Form propio**, que reemplaza al Google Form externo. La familia llega por el link
+de un mail; la ficha tiene los mismos campos que aceptaba el webhook (alumno, pasaporte, tutor,
+salud, preferencias) y se guarda **siempre** en la tabla de aterrizaje `inscripciones`.
+
+Reglas (`enviarInscripcion` en `src/app/inscripcion/actions.ts`), en este orden:
+
+1. **Validación** con `inscripcionSchema`. El DNI se normaliza a dígitos (TEC-12). El schema no
+   acepta `viajeId`, `alumnoId` ni `estado`: se derivan del token en el servidor.
+2. **Honeypot** `website`: si viene relleno, responde éxito sin guardar nada.
+3. **Rate limit** por IP (20 cada 10 minutos, más ancho que los otros formularios porque varias
+   familias del mismo colegio comparten red), por email (3/h) y por token (60/h).
+4. **El token resuelve la campaña**, no la identidad: de él salen el viaje, el prospecto de origen y
+   la variante visual. No lleva datos personales, así que el link se puede reenviar a muchas
+   familias y cada una carga lo suyo. Un token inválido, vencido o revocado no frena la carga: la
+   ficha se guarda igual, sin contexto y marcada para revisión.
+5. **Persistencia y después los mails**: acuse a quien completó (con su código `INS-000123`, y sin
+   un solo dato sensible: el mail queda en un buzón que no controlamos) y aviso al equipo. Si un
+   mail falla, la familia igual ve el éxito: su ficha ya está guardada.
+
+Abrir el link **no escribe nada**: solo un envío del formulario crea la ficha. Es deliberado — los
+escáneres de links de Outlook y los antivirus corporativos abren las URLs de un mail solos.
+
+Estados de una ficha: `recibida` · `procesada` · `duplicada` (ese DNI ya estaba) ·
+`requiere_revision` (llegó sin token válido, o el alta tocaría una cuenta de familia que ya existe)
+· `error` (con el motivo, y se puede reintentar) · `anulada`. La bandeja `/inscripciones` los filtra
+y muestra los conteos por estado y por variante.
+
 ### Política de Privacidad
 
 `/privacidad` publica el texto vigente y `/privacidad/<version>` una versión anterior. El texto es

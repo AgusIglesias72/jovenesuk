@@ -3,7 +3,6 @@ import {
   date,
   index,
   integer,
-  pgEnum,
   pgTable,
   text,
   timestamp,
@@ -11,13 +10,10 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import {
-  INSCRIPCION_ESTADOS,
-  VARIANTES,
-  VARIANTE_POR_DEFECTO,
-} from "@/lib/domain/inscripciones/schema";
+import { VARIANTE_POR_DEFECTO } from "@/lib/domain/inscripciones/schema";
 
 import { alumnos } from "./alumnos";
+import { inscripcionEstado, varianteFormulario } from "./enums-inscripciones";
 import { prospectoComunicaciones } from "./prospectos";
 import { viajes } from "./viajes";
 
@@ -32,15 +28,13 @@ import { viajes } from "./viajes";
  * tiene cupo), la ficha queda igual con su `estado` y su `motivo`, la bandeja la
  * muestra y el equipo decide. Nada se pierde y nada se cuela.
  *
- * Los valores de los enums salen del dominio
- * (`src/lib/domain/inscripciones/schema.ts`) — única fuente de verdad compartida
+ * Los enums (`inscripcion_estado` y `variante_formulario`) se declaran en
+ * `./enums-inscripciones`, no acá: los comparte `prospecto_comunicaciones` y
+ * declararlos en este módulo cerraba un ciclo de imports que explotaba en
+ * runtime. Sus valores salen del dominio
+ * (`src/lib/domain/inscripciones/schema.ts`), única fuente de verdad compartida
  * con el formulario y con la bandeja.
  */
-
-export const inscripcionEstado = pgEnum("inscripcion_estado", INSCRIPCION_ESTADOS);
-
-/** Solo estética: la ficha que se carga es la misma en las tres variantes. */
-export const varianteFormulario = pgEnum("variante_formulario", VARIANTES);
 
 export const inscripciones = pgTable(
   "inscripciones",

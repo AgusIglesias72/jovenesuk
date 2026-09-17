@@ -24,6 +24,13 @@ describe("buildBreadcrumb", () => {
     ]);
   });
 
+  it("deja el código de la inscripción tal cual", () => {
+    expect(labels("/inscripciones/INS-000123")).toEqual([
+      "Inscripciones",
+      "INS-000123",
+    ]);
+  });
+
   it("deja el código del viaje tal cual", () => {
     expect(labels("/viajes/UK-2026-JUL-LONDON")).toEqual([
       "Viajes",

@@ -27,6 +27,15 @@ describe("esRutaPortal", () => {
     expect(esRutaPortal("/dashboardx")).toBe(false);
   });
 
+  it("la bandeja /inscripciones pide sesión y el formulario público /inscripcion no", () => {
+    // Los dos nombres se parecen y el error caro sería que el link de la
+    // invitación (/inscripcion?t=…) terminara rebotando al login.
+    expect(esRutaPortal("/inscripciones")).toBe(true);
+    expect(esRutaPortal("/inscripciones/INS-000123")).toBe(true);
+    expect(esRutaPortal("/inscripcion")).toBe(false);
+    expect(esRutaStandalone("/inscripcion")).toBe(true);
+  });
+
   it("deja afuera la landing, auth y api", () => {
     expect(esRutaPortal("/")).toBe(false);
     expect(esRutaPortal("/login")).toBe(false);
@@ -87,6 +96,24 @@ describe("esRutaStandalone", () => {
     expect(esRutaStandalone("/offline")).toBe(true);
     expect(esRutaStandalone("/baja/otra")).toBe(false);
     expect(esRutaStandalone("/")).toBe(false);
+  });
+
+  it("el Application Form se sirve sin sesión (si no, el link del mail rebota al login)", () => {
+    expect(esRutaStandalone("/inscripcion")).toBe(true);
+    expect(esRutaStandalone("/inscripcionx")).toBe(false);
+    expect(esRutaStandalone("/inscripcion/algo")).toBe(false);
+    // No es marketing: no entra por `esPaginaPublica`, entra por acá.
+    expect(esPaginaPublica("/inscripcion")).toBe(false);
+  });
+
+  it("el token del link no saca a /inscripcion de lo público", () => {
+    // El proxy llama con `request.nextUrl.pathname`: el `?t=…` viaja aparte.
+    // Si alguien pasara la URL entera, el link de la invitación terminaría
+    // redirigido al login con el token pegado en `returnTo`.
+    const url = new URL("https://jovenesenuk.com/inscripcion?t=abc123&v=b");
+    expect(url.pathname).toBe("/inscripcion");
+    expect(esRutaStandalone(url.pathname)).toBe(true);
+    expect(esRutaStandalone(url.pathname + url.search)).toBe(false);
   });
 });
 
