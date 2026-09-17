@@ -1,14 +1,16 @@
 import { randomUUID } from "node:crypto";
 
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { db } from "../../src/lib/db";
+import { META_FORM_ABIERTO } from "../../src/lib/db/queries/inscripciones-publicas";
 import {
   inscripciones,
   prospectoComunicaciones,
   prospectos,
   viajes,
+  type NewInscripcion,
   type NewProspectoComunicacion,
 } from "../../src/lib/db/schema";
 import {
@@ -16,6 +18,12 @@ import {
   fechaDeVencimiento,
   lotesDe,
 } from "../../src/lib/domain/inscripciones/invitacion";
+import type { Variante } from "../../src/lib/domain/inscripciones/schema";
+import {
+  TEXTO_CONSENTIMIENTO,
+  VERSION_CONSENTIMIENTO,
+} from "../../src/lib/domain/privacidad/politica";
+import { hashTexto } from "../../src/lib/utils/hash-texto";
 import { generarTokenOpaco, hashToken } from "../../src/lib/utils/token-opaco";
 
 import { confirmarModal, crearViaje, esperarHidratacion, ocultarOverlayDeDev } from "./helpers";
@@ -187,6 +195,155 @@ async function abrirInvitaciones(page: Page, sufijo: string): Promise<void> {
 /** La fila de la campaña de un viaje en la tabla "Campañas". */
 function filaDeCampania(page: Page, codigoViaje: string): Locator {
   return page.getByRole("row").filter({ hasText: codigoViaje });
+}
+
+/**
+ * La celda del embudo de una campaña. Se ubica por su contenido y no por la
+ * columna: el rótulo "Embudo" solo se muestra en modo card (<640px).
+ */
+function celdaEmbudo(fila: Locator): Locator {
+  return fila.getByRole("cell").filter({ hasText: "Fichas recibidas" });
+}
+
+/** La celda del corte por piel (A/B/C) de una campaña. */
+function celdaPorPiel(fila: Locator): Locator {
+  return fila.getByRole("cell").filter({ hasText: "env." });
+}
+
+/**
+ * Un escalón del embudo, tal cual se lee: el número SIEMPRE pegado al
+ * porcentaje. Un "50%" suelto sobre 2 casos no dice nada, así que el test
+ * verifica el par entero y no el porcentaje por su lado.
+ */
+async function esperarEscalon(
+  celda: Locator,
+  label: string,
+  n: number,
+  porcentaje: string
+): Promise<void> {
+  await expect(celda, `el escalón «${label}»`).toContainText(`${label}${n} · ${porcentaje}`);
+}
+
+/** El aviso de la pantalla cuando el webhook de Resend no está configurado. */
+function avisoSinTracking(page: Page): Locator {
+  return page.getByRole("alert").filter({ hasText: "Todavía no medimos qué pasa con el mail" });
+}
+
+type EstadoInvitacion = NonNullable<NewProspectoComunicacion["estado"]>;
+
+/** Una invitación del lote con lo que le pasó después de salir el mail. */
+type PasoDelEmbudo = {
+  prospecto: ProspectoE2E;
+  estado: EstadoInvitacion;
+  /** La familia abrió el link y el formulario llegó a mostrarse. */
+  abrioElFormulario?: boolean;
+  /** La ficha que mandó, con la piel que vio. */
+  ficha?: { variante: Variante; estado: "recibida" | "procesada"; borrada?: boolean };
+};
+
+/** DNI de test: 8 dígitos que arrancan en 99 (rango que no usan los DNIs reales). */
+function dniDeTest(): string {
+  return `99${String(Math.floor(Math.random() * 1e6)).padStart(6, "0")}`;
+}
+
+/**
+ * La ficha como la deja el formulario público… o como la deja el borrado a
+ * pedido, que vacía los datos personales y conserva el talón (número, estado,
+ * variante y lote). Esa segunda forma es la que prueba lo que promete el
+ * borrado: una campaña vieja no se achica porque una familia haya ejercido su
+ * derecho. El borrado desde la pantalla lo cubre `inscripciones-bandeja.spec.ts`.
+ */
+function fichaDelLote(
+  sufijo: string,
+  comunicacionId: string,
+  ficha: NonNullable<PasoDelEmbudo["ficha"]>
+): NewInscripcion {
+  const id = randomUUID();
+  const vacia = ficha.borrada === true;
+
+  return {
+    id,
+    comunicacionId,
+    variante: ficha.variante,
+    estado: ficha.estado,
+    nombre: vacia ? "" : "Ficha",
+    apellido: vacia ? "" : `Embudo E2E ${sufijo}`,
+    fechaNacimiento: vacia ? "1900-01-01" : "2011-04-04",
+    dni: vacia ? `borrado-${id}` : dniDeTest(),
+    numeroPasaporte: vacia ? "" : `FX${sufijo}${ficha.variante.toUpperCase()}`,
+    fechaVencimientoPasaporte: vacia ? "1900-01-01" : "2034-01-01",
+    tutor1Nombre: vacia ? "" : "Tutora E2E",
+    tutor1Celular: vacia ? "" : "+54 9 11 5555-0000",
+    tutor1Email: vacia ? "" : `e2e+emb-${sufijo.toLowerCase()}-${ficha.variante}@e2e.example.com`,
+    consentimientoVersion: VERSION_CONSENTIMIENTO,
+    consentimientoTextoHash: hashTexto(TEXTO_CONSENTIMIENTO),
+    consentimientoEl: new Date(),
+    ...(vacia
+      ? {
+          borradoEl: new Date(),
+          motivoBorrado: `Borrado a pedido de la familia (E2E ${sufijo})`,
+          datosPurgadosEl: new Date(),
+        }
+      : {}),
+  };
+}
+
+/**
+ * Una campaña ya vivida: los mails salieron, algunas familias abrieron el link
+ * y algunas mandaron la ficha. Se escribe por base porque lo que se prueba acá
+ * es la LECTURA —el embudo agregado en SQL sobre el lote entero—, no el envío,
+ * que tiene sus propios tests más arriba.
+ */
+async function crearLoteConEmbudo(opts: {
+  sufijo: string;
+  viajeId: string;
+  pasos: PasoDelEmbudo[];
+}): Promise<string> {
+  const loteId = randomUUID();
+  const expiraEl = fechaDeVencimiento(new Date());
+
+  const filas = await db
+    .insert(prospectoComunicaciones)
+    .values(
+      opts.pasos.map((paso, i) => ({
+        prospectoId: paso.prospecto.id,
+        tipo: "email" as const,
+        estado: paso.estado,
+        destinatario: paso.prospecto.email,
+        ...(paso.estado === "pendiente"
+          ? {}
+          : {
+              resendMessageId: `e2e-msg-${opts.sufijo}-${i}`,
+              invitacionTokenHash: hashToken(generarTokenOpaco()),
+            }),
+        invitacionViajeId: opts.viajeId,
+        invitacionExpiraEl: expiraEl,
+        invitacionLoteId: loteId,
+        // El mismo sello que deja `registrarAperturaFormulario`: vive en `meta`
+        // porque es bitácora, y el embudo lo cuenta desde ahí.
+        ...(paso.abrioElFormulario
+          ? { meta: { [META_FORM_ABIERTO]: new Date().toISOString() } }
+          : {}),
+      }))
+    )
+    .returning({
+      id: prospectoComunicaciones.id,
+      destinatario: prospectoComunicaciones.destinatario,
+    });
+
+  // Las filas se reencuentran con su paso por el destinatario (uno por
+  // prospecto) y no por la posición: el orden del RETURNING no es un contrato.
+  const porDestinatario = new Map(filas.map((f) => [f.destinatario, f.id]));
+
+  const fichas = opts.pasos.flatMap((paso) => {
+    const comunicacionId = porDestinatario.get(paso.prospecto.email);
+    if (!paso.ficha) return [];
+    if (!comunicacionId) throw new Error(`no se creó la invitación de ${paso.prospecto.email}`);
+    return [fichaDelLote(opts.sufijo, comunicacionId, paso.ficha)];
+  });
+  if (fichas.length > 0) await db.insert(inscripciones).values(fichas);
+
+  return loteId;
 }
 
 test("la campaña llega a 0 restantes avanzando por tandas desde la pantalla", async ({ page }) => {
@@ -408,6 +565,214 @@ test("una invitación revocada deja de abrir el formulario", async ({ browser, b
   }
 });
 
+test("el resumen de la campaña muestra el embudo con el n al lado del porcentaje y el corte por piel", async ({
+  page,
+}) => {
+  test.setTimeout(150_000);
+  const sufijo = sufijoUnico();
+
+  const viaje = await crearViajeDelTest(page);
+  const gente = await crearProspectos({ sufijo, cantidad: 6 });
+  const [uno, dos, tres, cuatro, cinco, seis] = gente;
+  if (!uno || !dos || !tres || !cuatro || !cinco || !seis) {
+    throw new Error("no se crearon los seis prospectos de la campaña");
+  }
+
+  // Una campaña con TODOS los desenlaces, para que cada escalón tenga un número
+  // distinto y un escalón mal calculado no pueda pasar por otro.
+  await crearLoteConEmbudo({
+    sufijo,
+    viajeId: viaje.id,
+    pasos: [
+      // Abrió, mandó la ficha, el equipo la procesó… y después pidió que le
+      // borráramos los datos. Sigue contando: eso es lo que sostiene el talón.
+      {
+        prospecto: uno,
+        estado: "enviado",
+        abrioElFormulario: true,
+        ficha: { variante: "a", estado: "procesada", borrada: true },
+      },
+      {
+        prospecto: dos,
+        estado: "enviado",
+        abrioElFormulario: true,
+        ficha: { variante: "b", estado: "recibida" },
+      },
+      {
+        prospecto: tres,
+        estado: "enviado",
+        abrioElFormulario: true,
+        ficha: { variante: "b", estado: "recibida" },
+      },
+      // Abrió el formulario y no lo completó: el escalón que distingue "nadie
+      // abrió" de "abrieron y se cayeron en el camino".
+      { prospecto: cuatro, estado: "enviado", abrioElFormulario: true },
+      { prospecto: cinco, estado: "enviado" },
+      { prospecto: seis, estado: "pendiente" },
+    ],
+  });
+
+  await abrirInvitaciones(page, sufijo);
+  const fila = filaDeCampania(page, viaje.codigo);
+  await expect(fila).toContainText("5 de 6");
+  await expect(fila).toContainText("1 sin mandar");
+
+  const embudo = celdaEmbudo(fila);
+
+  // Los escalones, en el orden en que ocurren. Los porcentajes de "Enviadas" se
+  // miden sobre el total del lote (5 de 6) y los de abajo sobre las ENVIADAS:
+  // lo que se compara es qué hizo la gente que recibió el mail.
+  await esperarEscalon(embudo, "Enviadas", 5, "83%");
+  await esperarEscalon(embudo, "Abrieron el formulario", 4, "80%");
+  await esperarEscalon(embudo, "Fichas recibidas", 3, "60%");
+  await esperarEscalon(embudo, "Fichas procesadas", 1, "20%");
+
+  // Y la regla, verificada sobre TODO lo que la celda dibuja y no solo sobre los
+  // escalones que el test nombra: acá no hay un porcentaje sin su número.
+  const textoEmbudo = ((await embudo.textContent()) ?? "").replace(/\s+/g, " ");
+  const porcentajes = textoEmbudo.match(/%/g)?.length ?? 0;
+  const conSuNumero = textoEmbudo.match(/\d+ · \d+%/g)?.length ?? 0;
+  expect(porcentajes, "el embudo tiene que mostrar porcentajes").toBeGreaterThan(0);
+  expect(conSuNumero, `un porcentaje viaja solo en «${textoEmbudo}»`).toBe(porcentajes);
+
+  // Entrega, apertura y clic los mueve el webhook de Resend. Sin
+  // RESEND_WEBHOOK_SECRET nadie los cuenta NUNCA, y un 0 se leería como "nadie
+  // lo abrió": van como "no disponible" o no van.
+  const sinTracking = (await avisoSinTracking(page).count()) > 0;
+  const delWebhook = ["Entregadas", "Abrieron el mail", "Clic en el link"];
+  if (sinTracking) {
+    await expect(embudo.getByText("Entrega, apertura y clic")).toBeVisible();
+    await expect(embudo.getByText("No disponible")).toBeVisible();
+    for (const escalon of delWebhook) {
+      await expect(
+        embudo.getByText(escalon, { exact: true }),
+        `«${escalon}» no se puede mostrar sin webhook`
+      ).toHaveCount(0);
+    }
+  } else {
+    // Con el webhook configurado sí se miden, y valen las mismas reglas.
+    for (const escalon of delWebhook) {
+      await expect(embudo.getByText(escalon, { exact: true })).toBeVisible();
+    }
+  }
+
+  // El corte por piel: es lo único que contesta "¿la B convierte mejor que la
+  // A?". La piel que se le atribuye a cada invitación es la que quedó anotada en
+  // su ficha, así que las dos invitaciones sin ficha no entran en ningún corte
+  // (1 + 2 < 5 enviadas) y la C, que nadie vio, no ocupa una línea vacía.
+  const porPiel = celdaPorPiel(fila);
+  const textoPiel = ((await porPiel.textContent()) ?? "").replace(/\s+/g, " ");
+  expect(textoPiel, "el corte de la piel A").toMatch(/A\s*1 env\. · 1 abrieron · 1 fichas/);
+  expect(textoPiel, "el corte de la piel B").toMatch(/B\s*2 env\. · 2 abrieron · 2 fichas/);
+  expect(textoPiel, "la piel que nadie vio no ocupa lugar").not.toContain("C");
+
+  // La nota que evita la lectura apurada del porcentaje.
+  await expect(page.getByText("Con pocos casos el porcentaje no dice nada")).toBeVisible();
+});
+
+test("abrir el formulario con el link cuenta la apertura una sola vez", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  test.setTimeout(150_000);
+  const sufijo = sufijoUnico();
+
+  const viaje = await crearViajeDelTest(page);
+  const [prospecto] = await crearProspectos({ sufijo, cantidad: 1 });
+  if (!prospecto) throw new Error("no se creó el prospecto de la invitación");
+
+  // La invitación, como la deja el envío: en la base vive SOLO el hash y el
+  // token en claro existe una vez (en el mail; acá, en esta variable).
+  const token = generarTokenOpaco();
+  const [invitacion] = await db
+    .insert(prospectoComunicaciones)
+    .values({
+      prospectoId: prospecto.id,
+      tipo: "email",
+      estado: "enviado",
+      destinatario: prospecto.email,
+      invitacionTokenHash: hashToken(token),
+      invitacionViajeId: viaje.id,
+      invitacionExpiraEl: fechaDeVencimiento(new Date()),
+      invitacionLoteId: randomUUID(),
+    })
+    .returning({ id: prospectoComunicaciones.id });
+  if (!invitacion) throw new Error("no se creó la invitación del test");
+  const invitacionId = invitacion.id;
+
+  /** El sello de apertura que vive en `meta`, o null si todavía no se abrió. */
+  async function selloDeApertura(): Promise<string | null> {
+    const [fila] = await db
+      .select({ meta: prospectoComunicaciones.meta })
+      .from(prospectoComunicaciones)
+      .where(eq(prospectoComunicaciones.id, invitacionId))
+      .limit(1);
+    const valor = fila?.meta?.[META_FORM_ABIERTO];
+    return typeof valor === "string" ? valor : null;
+  }
+
+  // Antes de que nadie lo abra el escalón está en cero, y ese cero SÍ es
+  // verdad: la apertura del formulario la registra la app, no el webhook.
+  await abrirInvitaciones(page, sufijo);
+  const fila = filaDeCampania(page, viaje.codigo);
+  await esperarEscalon(celdaEmbudo(fila), "Abrieron el formulario", 0, "0%");
+  expect(await selloDeApertura()).toBeNull();
+
+  const contexto = await browser.newContext({
+    baseURL,
+    // Vacío a propósito: browser.newContext hereda el storageState del proyecto
+    // (la sesión de admin) y la familia entra sin sesión.
+    storageState: { cookies: [], origins: [] },
+  });
+  try {
+    const familia = await contexto.newPage();
+
+    // Cada apertura es UNA llamada a la server action, y una server action viaja
+    // como POST a la URL de la pantalla (la navegación es GET). Contarlas es lo
+    // que hace afilado el test: la segunda visita tiene que avisar igual, y el
+    // sello tiene que quedar donde estaba.
+    const avisos: string[] = [];
+    familia.on("request", (req) => {
+      if (req.method() === "POST" && req.url().includes("/inscripcion")) avisos.push(req.url());
+    });
+
+    await familia.goto(`/inscripcion?t=${token}`);
+    // La apertura la avisa el cliente YA HIDRATADO: en el render del GET la
+    // dispararía sola el prefetch del cliente de correo, y eso no es nadie
+    // abriendo nada.
+    await esperarHidratacion(familia.getByLabel("DNI*"));
+
+    await expect
+      .poll(selloDeApertura, { message: "la primera apertura no se registró" })
+      .not.toBeNull();
+    const primera = await selloDeApertura();
+
+    // La familia vuelve a mirar el formulario (o lo abre el otro tutor).
+    await familia.reload();
+    await esperarHidratacion(familia.getByLabel("DNI*"));
+    await expect
+      .poll(() => avisos.length, { message: "la segunda visita no volvió a avisar" })
+      .toBeGreaterThanOrEqual(2);
+
+    // Lo que interesa es "se abrió", no cuántas veces: el sello es el de la
+    // PRIMERA vez y el segundo aviso no lo pisa.
+    expect(await selloDeApertura(), "el sello de la primera apertura se pisó").toBe(primera);
+  } finally {
+    await contexto.close();
+  }
+
+  // Y el embudo cuenta una, no dos: el escalón mide familias que abrieron, no
+  // visitas.
+  await abrirInvitaciones(page, sufijo);
+  await esperarEscalon(
+    celdaEmbudo(filaDeCampania(page, viaje.codigo)),
+    "Abrieron el formulario",
+    1,
+    "100%"
+  );
+});
+
 test("@mobile la tabla de campañas se lee como tarjetas y 'Retomar' es tapeable", async ({
   page,
 }) => {
@@ -429,11 +794,20 @@ test("@mobile la tabla de campañas se lee como tarjetas y 'Retomar' es tapeable
   await expect(tarjeta).toBeVisible();
 
   // Modo card: cada celda anuncia su rótulo dentro de la propia fila.
-  for (const rotulo of ["Campaña", "Enviadas", "Situación", "Respondidas"]) {
+  for (const rotulo of ["Campaña", "Envío", "Embudo", "Por piel"]) {
     await expect(tarjeta.getByText(rotulo, { exact: true })).toBeVisible();
   }
   await expect(tarjeta).toContainText("1 de 2");
   await expect(tarjeta).toContainText("1 sin mandar");
+
+  // El embudo, con el número siempre pegado al porcentaje.
+  await expect(tarjeta.getByText("Fichas recibidas", { exact: true })).toBeVisible();
+  await expect(tarjeta).toContainText("0 · 0%");
+
+  // Y la regla que no se negocia: los escalones que dependen del webhook de
+  // Resend, o se miden, o dicen "no disponible". Nunca un 0 mudo, que se leería
+  // como "nadie lo abrió".
+  await expect(tarjeta.getByText(/Entregadas|No disponible/).first()).toBeVisible();
 
   const retomar = tarjeta.getByRole("button", { name: "Retomar (1)" });
   const caja = await retomar.boundingBox();

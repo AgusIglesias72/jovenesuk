@@ -9,7 +9,7 @@ import type { Variante } from "@/lib/domain/inscripciones/schema";
 import { ENLACE_POLITICA, TEXTO_CONSENTIMIENTO } from "@/lib/domain/privacidad/politica";
 import { cn } from "@/lib/utils/cn";
 
-import { enviarInscripcion } from "./actions";
+import { enviarInscripcion, registrarApertura } from "./actions";
 import {
   MICROCOPY,
   PRESENTACION_POR_VARIANTE,
@@ -127,6 +127,27 @@ export function InscripcionForm({ token, variante, preset = {} }: Props) {
   useEffect(() => {
     if (state && !state.ok) resumenRef.current?.focus();
   }, [state]);
+
+  // "Se abrió el formulario", el escalón del medio del embudo de campañas.
+  //
+  // Va acá y no en el server component de la página justamente porque esto
+  // corre en el navegador de una persona: el GET de la página también lo
+  // dispara el prefetch del cliente de correo, y ese no es nadie abriendo nada.
+  //
+  // El ref frena el doble disparo del modo estricto en desarrollo (el efecto se
+  // monta, se limpia y se vuelve a montar sobre la misma instancia). El server
+  // es idempotente igual: esto es para no gastar dos requests.
+  const aperturaAvisada = useRef(false);
+  useEffect(() => {
+    if (!token || aperturaAvisada.current) return;
+    aperturaAvisada.current = true;
+    // Sin `await` ni estado: el resultado no cambia nada de lo que ve la
+    // familia, y el formulario no puede esperar a una métrica para ser usable.
+    // El `catch` vacío es deliberado: si el request se cayó, lo que se pierde es
+    // una marca de embudo, y una excepción sin manejar ensuciaría la consola de
+    // una pantalla pública.
+    void registrarApertura(token).catch(() => undefined);
+  }, [token]);
 
   // `input` burbujea desde todos los controles, incluido el <input type="date">
   // oculto de <DateInput>, que despacha el evento a mano al commitear su ISO.

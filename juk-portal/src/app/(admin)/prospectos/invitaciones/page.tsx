@@ -1,6 +1,16 @@
-import { Button, Field, Input, LinkButton, PageHeader, Pagination, Select } from "@/components/ui";
+import {
+  Alert,
+  Button,
+  Field,
+  Input,
+  LinkButton,
+  PageHeader,
+  Pagination,
+  Select,
+} from "@/components/ui";
 import { destinatariosDesdeProspectos, listLotes } from "@/lib/db/queries/invitaciones";
 import { listViajesParaFiltro } from "@/lib/db/queries/viajes";
+import { esPlaceholder } from "@/lib/domain/configuracion/env";
 import { MAX_DESTINATARIOS_LOTE } from "@/lib/domain/inscripciones/invitacion";
 import {
   ESTADOS_PROSPECTO,
@@ -30,6 +40,20 @@ export const metadata = { title: "Invitaciones" };
 /** Cuántos excluidos se muestran con nombre y apellido; del resto va el número. */
 const MUESTRA_EXCLUIDOS = 20;
 
+/**
+ * Entregado, abierto y click los mueve el webhook de Resend: sin
+ * `RESEND_WEBHOOK_SECRET` esos tres escalones no se miden NUNCA y quedan en
+ * cero. Mostrar ese cero sería mentir —se lee "nadie lo abrió"—, así que la
+ * tabla los marca como "no disponible".
+ *
+ * Un placeholder cuenta como ausente, igual que en la tarjeta de servicios de
+ * `/configuracion`: un valor de ejemplo sin reemplazar no verifica ninguna firma.
+ */
+function trackingDeMailsDisponible(): boolean {
+  const secreto = (process.env.RESEND_WEBHOOK_SECRET ?? "").trim();
+  return secreto !== "" && !esPlaceholder(secreto);
+}
+
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function InvitacionesPage({
@@ -56,6 +80,7 @@ export default async function InvitacionesPage({
   ]);
 
   const excedeTope = destinatarios.incluidos.length > MAX_DESTINATARIOS_LOTE;
+  const trackingMails = trackingDeMailsDisponible();
 
   return (
     <>
@@ -110,7 +135,21 @@ export default async function InvitacionesPage({
       <h2 className="mb-3 mt-8 font-display text-[length:var(--t-h3)] font-bold text-[var(--c-ink)]">
         Campañas
       </h2>
-      <LotesTable lotes={lotes.items} />
+
+      {!trackingMails && (
+        <Alert
+          level="warning"
+          title="Todavía no medimos qué pasa con el mail"
+          className="mb-3"
+        >
+          Falta configurar el webhook de Resend (<code>RESEND_WEBHOOK_SECRET</code>), así que los
+          escalones de entrega, apertura y clic aparecen como <strong>no disponible</strong>. No
+          quiere decir que nadie los haya abierto: quiere decir que nadie lo está contando. Lo que
+          sí se mide es de acá en adelante: quién abrió el formulario y quién mandó la ficha.
+        </Alert>
+      )}
+
+      <LotesTable lotes={lotes.items} trackingMails={trackingMails} />
       <Pagination total={lotes.total} page={lotes.page} pages={lotes.pages} />
     </>
   );

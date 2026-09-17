@@ -7,10 +7,11 @@ import { z } from "zod";
 import { procesarAltaInscripcion } from "@/lib/actions/alta-inscripcion";
 import type { ActionResult } from "@/lib/actions/result";
 import { safeAudit } from "@/lib/actions/safe-audit";
-import { requireAdminJuk } from "@/lib/auth/helpers";
+import { requireAdminJuk, requireRole } from "@/lib/auth/helpers";
 import { anularInscripcion } from "@/lib/db/queries/anular-inscripcion";
 import { prepararEnvioAcceso } from "@/lib/db/queries/familias";
 import {
+  anonimizarInscripcion,
   getInscripcionByNumero,
   type InscripcionDetalle,
 } from "@/lib/db/queries/inscripciones";
@@ -37,9 +38,10 @@ import { fieldErrorsFromZod } from "@/lib/utils/zod";
  * el equipo. Todo lo demás —la carga anónima, y sobre todo la que tocaría una
  * cuenta de familia que ya existe— queda esperando a una persona. Estas actions
  * son esa persona, y por eso la capacidad que las habilita es la sesión de
- * admin: `via: "equipo"`.
+ * admin: `via: "equipo"`. La excepción es el borrado a pedido, que pide
+ * super_admin y está explicado en `borrarDatosInscripcionAction`.
  *
- * Tres reglas que se repiten en las cuatro:
+ * Tres reglas que se repiten en todas:
  *
  *  1. **Nada viene del cliente salvo el código público** (`INS-000123`, lo que
  *     está en la URL). El id, el estado, el DNI, el alumno y el email del tutor
@@ -70,6 +72,24 @@ const motivoSchema = z.object({
   motivo: z.preprocess(
     (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
     z.string().trim().max(500, "El motivo no puede pasar de 500 caracteres.").optional()
+  ),
+});
+
+const MOTIVO_BORRADO_REQUERIDO =
+  "Contá quién pidió el borrado: es el único registro que queda de por qué se hizo.";
+
+/**
+ * A diferencia del de anular, este motivo es OBLIGATORIO: después del borrado no
+ * queda un nombre al que preguntarle, y lo que sostiene la decisión es esta
+ * línea.
+ */
+const motivoBorradoSchema = z.object({
+  motivo: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim() : v),
+    z
+      .string({ required_error: MOTIVO_BORRADO_REQUERIDO })
+      .min(1, MOTIVO_BORRADO_REQUERIDO)
+      .max(500, "El motivo no puede pasar de 500 caracteres.")
   ),
 });
 
@@ -407,4 +427,76 @@ export async function anularInscripcionAction(
   revalidar(ficha.alumnoId !== null);
 
   return { ok: true, data: { estado: "anulada", motivo, alumnoId: ficha.alumnoId, ejecutada: true } };
+}
+
+/** `false` cuando la ficha ya estaba borrada y no había nada que vaciar. */
+export type ResultadoBorrado = { ejecutada: boolean };
+
+/**
+ * El borrado que pide una familia, el que la Política de Privacidad promete.
+ *
+ * Tres cosas lo separan del resto de la bandeja:
+ *
+ *  1. **Lo firma un super_admin**, no cualquiera del equipo. No es una acción de
+ *     rutina: lo que se va no vuelve, y las de rutina (procesar, anular) ya
+ *     cubren todo lo reversible.
+ *  2. **El motivo es obligatorio.** Después del borrado no queda un nombre al
+ *     que preguntarle qué pasó; queda esta línea y la entrada de auditoría.
+ *  3. **No borra la fila**: `anonimizarInscripcion` vacía los datos personales y
+ *     deja el talón (número, estado, variante, viaje, lote y fechas), así los
+ *     conteos de la campaña no cambian hacia atrás. La ficha sí desaparece de la
+ *     bandeja, y su detalle pasa a responder 404.
+ *
+ * Volver a pedirlo no es un error: `getInscripcionByNumero` ya no encuentra una
+ * ficha borrada, y si dos pestañas lo piden a la vez la segunda contesta ok sin
+ * ejecutar (el UPDATE es condicional).
+ */
+export async function borrarDatosInscripcionAction(
+  input: unknown
+): Promise<ActionResult<ResultadoBorrado>> {
+  const session = await requireRole("super_admin");
+
+  const parsedMotivo = motivoBorradoSchema.safeParse(input);
+  if (!parsedMotivo.success) {
+    return {
+      ok: false,
+      error: "Falta el motivo del borrado.",
+      fieldErrors: fieldErrorsFromZod(parsedMotivo.error),
+    };
+  }
+  const motivo = parsedMotivo.data.motivo;
+
+  const resuelto = await fichaDelCodigo(input);
+  if ("fallo" in resuelto) return resuelto.fallo;
+  const { ficha } = resuelto;
+
+  let borrada: boolean;
+  try {
+    borrada = await anonimizarInscripcion(ficha.id, { usuarioId: session.user.id, motivo });
+  } catch (err) {
+    Sentry.captureException(err);
+    return { ok: false, error: "No pudimos borrar los datos de la ficha. Probá de nuevo." };
+  }
+
+  if (!borrada) return { ok: true, data: { ejecutada: false } };
+
+  // La entrada de auditoría NO lleva el nombre, el DNI ni el mail de la ficha:
+  // sería exactamente el dato que se acaba de borrar, guardado en otra tabla.
+  // Con el id, el estado y el motivo alcanza para reconstruir qué se decidió.
+  await safeAudit({
+    accion: "delete",
+    entidadTipo: "inscripcion",
+    entidadId: ficha.id,
+    usuarioId: session.user.id,
+    metadata: {
+      origen: "bandeja_inscripciones",
+      decision: "borrar_datos",
+      estado: ficha.estado,
+      motivo,
+    },
+  });
+
+  revalidar(ficha.alumnoId !== null);
+
+  return { ok: true, data: { ejecutada: true } };
 }

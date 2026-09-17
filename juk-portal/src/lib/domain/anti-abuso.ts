@@ -49,6 +49,29 @@ export const LIMITE_POR_EMAIL: VentanaRateLimit = { maximo: 3, ventanaMs: HORA_M
  */
 export const LIMITE_POR_TOKEN: VentanaRateLimit = { maximo: 60, ventanaMs: HORA_MS };
 
+/**
+ * La APERTURA del link (la señal de que alguien abrió el formulario) tiene sus
+ * propias ventanas y no toca las del envío. Son dos hechos distintos: si la
+ * apertura gastara la cuota del envío, una familia que abre el link tres veces
+ * —mira, cierra, vuelve con el pasaporte en la mano— se quedaría sin poder
+ * mandar la ficha, que es lo único que no se puede perder.
+ *
+ * El registro es idempotente por invitación, así que esto no protege un dato:
+ * acota cuánto trabajo puede pedir un link que se filtró. Por eso los números
+ * son más holgados que los de un formulario que persiste.
+ */
+export const LIMITE_APERTURA_POR_TOKEN: VentanaRateLimit = { maximo: 30, ventanaMs: HORA_MS };
+
+/**
+ * Ventana por IP de la apertura, ancha por el mismo motivo que la del
+ * Application Form: varias familias del mismo colegio (o detrás del CGNAT del
+ * mismo proveedor) salen con una sola IP pública.
+ */
+export const LIMITE_APERTURA_POR_IP: VentanaRateLimit = {
+  maximo: 60,
+  ventanaMs: 10 * MINUTO_MS,
+};
+
 /** Un mismo email + interés no vuelve a disparar el aviso al equipo por 24 h. */
 export const VENTANA_DEDUP_AVISO_MS = 24 * HORA_MS;
 
@@ -135,12 +158,27 @@ export function claveEmail(formulario: FormularioPublico, email: string): string
   return `${formulario}:email:${normalizarEmail(email)}`;
 }
 
+const normalizarHash = (tokenHash: string) => tokenHash.trim().toLowerCase().slice(0, 128);
+
 /**
  * Se indexa por el HASH del token, nunca por el token en claro: la tabla de
  * rate limit es de datos operativos y no tiene que poder abrir un link.
  */
 export function claveToken(formulario: FormularioPublico, tokenHash: string): string {
-  return `${formulario}:token:${tokenHash.trim().toLowerCase().slice(0, 128)}`;
+  return `${formulario}:token:${normalizarHash(tokenHash)}`;
+}
+
+/**
+ * Claves de la apertura. El prefijo `apertura:` no es un `FormularioPublico`, y
+ * justamente por eso no puede chocar con ninguna de las de arriba: son ventanas
+ * separadas, que es todo el punto.
+ */
+export function claveAperturaIp(ip: string): string {
+  return `apertura:ip:${normalizarIp(ip)}`;
+}
+
+export function claveAperturaToken(tokenHash: string): string {
+  return `apertura:token:${normalizarHash(tokenHash)}`;
 }
 
 /**

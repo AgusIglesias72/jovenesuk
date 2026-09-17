@@ -82,11 +82,16 @@ asunción de trabajo mientras no se decida.
   `TEXTO_CONSENTIMIENTO`, y los plazos de retención están definidos y testeados en
   `src/lib/domain/privacidad/retencion.ts` (90 días una inscripción procesada, 730 sin procesar, 90
   una invitación vencida sin usar).
-- **Lo que sigue abierto:** la **purga automática** (llega con la etapa 7 del módulo de
-  inscripciones) y el **borrado a pedido** sobre `consultas` y `suscriptores`, que siguen sin
-  pantalla ni acción (`/consultas` solo cambia el estado). La política dice explícitamente que hoy
-  ese borrado se hace a mano, para no prometer lo que el código no hace. Falta además la revisión
-  legal del texto (ver `docs/estado-actual.md` §7).
+- **Cerrada para las inscripciones (17/09/2026):** la purga por retención existe
+  (`src/lib/jobs/purgar-inscripciones.ts`, `npm run job:purga`) y el borrado a pedido también
+  (super_admin, con motivo y auditoría). Las dos dejan el talón de la fila para no falsear las
+  estadísticas de campañas viejas.
+- **Lo que sigue abierto:** el mismo borrado a pedido sobre `consultas` y `suscriptores`, que siguen
+  sin pantalla ni acción (`/consultas` solo cambia el estado); que la purga corra **sola** (hoy es a
+  mano: Trigger.dev no está desplegado); y la retención de la ficha del **alumno** ya procesado y de
+  sus documentos, que no tienen plazo (TEC-02). La política publicada dice exactamente eso, para no
+  prometer lo que el código no hace. Falta además la revisión legal del texto
+  (ver `docs/estado-actual.md` §7).
 
 ### MIN-17 · ¿Un paso "Opcional" cuenta para el filtro "paso pendiente"?
 

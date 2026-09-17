@@ -1,10 +1,13 @@
 "use server";
 
 /*
- * Envío del Application Form propio. Es la ÚNICA escritura de la superficie
- * pública de inscripción: la página que se abre con el link tokenizado solo
- * lee (el precedente malo es `src/app/baja/page.tsx`, que hace un UPDATE en el
- * render y un prefetch del cliente de correo lo dispara solo).
+ * Envío del Application Form propio, y la marca de que el formulario se abrió.
+ *
+ * Las DOS son actions y no pasan nunca por el render: la página que se abre con
+ * el link tokenizado solo lee (el precedente malo es `src/app/baja/page.tsx`,
+ * que hace un UPDATE en el render y un prefetch del cliente de correo lo
+ * dispara solo). Escribir la apertura en el GET contaría como visita cada
+ * prefetch de Outlook y el embudo mediría al cliente de correo, no a la familia.
  *
  * La ficha se PERSISTE siempre primero. Una carga entra como `recibida` si
  * llegó por una invitación que todavía abre, o como `requiere_revision` si
@@ -23,17 +26,19 @@
  */
 
 import * as Sentry from "@sentry/nextjs";
+import { z } from "zod";
 
 import {
   MOTIVO_SIN_INVITACION,
   procesarAltaInscripcion,
 } from "@/lib/actions/alta-inscripcion";
-import { dentroDelLimite } from "@/lib/actions/anti-abuso-request";
+import { aperturaDentroDelLimite, dentroDelLimite } from "@/lib/actions/anti-abuso-request";
 import type { ActionResult } from "@/lib/actions/result";
 import {
   crearInscripcion,
   getInvitacionByTokenHash,
   marcarInvitacionRespondida,
+  registrarAperturaFormulario,
   type InvitacionPublica,
 } from "@/lib/db/queries/inscripciones-publicas";
 import type { Inscripcion } from "@/lib/db/schema/inscripciones";
@@ -265,4 +270,48 @@ export async function enviarInscripcion(
     ok: true,
     data: { mensaje: MENSAJE_OK, codigo: codigoDe(resultado.inscripcion.numero) },
   };
+}
+
+/**
+ * El token es un base64url de 32 bytes (43 caracteres). El mínimo es holgado a
+ * propósito: no valida la credencial —eso lo hace el hash contra la base— sino
+ * que descarta la basura antes de gastar un round-trip.
+ */
+const tokenAperturaSchema = z.string().trim().min(20).max(200);
+
+/**
+ * "Este link se abrió y el formulario se mostró." La llama el formulario ya
+ * hidratado, una sola vez por carga.
+ *
+ * Es el escalón que le falta al embudo de campañas: sin él, una campaña sin
+ * respuestas no distingue entre "el mail no lo abrió nadie" y "lo abrieron, vieron
+ * el formulario y no lo completaron", que son dos problemas distintos con dos
+ * soluciones distintas.
+ *
+ * Tres cosas que no hace, a propósito:
+ *  - no gasta la ventana del envío de la ficha: tiene la suya
+ *    (`aperturaDentroDelLimite`), así que abrir el link cinco veces no puede
+ *    dejar a una familia sin poder mandar la inscripción;
+ *  - no cuenta visitas: el registro es idempotente por invitación;
+ *  - no devuelve nada que sirva para probar tokens. El desenlace es el mismo
+ *    —`ok`— exista o no la invitación: contestar distinto convertiría esta
+ *    action en un oráculo para adivinar links ajenos.
+ */
+export async function registrarApertura(token: string): Promise<ActionResult<null>> {
+  const parsed = tokenAperturaSchema.safeParse(token);
+  if (!parsed.success) return { ok: false, error: ERROR_GENERICO };
+
+  const tokenHash = hashToken(parsed.data);
+
+  if (!(await aperturaDentroDelLimite(tokenHash))) return { ok: false, error: ERROR_REINTENTAR };
+
+  try {
+    await registrarAperturaFormulario(tokenHash);
+  } catch (err) {
+    // Una métrica nunca puede romperle la pantalla a la familia que está por
+    // completar la ficha: se reporta y se sigue.
+    Sentry.captureException(err);
+  }
+
+  return { ok: true, data: null };
 }

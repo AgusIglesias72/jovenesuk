@@ -76,6 +76,7 @@ está en [`docs/setup-servicios.md`](docs/setup-servicios.md); para hacerlo acom
 | `npm run db:studio` | Drizzle Studio | Sí |
 | `npm run db:seed` | Crea el super_admin (idempotente) | Sí |
 | `npm run db:seed:demo` | Cuentas `test.*` + dataset `[DEMO]` (idempotente) | Sí |
+| `npm run job:purga` | Purga por retención (MIN-16): vacía los datos personales de las inscripciones fuera de plazo y borra el token de las invitaciones vencidas sin usar. Escribe: imprime la base y las fechas de corte antes de tocar nada | No (lee `.env.local`) |
 | `npm run trigger:dev` / `npm run trigger:deploy` | Jobs de Trigger.dev en local / deploy | Ver `.claude/docs/04` |
 | `npm run email:dev` | Preview local de las plantillas de mail | No |
 | `npm test` / `npm run test:watch` | Unit tests (Vitest, proyecto `unit`) | No |

@@ -3,8 +3,12 @@ import * as Sentry from "@sentry/nextjs";
 
 import { incrementarYVerificar } from "@/lib/db/queries/rate-limit-formularios";
 import {
+  LIMITE_APERTURA_POR_IP,
+  LIMITE_APERTURA_POR_TOKEN,
   LIMITE_POR_EMAIL,
   LIMITE_POR_TOKEN,
+  claveAperturaIp,
+  claveAperturaToken,
   claveEmail,
   claveIp,
   claveToken,
@@ -72,6 +76,37 @@ export async function dentroDelLimite(
           );
 
     return porIp.permitido && porEmail.permitido && (porToken === null || porToken.permitido);
+  } catch (err) {
+    Sentry.captureException(err);
+    return true;
+  }
+}
+
+/**
+ * Ventanas de la APERTURA del link tokenizado, que son propias y no gastan las
+ * del envío de la ficha (el porqué, en `LIMITE_APERTURA_POR_TOKEN`).
+ *
+ * Se cuenta por IP y por token; no hay dimensión por email porque en la
+ * apertura todavía no hay email — nadie tipeó nada.
+ *
+ * Falla abierto, igual que `dentroDelLimite`, y acá cuesta todavía menos: lo
+ * único que se registra es una marca idempotente de "este link se abrió".
+ */
+export async function aperturaDentroDelLimite(tokenHash: string): Promise<boolean> {
+  try {
+    const ahora = new Date();
+    const porIp = await incrementarYVerificar(
+      claveAperturaIp(await ipDelRequest()),
+      LIMITE_APERTURA_POR_IP,
+      ahora
+    );
+    const porToken = await incrementarYVerificar(
+      claveAperturaToken(tokenHash),
+      LIMITE_APERTURA_POR_TOKEN,
+      ahora
+    );
+
+    return porIp.permitido && porToken.permitido;
   } catch (err) {
     Sentry.captureException(err);
     return true;

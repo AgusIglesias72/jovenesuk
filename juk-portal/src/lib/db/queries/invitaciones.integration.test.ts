@@ -21,6 +21,7 @@ import { hashToken } from "@/lib/utils/token-opaco";
 import { crearFixtures, dia, integracionHabilitada } from "../../../../tests/integration/fixtures";
 
 type InvitacionesQ = typeof import("./invitaciones");
+type PublicasQ = typeof import("./inscripciones-publicas");
 
 /*
  * El envío masivo contra Postgres. Nada de esto se puede probar con un mock:
@@ -49,6 +50,7 @@ const proximo = () => (secuencia += 1);
 
 describe.skipIf(!integracionHabilitada)("Envío masivo de invitaciones contra Postgres", () => {
   let q: InvitacionesQ;
+  let pub: PublicasQ;
   let viajeId: string;
   let colegioId: string;
   let baseId: string;
@@ -98,6 +100,41 @@ describe.skipIf(!integracionHabilitada)("Envío masivo de invitaciones contra Po
     return fila;
   }
 
+  /** Una ficha viva colgada de una invitación del lote. */
+  async function crearFicha(opts: {
+    comunicacionId: string;
+    token: string;
+    viajeId: string;
+    variante: "a" | "b" | "c";
+    estado: "recibida" | "procesada";
+  }): Promise<string> {
+    const [fila] = await fx
+      .db()
+      .insert(inscripciones)
+      .values({
+        comunicacionId: opts.comunicacionId,
+        tokenHash: hashToken(opts.token),
+        viajeId: opts.viajeId,
+        variante: opts.variante,
+        estado: opts.estado,
+        nombre: `${PREFIJO}Ficha`,
+        apellido: `${PREFIJO}Apellido`,
+        fechaNacimiento: "2010-05-04",
+        dni: `${BASE_DNI}${900 + proximo()}`,
+        numeroPasaporte: "INTP9002",
+        fechaVencimientoPasaporte: "2035-01-01",
+        tutor1Nombre: `${PREFIJO}Tutor`,
+        tutor1Celular: "+540000000000",
+        tutor1Email: emailDe("ficha"),
+        consentimientoVersion: VERSION_CONSENTIMIENTO,
+        consentimientoTextoHash: hashTexto(TEXTO_CONSENTIMIENTO),
+        consentimientoEl: new Date("2026-09-16T12:00:00.000Z"),
+      })
+      .returning({ id: inscripciones.id });
+    if (!fila) throw new Error("el INSERT de inscripción no devolvió fila.");
+    return fila.id;
+  }
+
   async function nuevoViaje(): Promise<string> {
     return (await fx.viaje({ colegioDestinoId: colegioId, fechaInicio: dia("2031-07-01") })).id;
   }
@@ -105,6 +142,9 @@ describe.skipIf(!integracionHabilitada)("Envío masivo de invitaciones contra Po
   beforeAll(async () => {
     await fx.iniciar();
     q = await import("./invitaciones");
+    // La apertura del formulario la escribe la superficie pública, y el embudo
+    // de campañas la lee: el escalón solo se puede probar con las dos juntas.
+    pub = await import("./inscripciones-publicas");
 
     colegioId = (await fx.colegio()).id;
     viajeId = await nuevoViaje();
@@ -385,6 +425,111 @@ describe.skipIf(!integracionHabilitada)("Envío masivo de invitaciones contra Po
     const ultima = await q.reservarTanda(lote.loteId, 10);
     expect(ultima.map((r) => r.comunicacionId)).toEqual([pendientes[1]!.comunicacionId]);
     expect(await q.resumenLote(lote.loteId)).toMatchObject({ pendientes: 0, enviando: 1 });
+  });
+
+  it("el embudo cuenta el lote entero, reparte por piel y no pierde una ficha borrada", async () => {
+    const viajeEmbudo = await nuevoViaje();
+    const lote = await crearLote(4, viajeEmbudo); // el lote fuerza la piel B
+    await crearLote(2, viajeEmbudo); // vecino: no se puede mezclar en los conteos
+
+    const tanda = await q.reservarTanda(lote.loteId, 4);
+    const [sinAbrir, entregada, abierta, conClic] = tanda;
+    if (!sinAbrir || !entregada || !abierta || !conClic) {
+      throw new Error("la tanda no trajo las cuatro filas.");
+    }
+    for (const inv of tanda) {
+      expect(await q.marcarEnviada(inv.comunicacionId, `re_emb_${inv.comunicacionId}`)).toBe(true);
+    }
+
+    // El webhook de Resend a mano: es lo único que mueve estos estados, y sin
+    // RESEND_WEBHOOK_SECRET no se mueven nunca (por eso la pantalla los marca
+    // "no disponible" en vez de 0). Cada escalón incluye a los de abajo.
+    const estadoDe = async (id: string, estado: "entregado" | "abierto" | "click") => {
+      await fx
+        .db()
+        .update(prospectoComunicaciones)
+        .set({ estado })
+        .where(eq(prospectoComunicaciones.id, id));
+    };
+    await estadoDe(entregada.comunicacionId, "entregado");
+    await estadoDe(abierta.comunicacionId, "abierto");
+    await estadoDe(conClic.comunicacionId, "click");
+
+    // Dos links abiertos, uno de ellos dos veces: la marca es por invitación.
+    const primeraVez = new Date("2026-03-02T10:00:00.000Z");
+    expect(await pub.registrarAperturaFormulario(hashToken(abierta.token), primeraVez)).toBe(true);
+    expect(await pub.registrarAperturaFormulario(hashToken(conClic.token), primeraVez)).toBe(true);
+    expect(
+      await pub.registrarAperturaFormulario(
+        hashToken(conClic.token),
+        new Date("2026-03-02T11:30:00.000Z")
+      )
+    ).toBe(true);
+    expect(await pub.registrarAperturaFormulario(hashToken("token-que-no-existe"))).toBe(false);
+
+    // Idempotente: vale el instante de la PRIMERA apertura.
+    expect((await filaDe(conClic.comunicacionId)).meta).toMatchObject({
+      invitacionFormAbiertoEl: primeraVez.toISOString(),
+    });
+
+    // Dos fichas, con pieles distintas: la que la familia vio (la de la ficha)
+    // le gana a la que forzó la campaña.
+    await crearFicha({
+      comunicacionId: abierta.comunicacionId,
+      token: abierta.token,
+      viajeId: viajeEmbudo,
+      variante: "c",
+      estado: "recibida",
+    });
+    const procesada = await crearFicha({
+      comunicacionId: conClic.comunicacionId,
+      token: conClic.token,
+      viajeId: viajeEmbudo,
+      variante: "b",
+      estado: "procesada",
+    });
+
+    const embudo = {
+      total: 4,
+      enviadas: 4,
+      entregadas: 3,
+      abiertas: 2,
+      clics: 1,
+      formularioAbierto: 2,
+      respondidas: 2,
+      procesadas: 1,
+    };
+    expect(await q.resumenLote(lote.loteId)).toMatchObject(embudo);
+
+    // El corte por piel: B se queda con las dos invitaciones sin ficha más la
+    // ficha que se cargó en B; C existe solo por la ficha que registró esa piel.
+    expect((await q.resumenLote(lote.loteId))?.porVariante).toEqual([
+      { variante: "a", enviadas: 0, formularioAbierto: 0, fichas: 0 },
+      { variante: "b", enviadas: 3, formularioAbierto: 1, fichas: 1 },
+      { variante: "c", enviadas: 1, formularioAbierto: 1, fichas: 1 },
+    ]);
+
+    // Borrar una ficha por privacidad NO achica la campaña: queda el talón.
+    // (El nombre se conserva a propósito, para que la limpieza del test —que
+    // borra por prefijo— siga alcanzando a la fila; lo que importa acá es que
+    // el embudo no filtra por `borrado_el`.)
+    await fx
+      .db()
+      .update(inscripciones)
+      .set({ borradoEl: new Date(), datosPurgadosEl: new Date(), motivoBorrado: "[INT] pedido" })
+      .where(eq(inscripciones.id, procesada));
+
+    expect(await q.resumenLote(lote.loteId)).toMatchObject(embudo);
+
+    // Y la misma verdad desde el listado, con una página que muestra un lote:
+    // los conteos siguen siendo los del lote entero, no los de la página.
+    const paginas = await Promise.all([
+      q.listLotes({ viajeId: viajeEmbudo }, { page: 1, size: 1 }),
+      q.listLotes({ viajeId: viajeEmbudo }, { page: 2, size: 1 }),
+    ]);
+    const enElListado = paginas.flatMap((p) => p.items).find((l) => l.loteId === lote.loteId);
+    expect(enElListado).toMatchObject(embudo);
+    expect(enElListado?.porVariante).toHaveLength(3);
   });
 
   it("revocar dos veces conserva el primer instante y no inventa invitaciones", async () => {

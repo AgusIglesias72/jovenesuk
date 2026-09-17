@@ -1,4 +1,4 @@
-import { asc, inArray } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { test, expect, type Page } from "@playwright/test";
 
 import { db } from "../../src/lib/db";
@@ -286,13 +286,139 @@ test("anular desde el detalle descarta la ficha y deja el motivo del equipo", as
   await expect(estado.getByText("Anulada", { exact: true })).toBeVisible();
   await expect(estado).toContainText(`Anulada por el equipo: Cargada dos veces ${sufijo}`);
 
-  // Anulada es un estado cerrado: no queda ninguna acción que ofrecer, y la
-  // invitación (si hubiera) queda libre para que la familia vuelva a cargar.
-  await expect(estado.getByRole("button")).toHaveCount(0);
+  // Anulada es un estado cerrado para el PROCESAMIENTO: no hay nada más que
+  // hacer con la ficha, y la invitación (si hubiera) queda libre para que la
+  // familia vuelva a cargar.
+  for (const accion of ["Anular la ficha", "Dar de alta al alumno", "Reintentar el alta"]) {
+    await expect(estado.getByRole("button", { name: accion })).toHaveCount(0);
+  }
+  // El borrado de datos NO desaparece: una persona puede pedir que borremos lo
+  // suyo aunque su ficha se haya descartado, y ahí hay que poder hacerlo.
+  await expect(estado.getByRole("button", { name: /Borrar/ })).toHaveCount(1);
 
   // Y la bandeja la muestra con su estado nuevo.
   await abrirBandeja(page, sufijo, "&estado=anulada");
   await expect(page.getByRole("row").filter({ hasText: codigoDe(fila) })).toBeVisible();
+});
+
+test("un super_admin borra los datos a pedido y la ficha queda reducida a su talón", async ({
+  page,
+}) => {
+  const sufijo = sufijoUnico();
+  const viaje = await viajeDelSeed();
+  const alergias = `Alergia al maní (E2E ${sufijo})`;
+  const motivo = `La familia lo pidió por mail (E2E ${sufijo})`;
+
+  // Tres fichas para poder mirar los conteos antes y después: la que se borra
+  // es una PROCESADA, el caso incómodo —ya no hay nada que resolver con ella y
+  // sin embargo es la que más tiempo lleva guardada.
+  const [objetivo] = await insertar([
+    ficha(sufijo, {
+      estado: "procesada",
+      variante: "a",
+      viajeId: viaje.id,
+      alergiasSalud: alergias,
+      telefonoAlumno: "11 4444-3333",
+      emailAlumno: `e2e+alumno-${sufijo.toLowerCase()}@e2e.example.com`,
+    }),
+    ficha(sufijo, { estado: "recibida", variante: "b" }),
+    ficha(sufijo, { estado: "procesada", variante: "c" }),
+  ]);
+  if (!objetivo) throw new Error("no se insertaron las fichas del test");
+  const codigo = codigoDe(objetivo);
+
+  await abrirBandeja(page, sufijo);
+  await expect(page.getByRole("row").filter({ hasText: `E2E ${sufijo}` })).toHaveCount(3);
+  await expect(card(page, "Total de fichas")).toContainText(/Total de fichas\s*3/);
+  await expect(card(page, "Procesadas")).toContainText(/Procesadas\s*2/);
+
+  await page.goto(`/inscripciones/${codigo}`);
+  await ocultarOverlayDeDev(page);
+
+  const estado = page.getByRole("region", { name: "Estado" });
+  const borrar = estado.getByRole("button", { name: "Borrar los datos personales" });
+  await esperarHidratacion(borrar);
+
+  // Sin motivo no se borra nada. Después del borrado no queda un nombre al que
+  // preguntarle qué pasó: esa línea es el único registro del pedido, y por eso
+  // la pantalla frena antes de llamar a la action.
+  await borrar.click();
+  await confirmarModal(page, "Sí, borrar los datos");
+  await expect(page.getByRole("alert").filter({ hasText: "Escribí el motivo" })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/inscripciones/${codigo}$`));
+  await expect(page.getByRole("region", { name: "Ficha del alumno" })).toContainText(
+    formatearDni(objetivo.dni)
+  );
+
+  await borrar.click();
+  const dialogo = page.getByRole("dialog");
+  // La confirmación dice las dos cosas que nadie puede descubrir después: qué se
+  // va (y que no vuelve) y qué queda.
+  await expect(dialogo).toContainText("No se recuperan: no hay deshacer");
+  await expect(dialogo).toContainText("Queda el talón");
+  await dialogo.getByLabel("Motivo del borrado (obligatorio)").fill(motivo);
+  await confirmarModal(page, "Sí, borrar los datos");
+
+  // La pantalla ya no existe para esta ficha: la action devuelve al listado.
+  await page.waitForURL("**/inscripciones");
+
+  // Lo que ve el equipo: la ficha SALE de la bandeja. El borrado a pedido no es
+  // el estado `anulada` —ese se sigue listando—, y los conteos se mueven con
+  // ella: lo que se prometió borrar no puede seguir sumando en una pantalla.
+  await abrirBandeja(page, sufijo);
+  await expect(page.getByRole("row").filter({ hasText: `E2E ${sufijo}` })).toHaveCount(2);
+  await expect(page.getByRole("row").filter({ hasText: codigo })).toHaveCount(0);
+  await expect(card(page, "Total de fichas")).toContainText(/Total de fichas\s*2/);
+  await expect(card(page, "Procesadas")).toContainText(/Procesadas\s*1/);
+  await expect(card(page, "Variante A")).toContainText(/Variante A\s*0/);
+
+  // Ni buscándola por el DNI, que es con lo que el equipo busca de verdad.
+  await page.goto(`/inscripciones?q=${objetivo.dni}`);
+  await expect(page.getByText("Sin resultados para estos filtros")).toBeVisible();
+
+  // Y el detalle deja de abrir, aunque alguien tenga el link guardado.
+  await page.goto(`/inscripciones/${codigo}`);
+  await expect(page.getByRole("heading", { name: "No encontramos eso" })).toBeVisible();
+
+  // EL PUNTO DEL TEST: borrar no es borrar la fila. Si el borrado se llevara la
+  // fila, los conteos de la campaña que trajo esta ficha cambiarían hacia atrás
+  // y un mes cerrado dejaría de dar lo mismo que dio. Queda el talón —número,
+  // estado, variante, viaje y fechas— y adentro no hay nadie.
+  const [talon] = await db
+    .select()
+    .from(inscripciones)
+    .where(eq(inscripciones.id, objetivo.id))
+    .limit(1);
+  if (!talon) throw new Error("el borrado se llevó la fila: sin talón, las métricas mienten");
+
+  expect(talon.numero).toBe(objetivo.numero);
+  expect(talon.estado).toBe("procesada");
+  expect(talon.variante).toBe("a");
+  expect(talon.viajeId).toBe(viaje.id);
+  expect(talon.consentimientoVersion).toBe(VERSION_CONSENTIMIENTO);
+
+  expect(talon.borradoEl).not.toBeNull();
+  expect(talon.motivoBorrado).toBe(motivo);
+  // Quién lo firmó: la action lo toma de la sesión (super_admin), nunca del
+  // cliente.
+  expect(talon.borradoPor).not.toBeNull();
+  // Los datos personales SE VACIARON en ese instante, que es justo lo que esta
+  // columna registra: el barrido por retención ya no tiene nada que hacer acá.
+  expect(talon.datosPurgadosEl).not.toBeNull();
+
+  expect(talon.nombre).toBe("");
+  expect(talon.apellido).toBe("");
+  expect(talon.numeroPasaporte).toBe("");
+  expect(talon.tutor1Nombre).toBe("");
+  expect(talon.tutor1Celular).toBe("");
+  expect(talon.tutor1Email).toBe("");
+  expect(talon.telefonoAlumno).toBeNull();
+  expect(talon.emailAlumno).toBeNull();
+  expect(talon.alergiasSalud).toBeNull();
+  // El DNI no queda vacío sino con una lápida única por fila: dos fichas
+  // borradas con el DNI en "" chocarían en `uniq_inscripcion_dni_viva`.
+  expect(talon.dni).not.toBe(objetivo.dni);
+  expect(talon.dni).toContain(objetivo.id);
 });
 
 test("un código que no existe muestra el 404 del back-office", async ({ page }) => {

@@ -1,4 +1,4 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, isNotNull, ne, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { inscripciones, type Inscripcion } from "@/lib/db/schema/inscripciones";
@@ -50,6 +50,17 @@ export type InvitacionPublica = MarcasInvitacion & {
  * `uniq_inscripcion_comunicacion`.
  */
 const META_RESPONDIDA = "invitacionRespondidaEl";
+
+/**
+ * Clave donde `registrarAperturaFormulario` sella que el link SE ABRIÓ. Se
+ * exporta porque el embudo de campañas la cuenta desde `invitaciones.ts`: es el
+ * escalón que une "el mail salió" con "llegó una ficha", y sin él un lote sin
+ * respuestas no distingue entre "nadie abrió" y "abrieron y no completaron".
+ *
+ * Vive en `meta` y no en una columna propia porque es exactamente lo mismo que
+ * el sello de respondida: un dato de bitácora, sin índices ni consultas por él.
+ */
+export const META_FORM_ABIERTO = "invitacionFormAbiertoEl";
 
 /**
  * SELECT PURO: resuelve un link tokenizado a su campaña y NO escribe una sola
@@ -270,6 +281,48 @@ export async function crearInscripcion(
  * Devuelve si encontró la comunicación. Es best-effort desde la action: la
  * ficha ya está persistida y no se pierde nada si esto falla.
  */
+/**
+ * Sella que el formulario se abrió con este link. Es la ÚNICA escritura que
+ * dispara una apertura, y no puede pasar en el render del GET: el prefetch de
+ * un cliente de correo abre la página sola y el embudo contaría aperturas que
+ * nadie hizo (el precedente malo del repo es `src/app/baja/page.tsx`). La
+ * dispara una server action desde el cliente ya hidratado.
+ *
+ * IDEMPOTENTE por invitación: el objeto nuevo va a la IZQUIERDA del `||` —en
+ * una fusión de jsonb gana la derecha—, así que un segundo sello no pisa al
+ * primero. Lo que interesa es "se abrió", no cuántas veces: contar visitas
+ * mediría a la familia que vuelve a mirar el formulario, no a la campaña.
+ *
+ * Solo toca invitaciones de verdad (`invitacion_expira_el` no nulo), el mismo
+ * criterio que `getInvitacionByTokenHash`. No exige que el link todavía abra:
+ * la página ya no muestra el formulario cuando venció o se revocó, así que una
+ * apertura tardía no llega hasta acá; y si llegara, el hecho igual sería cierto.
+ *
+ * Devuelve si encontró la invitación. Es best-effort: nada de lo que ve la
+ * familia depende de esto.
+ */
+export async function registrarAperturaFormulario(
+  tokenHash: string,
+  el: Date = new Date()
+): Promise<boolean> {
+  const sello = sql`jsonb_build_object(${META_FORM_ABIERTO}::text, ${el.toISOString()}::text)`;
+
+  const filas = await db
+    .update(prospectoComunicaciones)
+    .set({
+      meta: sql`(${sello} || coalesce(${prospectoComunicaciones.meta}::jsonb, '{}'::jsonb))::json`,
+    })
+    .where(
+      and(
+        eq(prospectoComunicaciones.invitacionTokenHash, tokenHash),
+        isNotNull(prospectoComunicaciones.invitacionExpiraEl)
+      )
+    )
+    .returning({ id: prospectoComunicaciones.id });
+
+  return filas.length > 0;
+}
+
 export async function marcarInvitacionRespondida(
   comunicacionId: string,
   el: Date = new Date()

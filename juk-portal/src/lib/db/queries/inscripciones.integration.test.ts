@@ -1,4 +1,4 @@
-import { like } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 // Del barril y no de `schema/inscripciones` directo: ese módulo y
@@ -8,6 +8,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 // un orden que funciona. Las queries no lo sufren porque importan `@/lib/db`
 // —que evalúa el barril— antes que cualquier tabla.
 import { inscripciones, type Inscripcion, type NewInscripcion } from "@/lib/db/schema";
+import {
+  CAMPOS_NIVEL_1,
+  CAMPOS_NIVEL_2,
+  type CampoInscripcion,
+} from "@/lib/domain/inscripciones/niveles";
 import {
   codigoInscripcion,
   inscripcionFiltersSchema,
@@ -62,9 +67,13 @@ describe.skipIf(!integracionHabilitada)(
     let q: InscripcionesQ;
     let viajeA: { id: string; codigo: string };
     let viajeB: { id: string };
+    let viajeC: { id: string };
     let filas: Inscripcion[];
     let deA: Inscripcion[];
     let borrada: Inscripcion;
+    /** Las dos del viaje C, reservadas para el borrado a pedido. */
+    let aBorrar: Inscripcion;
+    let testigo: Inscripcion;
 
     const filtros = (valores: Record<string, unknown>) => inscripcionFiltersSchema.parse(valores);
 
@@ -108,6 +117,9 @@ describe.skipIf(!integracionHabilitada)(
       const colegio = await fx.colegio();
       viajeA = await fx.viaje({ colegioDestinoId: colegio.id, fechaInicio: dia("2031-07-01") });
       viajeB = await fx.viaje({ colegioDestinoId: colegio.id, fechaInicio: dia("2031-08-01") });
+      // El viaje C existe para que el borrado a pedido no le mueva los conteos a
+      // nadie: los casos de arriba fijan totales exactos sobre A y B.
+      viajeC = await fx.viaje({ colegioDestinoId: colegio.id, fechaInicio: dia("2031-09-01") });
 
       const A = viajeA.id;
       filas = await fx
@@ -142,6 +154,33 @@ describe.skipIf(!integracionHabilitada)(
           // Otro viaje: el universo de los conteos no se le puede escapar.
           fila(10, { estado: "recibida", variante: "a", createdAt: T_NUEVO, viajeId: viajeB.id }),
           fila(11, { estado: "duplicada", variante: "c", createdAt: T_EMPATE, viajeId: viajeB.id }),
+          // Las dos del viaje C. La 12 se borra a pedido y viene con TODOS los
+          // campos opcionales completos: un campo que llega vacío no prueba nada
+          // sobre si el borrado lo vacía.
+          {
+            ...fila(12, {
+              estado: "recibida",
+              variante: "b",
+              createdAt: T_NUEVO,
+              viajeId: viajeC.id,
+              alergiasSalud: "[INT] celiaquía y asma",
+            }),
+            telefonoAlumno: "+5491133334444",
+            emailAlumno: `int+${fx.corrida.toLowerCase()}-alumno12@int.jovenesenuk.com`,
+            preferenciasAlojamiento: "[INT] casa sin gatos, comparte con una amiga",
+            nivelInglesAutoevaluacion: "[INT] intermedio",
+          },
+          // La testigo: el borrado de al lado no la puede tocar.
+          {
+            ...fila(13, {
+              estado: "recibida",
+              variante: "c",
+              createdAt: T_NUEVO,
+              viajeId: viajeC.id,
+              alergiasSalud: "[INT] ninguna",
+            }),
+            telefonoAlumno: "+5491155556666",
+          },
         ])
         .returning();
 
@@ -152,10 +191,22 @@ describe.skipIf(!integracionHabilitada)(
       };
       deA = [1, 2, 3, 4, 5, 6, 7, 8].map(propia);
       borrada = propia(9);
+      aBorrar = propia(12);
+      testigo = propia(13);
     });
 
     afterAll(async () => {
-      await fx.db().delete(inscripciones).where(like(inscripciones.nombre, `${PREFIJO}%`));
+      // Por id y no por el prefijo del nombre: el borrado a pedido deja el
+      // nombre en "", y una fila que el cleanup no encuentra bloquea el DELETE
+      // del viaje (viaje_id no cascadea).
+      if (filas?.length) {
+        await fx.db().delete(inscripciones).where(
+          inArray(
+            inscripciones.id,
+            filas.map((f) => f.id)
+          )
+        );
+      }
       await fx.limpiar();
     });
 
@@ -345,6 +396,158 @@ describe.skipIf(!integracionHabilitada)(
       // si entrara en los conteos, el total del filtro daría 4.
       const recibidasDelA = await q.resumenInscripciones(filtros({ viajeId: viajeA.id }));
       expect(recibidasDelA.porEstado.recibida).toBe(3);
+    });
+
+    /*
+     * El borrado a pedido: lo que la Política de Privacidad promete cumplir.
+     *
+     * Corre sobre el viaje C y en este orden: los casos de arriba fijan totales
+     * exactos sobre A y B, y el último caso de acá borra también la testigo.
+     */
+    describe("borrado a pedido (anonimizarInscripcion)", () => {
+      const USUARIO_BORRA = "dddddddd-0000-4000-8000-000000000001";
+      const OTRO_USUARIO = "dddddddd-0000-4000-8000-000000000002";
+      const MOTIVO = "[INT] La familia pidió el borrado por mail el 12/09.";
+
+      /** Los campos del formulario que SÍ son columnas de la ficha. */
+      const CLASIFICADOS: readonly CampoInscripcion[] = [...CAMPOS_NIVEL_1, ...CAMPOS_NIVEL_2];
+      const SIN_COLUMNA: readonly string[] = ["acepta", "website"];
+      const PERSONALES = CLASIFICADOS.filter((campo) => !SIN_COLUMNA.includes(campo));
+
+      /** La fila cruda: el borrado la saca de la bandeja, no de la tabla. */
+      async function leerCruda(id: string): Promise<Inscripcion> {
+        const [row] = await fx
+          .db()
+          .select()
+          .from(inscripciones)
+          .where(eq(inscripciones.id, id));
+        if (!row) throw new Error("la ficha borrada desapareció de la tabla");
+        return row;
+      }
+
+      let despues: Inscripcion;
+      let ejecutado: boolean;
+
+      beforeAll(async () => {
+        ejecutado = await q.anonimizarInscripcion(aBorrar.id, {
+          usuarioId: USUARIO_BORRA,
+          motivo: MOTIVO,
+        });
+        despues = await leerCruda(aBorrar.id);
+      });
+
+      it("no queda ningún dato personal: se revisa cada campo del formulario, no uno elegido a dedo", () => {
+        expect(ejecutado).toBe(true);
+
+        // La lista sale del dominio (`niveles.ts`), así que un campo nuevo del
+        // formulario entra solo a este test y tiene que aparecer vacío igual.
+        // Los dos que no son columnas se nombran acá para que sumar un tercero
+        // sea una decisión y no un descuido.
+        expect(PERSONALES).toHaveLength(CLASIFICADOS.length - 2);
+
+        const vacios: unknown[] = [null, "", "1900-01-01", `borrado-${aBorrar.id}`];
+        for (const campo of PERSONALES) {
+          const clave = campo as keyof Inscripcion;
+          expect(aBorrar[clave], `${campo}: el fixture tiene que traerlo cargado`).toBeTruthy();
+          expect(despues[clave], campo).not.toBe(aBorrar[clave]);
+          expect(vacios, campo).toContain(despues[clave]);
+        }
+
+        // Y ningún valor original sobrevive mudado a otra columna.
+        const rastro = JSON.stringify(despues);
+        for (const campo of PERSONALES) {
+          expect(rastro, campo).not.toContain(String(aBorrar[campo as keyof Inscripcion]));
+        }
+      });
+
+      it("el talón queda intacto y el borrado queda sellado", () => {
+        expect(despues).toMatchObject({
+          id: aBorrar.id,
+          numero: aBorrar.numero,
+          estado: "recibida",
+          variante: "b",
+          viajeId: viajeC.id,
+          comunicacionId: aBorrar.comunicacionId,
+          // El consentimiento no se toca: es la prueba de a qué aceptó esa
+          // familia, y sin él no se puede demostrar que el borrado correspondía.
+          consentimientoVersion: aBorrar.consentimientoVersion,
+          consentimientoTextoHash: aBorrar.consentimientoTextoHash,
+          borradoPor: USUARIO_BORRA,
+          motivoBorrado: MOTIVO,
+        });
+        expect(despues.createdAt.toISOString()).toBe(aBorrar.createdAt.toISOString());
+        expect(despues.consentimientoEl.toISOString()).toBe(
+          aBorrar.consentimientoEl.toISOString()
+        );
+
+        // Los datos personales se vaciaron en el mismo acto del borrado: la
+        // retención no tiene nada que purgar después.
+        expect(despues.borradoEl).toBeInstanceOf(Date);
+        expect(despues.datosPurgadosEl?.toISOString()).toBe(despues.borradoEl?.toISOString());
+      });
+
+      it("la fila sigue en la tabla, pero el listado, el detalle y el resumen dejan de verla", async () => {
+        const enLaTabla = await fx
+          .db()
+          .select({ id: inscripciones.id })
+          .from(inscripciones)
+          .where(eq(inscripciones.viajeId, viajeC.id));
+        expect(enLaTabla).toHaveLength(2);
+
+        // Ese es el criterio de HOY y es deliberado (`condicionesInscripciones`):
+        // la bandeja es la lista de trabajo del equipo y una ficha borrada no da
+        // trabajo. El talón sobrevive igual en la tabla, que es lo que deja que
+        // una métrica del universo la siga contando hacia atrás.
+        const lista = await q.listInscripciones(filtros({ viajeId: viajeC.id }), {
+          page: 1,
+          size: 50,
+        });
+        expect(lista.items.map((i) => i.id)).toEqual([testigo.id]);
+        expect(await q.getInscripcionByNumero(aBorrar.numero)).toBeNull();
+
+        const resumen = await q.resumenInscripciones(filtros({ viajeId: viajeC.id }));
+        expect(resumen.total).toBe(1);
+        expect(resumen.porEstado.recibida).toBe(1);
+      });
+
+      it("es idempotente: sobre una ya borrada no vuelve a sellar", async () => {
+        const otraVez = await q.anonimizarInscripcion(aBorrar.id, {
+          usuarioId: OTRO_USUARIO,
+          motivo: "[INT] el mismo pedido, dos veces",
+        });
+        expect(otraVez).toBe(false);
+
+        // Lo que prueba cuándo se cumplió el pedido es el primer sello: un
+        // segundo clic no puede pisarle la fecha, el autor ni el motivo.
+        const igual = await leerCruda(aBorrar.id);
+        expect(igual.borradoEl?.toISOString()).toBe(despues.borradoEl?.toISOString());
+        expect(igual.borradoPor).toBe(USUARIO_BORRA);
+        expect(igual.motivoBorrado).toBe(MOTIVO);
+      });
+
+      it("no toca ninguna otra ficha", async () => {
+        const otra = await leerCruda(testigo.id);
+        expect(otra).toMatchObject({
+          nombre: testigo.nombre,
+          dni: testigo.dni,
+          telefonoAlumno: "+5491155556666",
+          borradoEl: null,
+          datosPurgadosEl: null,
+        });
+      });
+
+      it("una segunda ficha viva también se puede borrar: el DNI vaciado no choca con el índice único", async () => {
+        // Las dos quedan en `recibida` —el estado es parte del talón— y
+        // `uniq_inscripcion_dni_viva` mira justo ese estado: con el DNI en ""
+        // este segundo borrado moriría con una violación de unique.
+        await expect(
+          q.anonimizarInscripcion(testigo.id, { usuarioId: USUARIO_BORRA, motivo: MOTIVO })
+        ).resolves.toBe(true);
+
+        const fila = await leerCruda(testigo.id);
+        expect(fila.dni).toBe(`borrado-${testigo.id}`);
+        expect(fila.dni).not.toBe(despues.dni);
+      });
     });
   }
 );

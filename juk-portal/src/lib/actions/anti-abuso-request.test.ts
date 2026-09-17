@@ -14,7 +14,7 @@ vi.mock("@sentry/nextjs", () => ({
   captureException: (...args: unknown[]) => captureException(...args),
 }));
 
-import { dentroDelLimite, ipDelRequest } from "./anti-abuso-request";
+import { aperturaDentroDelLimite, dentroDelLimite, ipDelRequest } from "./anti-abuso-request";
 
 const ahora = new Date("2026-09-16T12:00:00.000Z");
 
@@ -144,6 +144,55 @@ describe("dentroDelLimite", () => {
     await expect(dentroDelLimite("lead", { email: "ana@example.com" })).resolves.toBe(true);
 
     expect(captureException).toHaveBeenCalledTimes(1);
+    expect(captureException).toHaveBeenCalledWith(fallo);
+  });
+});
+
+describe("aperturaDentroDelLimite", () => {
+  it("cuenta por IP y por token, en claves que no son las del envío", async () => {
+    getHeader.mockImplementation((n: string) =>
+      n === "x-forwarded-for" ? "203.0.113.7" : null
+    );
+
+    await expect(aperturaDentroDelLimite("A1B2")).resolves.toBe(true);
+
+    expect(clavesIncrementadas()).toEqual(["apertura:ip:203.0.113.7", "apertura:token:a1b2"]);
+  });
+
+  it("no cuenta por email: en la apertura nadie tipeó nada todavía", async () => {
+    await aperturaDentroDelLimite("a1b2");
+
+    expect(clavesIncrementadas().some((k) => k.includes(":email:"))).toBe(false);
+  });
+
+  it("usa sus propias ventanas, más holgadas que las del formulario", async () => {
+    await aperturaDentroDelLimite("a1b2");
+
+    expect(incrementarYVerificar.mock.calls[0]?.[1]).toEqual({ maximo: 60, ventanaMs: 600_000 });
+    expect(incrementarYVerificar.mock.calls[1]?.[1]).toEqual({ maximo: 30, ventanaMs: 3_600_000 });
+  });
+
+  it("corta si el link se pasó de su ventana, aunque la IP esté bien", async () => {
+    incrementarYVerificar
+      .mockResolvedValueOnce(decision(true))
+      .mockResolvedValueOnce(decision(false));
+
+    await expect(aperturaDentroDelLimite("a1b2")).resolves.toBe(false);
+  });
+
+  it("igual gasta cuota en las dos ventanas cuando la IP ya frenó el intento", async () => {
+    incrementarYVerificar.mockResolvedValueOnce(decision(false));
+
+    await expect(aperturaDentroDelLimite("a1b2")).resolves.toBe(false);
+    expect(incrementarYVerificar).toHaveBeenCalledTimes(2);
+  });
+
+  it("falla abierto: una métrica no puede romper la pantalla de la familia", async () => {
+    const fallo = new Error("db caída");
+    incrementarYVerificar.mockRejectedValue(fallo);
+
+    await expect(aperturaDentroDelLimite("a1b2")).resolves.toBe(true);
+
     expect(captureException).toHaveBeenCalledWith(fallo);
   });
 });

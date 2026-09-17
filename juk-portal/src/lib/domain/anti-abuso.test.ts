@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   IP_DESCONOCIDA,
+  LIMITE_APERTURA_POR_IP,
+  LIMITE_APERTURA_POR_TOKEN,
   LIMITE_POR_EMAIL,
   LIMITE_POR_IP,
   LIMITE_POR_IP_INSCRIPCION,
   LIMITE_POR_TOKEN,
   VENTANA_DEDUP_AVISO_MS,
   aplicarIntento,
+  claveAperturaIp,
+  claveAperturaToken,
   claveEmail,
   claveIp,
   claveToken,
@@ -205,6 +209,30 @@ describe("claves", () => {
   it("normaliza el hash del token y no comparte cuota entre formularios", () => {
     expect(claveToken("inscripcion", "  A1B2C3  ")).toBe("inscripcion:token:a1b2c3");
     expect(claveToken("inscripcion", "a1b2c3")).not.toBe(claveToken("lead", "a1b2c3"));
+  });
+
+  it("la apertura del link tiene claves propias: no puede gastar la cuota del envío", () => {
+    // Abrir el formulario cinco veces no puede dejar a una familia sin poder
+    // mandar la ficha: son dos ventanas separadas, y esto lo garantiza.
+    expect(claveAperturaToken("A1B2C3")).toBe("apertura:token:a1b2c3");
+    expect(claveAperturaToken("a1b2c3")).not.toBe(claveToken("inscripcion", "a1b2c3"));
+    expect(claveAperturaIp(" 203.0.113.7 , 10.0.0.1")).toBe("apertura:ip:203.0.113.7");
+    expect(claveAperturaIp("203.0.113.7")).not.toBe(claveIp("inscripcion", "203.0.113.7"));
+    expect(claveAperturaIp("abc123")).not.toBe(claveAperturaToken("abc123"));
+  });
+});
+
+describe("límites de la apertura del link", () => {
+  it("permite 30 aperturas del mismo link por hora y corta la 31", () => {
+    const permitidos = simularSeguidos(LIMITE_APERTURA_POR_TOKEN, 31);
+
+    expect(permitidos.slice(0, 30).every(Boolean)).toBe(true);
+    expect(permitidos[30]).toBe(false);
+  });
+
+  it("la ventana por IP es ancha: un colegio entero abre el link desde una sola IP", () => {
+    expect(LIMITE_APERTURA_POR_IP.maximo).toBeGreaterThan(LIMITE_POR_IP.maximo);
+    expect(simularSeguidos(LIMITE_APERTURA_POR_IP, 60).every(Boolean)).toBe(true);
   });
 });
 

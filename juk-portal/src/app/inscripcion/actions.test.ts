@@ -6,7 +6,9 @@ const q = vi.hoisted(() => ({
   crearInscripcion: vi.fn(),
   getInvitacionByTokenHash: vi.fn(),
   marcarInvitacionRespondida: vi.fn(),
+  registrarAperturaFormulario: vi.fn(),
   dentroDelLimite: vi.fn(),
+  aperturaDentroDelLimite: vi.fn(),
   sendInscripcionRecibidaEmail: vi.fn(),
   sendInscripcionNuevaEmail: vi.fn(),
   procesarAltaInscripcion: vi.fn(),
@@ -17,8 +19,12 @@ vi.mock("@/lib/db/queries/inscripciones-publicas", () => ({
   crearInscripcion: q.crearInscripcion,
   getInvitacionByTokenHash: q.getInvitacionByTokenHash,
   marcarInvitacionRespondida: q.marcarInvitacionRespondida,
+  registrarAperturaFormulario: q.registrarAperturaFormulario,
 }));
-vi.mock("@/lib/actions/anti-abuso-request", () => ({ dentroDelLimite: q.dentroDelLimite }));
+vi.mock("@/lib/actions/anti-abuso-request", () => ({
+  dentroDelLimite: q.dentroDelLimite,
+  aperturaDentroDelLimite: q.aperturaDentroDelLimite,
+}));
 vi.mock("@/lib/actions/alta-inscripcion", () => ({
   procesarAltaInscripcion: q.procesarAltaInscripcion,
   // La action lo escribe como `motivo` de la ficha que queda esperando a una
@@ -39,7 +45,7 @@ import {
 import { hashTexto } from "@/lib/utils/hash-texto";
 import { hashToken } from "@/lib/utils/token-opaco";
 
-import { enviarInscripcion } from "./actions";
+import { enviarInscripcion, registrarApertura } from "./actions";
 
 const TOKEN = "test-invitation-token-123";
 const COMUNICACION_ID = "dddddddd-0000-4000-8000-000000000001";
@@ -102,6 +108,8 @@ function datosPersistidos() {
 beforeEach(() => {
   resetearMocks();
   q.dentroDelLimite.mockResolvedValue(true);
+  q.aperturaDentroDelLimite.mockResolvedValue(true);
+  q.registrarAperturaFormulario.mockResolvedValue(true);
   q.getInvitacionByTokenHash.mockResolvedValue(invitacionVigente());
   q.marcarInvitacionRespondida.mockResolvedValue(true);
   q.sendInscripcionRecibidaEmail.mockResolvedValue(undefined);
@@ -338,6 +346,59 @@ describe("enviarInscripcion — lo que NO se confía del cliente", () => {
     await enviarInscripcion(null, formulario({ dni: " 45.102.338 " }));
 
     expect(datosPersistidos().ficha.dni).toBe("45102338");
+  });
+});
+
+describe("registrarApertura — el escalón del embudo", () => {
+  it("con un token válido sella la apertura por el HASH, nunca por el token en claro", async () => {
+    const res = await registrarApertura(TOKEN);
+
+    expect(res.ok).toBe(true);
+    expect(q.registrarAperturaFormulario).toHaveBeenCalledTimes(1);
+    expect(q.registrarAperturaFormulario).toHaveBeenCalledWith(hashToken(TOKEN));
+  });
+
+  it("sin un token con forma de token no escribe ni gasta un round-trip", async () => {
+    for (const basura of ["", "   ", "corto", "x".repeat(201)]) {
+      const res = await registrarApertura(basura);
+      expect(res.ok).toBe(false);
+    }
+
+    expect(q.aperturaDentroDelLimite).not.toHaveBeenCalled();
+    expect(q.registrarAperturaFormulario).not.toHaveBeenCalled();
+  });
+
+  it("respeta su ventana: alcanzado el límite, no escribe", async () => {
+    q.aperturaDentroDelLimite.mockResolvedValue(false);
+
+    const res = await registrarApertura(TOKEN);
+
+    expect(res.ok).toBe(false);
+    expect(q.aperturaDentroDelLimite).toHaveBeenCalledWith(hashToken(TOKEN));
+    expect(q.registrarAperturaFormulario).not.toHaveBeenCalled();
+  });
+
+  it("no gasta la ventana del envío de la ficha: son dos cuotas distintas", async () => {
+    // Si compartieran ventana, abrir el link varias veces dejaría a la familia
+    // sin poder mandar la inscripción, que es lo único que no se puede perder.
+    await registrarApertura(TOKEN);
+
+    expect(q.dentroDelLimite).not.toHaveBeenCalled();
+  });
+
+  it("una invitación que no existe se contesta igual que una que sí (no es un oráculo)", async () => {
+    q.registrarAperturaFormulario.mockResolvedValue(false);
+
+    await expect(registrarApertura(TOKEN)).resolves.toEqual({ ok: true, data: null });
+  });
+
+  it("si la escritura se cae, la métrica se pierde pero la pantalla no", async () => {
+    q.registrarAperturaFormulario.mockRejectedValue(new Error("neon caído"));
+
+    const res = await registrarApertura(TOKEN);
+
+    expect(res.ok).toBe(true);
+    expect(sentry.captureException).toHaveBeenCalledTimes(1);
   });
 });
 

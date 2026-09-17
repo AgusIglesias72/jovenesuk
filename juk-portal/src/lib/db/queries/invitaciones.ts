@@ -25,10 +25,12 @@ import {
 } from "@/lib/db/schema/prospectos";
 import { viajes } from "@/lib/db/schema/viajes";
 import { LOTE_TAMANIO, RESERVA_VENCIDA_MS } from "@/lib/domain/inscripciones/invitacion";
-import type { Variante } from "@/lib/domain/inscripciones/schema";
+import { VARIANTES, type Variante } from "@/lib/domain/inscripciones/schema";
 import type { ProspectoEstado } from "@/lib/domain/prospectos";
 import { paginarEnSql, totalDe, type Pagina, type Paginado } from "@/lib/utils/paginate";
 import { generarTokenOpaco, hashToken } from "@/lib/utils/token-opaco";
+
+import { META_FORM_ABIERTO } from "./inscripciones-publicas";
 
 /**
  * El envío MASIVO de invitaciones al Application Form.
@@ -55,6 +57,21 @@ type EstadoComunicacion = NonNullable<ProspectoComunicacion["estado"]>;
  * (entregado → abierto → click), así que el envío nunca los pisa hacia atrás.
  */
 const ESTADOS_ENVIADA: EstadoComunicacion[] = ["enviado", "entregado", "abierto", "click"];
+
+/**
+ * Los escalones que SOLO mueve el webhook de Resend. Son acumulativos: un
+ * `click` implica que el mail se entregó y se abrió, así que cada escalón
+ * incluye a los de más abajo y el embudo nunca se ensancha hacia el final.
+ *
+ * ⚠️ Son un PISO, no una medición exacta, por dos motivos que no se arreglan
+ * acá: sin `RESEND_WEBHOOK_SECRET` configurado nadie los mueve y quedan en cero
+ * (la pantalla los muestra como "no disponible", nunca como 0), y como
+ * `actualizarEstadoComunicacion` escribe el último evento que llega, un
+ * `opened` que llega DESPUÉS de un `clicked` deja la fila en `abierto` y pierde
+ * el clic. Para lo que se usa —comparar campañas entre sí— alcanza.
+ */
+const ESTADOS_ENTREGADA: EstadoComunicacion[] = ["entregado", "abierto", "click"];
+const ESTADOS_ABIERTA: EstadoComunicacion[] = ["abierto", "click"];
 
 /** El mail no llegó: falló el request a Resend o el webhook devolvió rebote/spam. */
 const ESTADOS_FALLIDA: EstadoComunicacion[] = ["fallido", "rebotado", "spam"];
@@ -576,6 +593,16 @@ export async function revocarInvitacion(
  *    webhook de Resend después;
  *  - `revocadas`: cruza con las demás (se puede revocar una ya enviada);
  *  - `respondidas`: subconjunto de `enviadas`; la familia mandó la ficha.
+ *
+ * Y el EMBUDO, que sí es una cadena y cada escalón es subconjunto del anterior:
+ * `enviadas` → `entregadas` → `abiertas` → `clics` → `formularioAbierto` →
+ * `respondidas` (fichas recibidas) → `procesadas` (fichas dadas de alta). Los
+ * tres del medio dependen del webhook de Resend y hoy no se miden: la pantalla
+ * los muestra como "no disponible" y NUNCA como 0, porque un cero se lee como
+ * "nadie lo abrió" y eso sería mentira.
+ *
+ * `formularioAbierto` puede ser mayor que `abiertas` sin que nada esté roto: la
+ * apertura del formulario la registra la propia app y no depende del webhook.
  */
 export type ResumenLote = {
   loteId: string;
@@ -592,6 +619,31 @@ export type ResumenLote = {
   fallidas: number;
   revocadas: number;
   respondidas: number;
+  /** Escalones del webhook de Resend. Cero mientras el webhook no exista. */
+  entregadas: number;
+  abiertas: number;
+  clics: number;
+  /** El link se abrió y el formulario llegó a mostrarse (`META_FORM_ABIERTO`). */
+  formularioAbierto: number;
+  /** Fichas del lote que terminaron dadas de alta. Subconjunto de `respondidas`. */
+  procesadas: number;
+  /** Una fila por piel, siempre las tres, para poder compararlas. */
+  porVariante: CorteVariante[];
+};
+
+/**
+ * El mismo embudo, partido por la piel del formulario. Es lo único que permite
+ * contestar "¿la variante B convierte mejor que la A?" sin mirar fila por fila.
+ *
+ * Una campaña que forzó su variante tiene un solo corte con datos; el reparto
+ * recién significa algo cuando la piel la decide `/configuracion` al abrir el
+ * link y en el mismo lote conviven las tres.
+ */
+export type CorteVariante = {
+  variante: Variante;
+  enviadas: number;
+  formularioAbierto: number;
+  fichas: number;
 };
 
 export type FiltrosLotes = {
@@ -601,6 +653,32 @@ export type FiltrosLotes = {
 const conteo = (condicion: SQL) => sql<number>`count(*) filter (where ${condicion})`.mapWith(Number);
 
 const sinRevocar = () => isNull(prospectoComunicaciones.invitacionRevocadaEl);
+
+const salioElMail = () => inArray(prospectoComunicaciones.estado, ESTADOS_ENVIADA);
+
+/**
+ * El `::text` no es decorativo: `json ->> ?` es ambiguo en Postgres (existe la
+ * versión por clave y la versión por índice) y sin el cast el parámetro suelto
+ * falla con "operator is not unique". Mismo truco que en `inscripciones-publicas`.
+ */
+const abrioElFormulario = () =>
+  sql`${prospectoComunicaciones.meta} ->> ${META_FORM_ABIERTO}::text is not null`;
+
+const hayFicha = () => sql`${inscripciones.id} is not null`;
+
+/**
+ * La piel que vio la familia: la que quedó registrada en la ficha si la mandó
+ * y, si no, la que forzó la campaña.
+ *
+ * Con las dos en null —campaña sin variante forzada, invitación sin ficha— la
+ * piel la eligió `/configuracion` en el momento de abrir y nadie la anotó: esa
+ * invitación no entra en ningún corte. Un reparto que suma menos que el total
+ * es honesto; atribuirle la apertura a la piel equivocada arruinaría la
+ * comparación, que es justo para lo que existe el corte.
+ */
+const pielVista = sql`coalesce(${inscripciones.variante}::text, ${prospectoComunicaciones.invitacionVariante}::text)`;
+
+const esPiel = (variante: Variante) => sql`${pielVista} = ${variante}`;
 
 /**
  * Todo agregado EN SQL sobre el lote entero. Contar en memoria lo que trajo la
@@ -641,10 +719,29 @@ function consultaLotes(where: SQL) {
         sql`${eq(prospectoComunicaciones.estado, "pendiente")} and ${sinRevocar()}`
       ),
       enviando: conteo(eq(prospectoComunicaciones.estado, "enviando")),
-      enviadas: conteo(inArray(prospectoComunicaciones.estado, ESTADOS_ENVIADA)),
+      enviadas: conteo(salioElMail()),
       fallidas: conteo(inArray(prospectoComunicaciones.estado, ESTADOS_FALLIDA)),
       revocadas: conteo(isNotNull(prospectoComunicaciones.invitacionRevocadaEl)),
       respondidas: sql<number>`count(${inscripciones.id})`.mapWith(Number),
+
+      entregadas: conteo(inArray(prospectoComunicaciones.estado, ESTADOS_ENTREGADA)),
+      abiertas: conteo(inArray(prospectoComunicaciones.estado, ESTADOS_ABIERTA)),
+      clics: conteo(eq(prospectoComunicaciones.estado, "click")),
+      formularioAbierto: conteo(abrioElFormulario()),
+      // Una ficha borrada por privacidad SIGUE contando: el borrado vacía los
+      // datos personales y deja el talón (estado, variante, lote) justamente
+      // para que las métricas de una campaña vieja no se achiquen solas.
+      procesadas: conteo(eq(inscripciones.estado, "procesada")),
+
+      pielAEnviadas: conteo(sql`${esPiel("a")} and ${salioElMail()}`),
+      pielAAbrieron: conteo(sql`${esPiel("a")} and ${abrioElFormulario()}`),
+      pielAFichas: conteo(sql`${esPiel("a")} and ${hayFicha()}`),
+      pielBEnviadas: conteo(sql`${esPiel("b")} and ${salioElMail()}`),
+      pielBAbrieron: conteo(sql`${esPiel("b")} and ${abrioElFormulario()}`),
+      pielBFichas: conteo(sql`${esPiel("b")} and ${hayFicha()}`),
+      pielCEnviadas: conteo(sql`${esPiel("c")} and ${salioElMail()}`),
+      pielCAbrieron: conteo(sql`${esPiel("c")} and ${abrioElFormulario()}`),
+      pielCFichas: conteo(sql`${esPiel("c")} and ${hayFicha()}`),
     })
     .from(prospectoComunicaciones)
     .leftJoin(viajes, eq(prospectoComunicaciones.invitacionViajeId, viajes.id))
@@ -657,6 +754,59 @@ function consultaLotes(where: SQL) {
     )
     .where(where)
     .groupBy(prospectoComunicaciones.invitacionLoteId);
+}
+
+type FilaLote = Awaited<ReturnType<typeof consultaLotes>>[number];
+
+/**
+ * Pasa los nueve contadores por piel a la forma que dibuja la pantalla.
+ *
+ * El `Record<Variante, …>` es el que manda: una piel nueva en el dominio no
+ * compila hasta que alguien decida qué contar para ella, en vez de desaparecer
+ * calladita del corte.
+ */
+function corteDe(fila: FilaLote): CorteVariante[] {
+  const porPiel: Record<Variante, Omit<CorteVariante, "variante">> = {
+    a: {
+      enviadas: fila.pielAEnviadas,
+      formularioAbierto: fila.pielAAbrieron,
+      fichas: fila.pielAFichas,
+    },
+    b: {
+      enviadas: fila.pielBEnviadas,
+      formularioAbierto: fila.pielBAbrieron,
+      fichas: fila.pielBFichas,
+    },
+    c: {
+      enviadas: fila.pielCEnviadas,
+      formularioAbierto: fila.pielCAbrieron,
+      fichas: fila.pielCFichas,
+    },
+  };
+
+  return VARIANTES.map((variante) => ({ variante, ...porPiel[variante] }));
+}
+
+/**
+ * La fila cruda tiene los contadores por piel aplanados (SQL no devuelve
+ * arrays de un `group by`): acá se anidan y se sacan de la superficie pública,
+ * para que nadie empiece a leer `pielBFichas` desde una pantalla.
+ */
+function aResumen(fila: FilaLote): ResumenLote {
+  const {
+    pielAEnviadas,
+    pielAAbrieron,
+    pielAFichas,
+    pielBEnviadas,
+    pielBAbrieron,
+    pielBFichas,
+    pielCEnviadas,
+    pielCAbrieron,
+    pielCFichas,
+    ...resumen
+  } = fila;
+
+  return { ...resumen, porVariante: corteDe(fila) };
 }
 
 function condicionesLotes(filtros: FiltrosLotes): SQL {
@@ -682,7 +832,7 @@ export async function listLotes(
 ): Promise<Paginado<ResumenLote>> {
   const where = condicionesLotes(filtros);
 
-  return paginarEnSql(
+  const paginado = await paginarEnSql(
     pagina,
     (limit, offset) =>
       consultaLotes(where)
@@ -699,10 +849,15 @@ export async function listLotes(
         .where(where)
         .then(totalDe)
   );
+
+  // El corte por piel se anida después de paginar, no en SQL: lo que pagina son
+  // campañas, y el reparto ya vino agregado sobre el lote entero.
+  return { ...paginado, items: paginado.items.map(aResumen) };
 }
 
 /** El mismo resumen para un lote solo: lo que mira la pantalla del envío. */
 export async function resumenLote(loteId: string): Promise<ResumenLote | null> {
   const filas = await consultaLotes(eq(prospectoComunicaciones.invitacionLoteId, loteId));
-  return filas[0] ?? null;
+  const fila = filas[0];
+  return fila ? aResumen(fila) : null;
 }

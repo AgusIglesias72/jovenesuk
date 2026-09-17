@@ -13,6 +13,7 @@ import {
 
 const q = vi.hoisted(() => ({
   getInscripcionByNumero: vi.fn(),
+  anonimizarInscripcion: vi.fn(),
   procesarAltaInscripcion: vi.fn(),
   prepararEnvioAcceso: vi.fn(),
   registrarResolucionAlta: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock("@sentry/nextjs", async () => (await import("@/lib/actions/__tests__/moc
 vi.mock("@/lib/actions/safe-audit", async () => (await import("@/lib/actions/__tests__/mocks")).auditoria);
 vi.mock("@/lib/db/queries/inscripciones", () => ({
   getInscripcionByNumero: q.getInscripcionByNumero,
+  anonimizarInscripcion: q.anonimizarInscripcion,
 }));
 vi.mock("@/lib/actions/alta-inscripcion", () => ({
   procesarAltaInscripcion: q.procesarAltaInscripcion,
@@ -39,6 +41,7 @@ import type { InscripcionEstado } from "@/lib/domain/inscripciones/schema";
 
 import {
   anularInscripcionAction,
+  borrarDatosInscripcionAction,
   procesarInscripcionAction,
   reintentarAltaAction,
   resolverVinculoAction,
@@ -65,12 +68,13 @@ function fichaEnBase(estado: InscripcionEstado, extra: Record<string, unknown> =
   };
 }
 
-/** Ninguna escritura: ni alta, ni vínculo, ni anulación, ni auditoría. */
+/** Ninguna escritura: ni alta, ni vínculo, ni anulación, ni borrado, ni auditoría. */
 function sinEscritura() {
   expect(q.procesarAltaInscripcion).not.toHaveBeenCalled();
   expect(q.prepararEnvioAcceso).not.toHaveBeenCalled();
   expect(q.anularInscripcion).not.toHaveBeenCalled();
   expect(q.registrarResolucionAlta).not.toHaveBeenCalled();
+  expect(q.anonimizarInscripcion).not.toHaveBeenCalled();
   sinEfectos();
 }
 
@@ -91,6 +95,7 @@ beforeEach(() => {
   });
   q.registrarResolucionAlta.mockResolvedValue(true);
   q.anularInscripcion.mockResolvedValue(true);
+  q.anonimizarInscripcion.mockResolvedValue(true);
 });
 
 describe("autorización", () => {
@@ -101,6 +106,11 @@ describe("autorización", () => {
     expect(await urlDeRedirect(() => reintentarAltaAction({ codigo: CODIGO }))).toBe("/login");
     expect(await urlDeRedirect(() => resolverVinculoAction({ codigo: CODIGO }))).toBe("/login");
     expect(await urlDeRedirect(() => anularInscripcionAction({ codigo: CODIGO }))).toBe("/login");
+    expect(
+      await urlDeRedirect(() =>
+        borrarDatosInscripcionAction({ codigo: CODIGO, motivo: "lo pidió la familia" })
+      )
+    ).toBe("/login");
 
     expect(q.getInscripcionByNumero).not.toHaveBeenCalled();
     sinEscritura();
@@ -435,6 +445,115 @@ describe("anularInscripcionAction", () => {
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error("debería fallar");
     expect(r.error).toContain("cambió mientras");
+    sinEfectos();
+  });
+});
+
+describe("borrarDatosInscripcionAction", () => {
+  const MOTIVO = "La tutora lo pidió por mail el 12/09.";
+
+  it("un admin_juk no borra: el pedido de privacidad lo firma un super_admin", async () => {
+    // El rol por defecto del beforeEach. Que un admin pueda anular no lo
+    // habilita a borrar: anular es reversible y esto no.
+    expect(
+      await urlDeRedirect(() => borrarDatosInscripcionAction({ codigo: CODIGO, motivo: MOTIVO }))
+    ).toBe("/dashboard");
+
+    expect(q.getInscripcionByNumero).not.toHaveBeenCalled();
+    sinEscritura();
+  });
+
+  it("vacía los datos de la ficha que releyó de la base, audita el borrado y revalida", async () => {
+    loguearComo("super_admin");
+    q.getInscripcionByNumero.mockResolvedValue(fichaEnBase("requiere_revision"));
+
+    const r = await borrarDatosInscripcionAction({ codigo: CODIGO, motivo: `  ${MOTIVO}  ` });
+
+    expect(r).toEqual({ ok: true, data: { ejecutada: true } });
+    expect(q.anonimizarInscripcion).toHaveBeenCalledWith(INSCRIPCION_ID, {
+      usuarioId: IDS.superAdmin,
+      motivo: MOTIVO,
+    });
+
+    const entrada = auditoriasDe("delete")[0];
+    expect(entrada).toMatchObject({
+      entidadTipo: "inscripcion",
+      entidadId: INSCRIPCION_ID,
+      usuarioId: IDS.superAdmin,
+      metadata: {
+        origen: "bandeja_inscripciones",
+        decision: "borrar_datos",
+        estado: "requiere_revision",
+        motivo: MOTIVO,
+      },
+    });
+    // La auditoría no puede guardar lo que se acaba de borrar.
+    const rastro = JSON.stringify(entrada);
+    expect(rastro).not.toContain("45102338");
+    expect(rastro).not.toContain("Mora");
+    expect(rastro).not.toContain("tutora@example.com");
+
+    expect(nextCache.revalidatePath).toHaveBeenCalledWith("/inscripciones");
+    expect(nextCache.revalidatePath).toHaveBeenCalledWith("/inscripciones/[id]", "page");
+  });
+
+  it("sin motivo no borra nada: es el único registro de por qué se hizo", async () => {
+    loguearComo("super_admin");
+
+    for (const motivo of [undefined, "", "   "]) {
+      const r = await borrarDatosInscripcionAction({ codigo: CODIGO, motivo });
+
+      expect(r.ok, String(motivo)).toBe(false);
+      if (r.ok) throw new Error("debería fallar");
+      expect(r.fieldErrors?.motivo?.[0]).toContain("quién pidió el borrado");
+    }
+
+    expect(q.getInscripcionByNumero).not.toHaveBeenCalled();
+    sinEscritura();
+  });
+
+  it("un motivo interminable es un error de campo, no una excepción", async () => {
+    loguearComo("super_admin");
+
+    const r = await borrarDatosInscripcionAction({ codigo: CODIGO, motivo: "y".repeat(600) });
+
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error("debería fallar");
+    expect(r.fieldErrors?.motivo).toBeDefined();
+    sinEscritura();
+  });
+
+  it("una ficha ya borrada no vuelve a sellarse ni se audita de nuevo", async () => {
+    loguearComo("super_admin");
+    q.anonimizarInscripcion.mockResolvedValue(false);
+
+    const r = await borrarDatosInscripcionAction({ codigo: CODIGO, motivo: MOTIVO });
+
+    expect(r).toEqual({ ok: true, data: { ejecutada: false } });
+    sinEfectos();
+  });
+
+  it("el detalle de una ficha ya borrada no existe más, y se dice así", async () => {
+    loguearComo("super_admin");
+    // `getInscripcionByNumero` filtra por `borrado_el`: después del borrado la
+    // ficha deja de existir para la bandeja.
+    q.getInscripcionByNumero.mockResolvedValue(null);
+
+    const r = await borrarDatosInscripcionAction({ codigo: CODIGO, motivo: MOTIVO });
+
+    expect(r).toEqual({ ok: false, error: "No encontramos esa ficha." });
+    sinEscritura();
+  });
+
+  it("si el borrado falla, lo reporta y no dice que borró", async () => {
+    loguearComo("super_admin");
+    q.anonimizarInscripcion.mockRejectedValue(new Error("se cayó Neon"));
+
+    const r = await borrarDatosInscripcionAction({ codigo: CODIGO, motivo: MOTIVO });
+
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error("debería fallar");
+    expect(r.error).toContain("No pudimos borrar");
     sinEfectos();
   });
 });

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Alert, Badge, PageHeader, SectionTitle } from "@/components/ui";
+import { getSession } from "@/lib/auth/helpers";
 import { getInscripcionByNumero } from "@/lib/db/queries/inscripciones";
 import {
   INSCRIPCION_ESTADO_LABELS,
@@ -104,7 +105,9 @@ export default async function InscripcionDetallePage({
   const numero = parsearCodigoInscripcion(id);
   if (numero === null) notFound();
 
-  const inscripcion = await getInscripcionByNumero(numero);
+  // `getSession` está memoizada por request: el layout de (admin) ya la leyó, así
+  // que esto no suma un round-trip.
+  const [session, inscripcion] = await Promise.all([getSession(), getInscripcionByNumero(numero)]);
   if (!inscripcion) notFound();
 
   const codigo = codigoInscripcion(inscripcion.numero);
@@ -250,6 +253,7 @@ export default async function InscripcionDetallePage({
               alumnoId={inscripcion.alumnoId}
               dni={inscripcion.dni}
               vinoPorInvitacion={vinoPorInvitacion}
+              esSuperAdmin={session?.user.role === "super_admin"}
             />
           </Panel>
 

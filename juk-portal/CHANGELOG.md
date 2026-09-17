@@ -18,6 +18,16 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
 ## [Sin publicar]
 
 ### Agregado
+- **Borrado a pedido y purga por retención**: lo que la Política de Privacidad promete ahora se
+  cumple solo. Un super_admin puede borrar los datos personales de una ficha dejando constancia del
+  motivo, y un job (`npm run job:purga`) vacía las fichas que pasaron su plazo —90 días una ya
+  procesada, 2 años una sin procesar— y borra el token de las invitaciones vencidas que nadie usó.
+  Borrar **no borra la fila**: queda el talón (número, estado, variante, fechas) para que las
+  estadísticas de una campaña vieja no cambien retroactivamente.
+- **Embudo de cada campaña**: enviados → formulario abierto → fichas recibidas → procesadas, con el
+  corte por variante para ver cuál convierte mejor. Cada porcentaje va con el número de casos al
+  lado, y los escalones que dependen del webhook de Resend (entregado, abierto, clic) figuran como
+  *no disponible* mientras ese servicio no esté configurado — nunca como cero.
 - **Tres pieles para el formulario de inscripción**, elegibles desde Configuración (con vista previa)
   y pisables por campaña desde el link: **Legajo** (sobria, como el portal), **Cuaderno** (cálida y
   editorial, con notas de confianza en los campos sensibles) y **Embarque** (una columna, controles

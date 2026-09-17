@@ -3,6 +3,7 @@ import { and, asc, count, desc, eq, ilike, isNull, or, sql, type SQL } from "dri
 import { db } from "@/lib/db";
 import { inscripciones, type Inscripcion } from "@/lib/db/schema/inscripciones";
 import { viajes } from "@/lib/db/schema/viajes";
+import type { CampoInscripcion } from "@/lib/domain/inscripciones/niveles";
 import {
   INSCRIPCION_ESTADOS,
   VARIANTES,
@@ -210,6 +211,112 @@ export async function resumenInscripciones(
       VARIANTES.map((variante) => [variante, leer(claveVariante(variante))])
     ) as Record<Variante, number>,
   };
+}
+
+/*
+ * ── Borrado a pedido ──────────────────────────────────────────────────────
+ *
+ * La Política de Privacidad promete que una familia puede pedir que borremos
+ * sus datos. Borrar la fila entera sería la forma fácil y la equivocada: los
+ * conteos de la campaña (cuántas fichas entraron, cuántas se procesaron)
+ * cambiarían hacia atrás y un mes cerrado dejaría de dar lo mismo que dio.
+ *
+ * Así que se vacía el CONTENIDO personal y queda el talón: id, número, estado,
+ * variante, viaje, lote (`comunicacionId`), el consentimiento y las fechas. Lo
+ * que queda no describe a nadie; lo que se va no se recupera.
+ *
+ * Después del borrado la ficha desaparece de la bandeja (listado, detalle y
+ * conteos filtran por `borradoEl`, ver `condicionesInscripciones`), pero la fila
+ * sigue ahí para las métricas que cuentan el universo.
+ */
+
+/** Los dos campos del formulario que no son columnas de la ficha. */
+type CampoSinColumna = "acepta" | "website";
+
+/** Un campo del formulario que sí se persiste, y por lo tanto hay que vaciar. */
+type CampoPersonal = Exclude<CampoInscripcion, CampoSinColumna>;
+
+/**
+ * Las dos fechas obligatorias no pueden quedar en NULL y tampoco en "": son
+ * columnas `date NOT NULL`, y aflojarlas sería una migración sobre una tabla con
+ * datos reales de familias. Un centinela que no describe a nadie alcanza.
+ */
+const FECHA_PURGADA = "1900-01-01";
+
+/** Prefijo de la lápida que ocupa el lugar del DNI (ver `vaciarCampos`). */
+const DNI_BORRADO = "borrado-";
+
+/**
+ * Con qué queda cada campo personal después del borrado.
+ *
+ * El `satisfies Record<CampoPersonal, …>` es el punto: `CampoPersonal` sale de
+ * la clasificación del dominio (`niveles.ts`), así que sumar un campo al
+ * formulario sin decir acá cómo se vacía NO COMPILA. Sin eso, el campo nuevo
+ * sobreviviría calladito a un pedido de borrado.
+ *
+ * El DNI no queda en "" sino en una lápida única por fila: el índice único
+ * parcial `uniq_inscripcion_dni_viva` mira las fichas en `recibida` y
+ * `requiere_revision` —estados que el borrado NO cambia, porque son parte del
+ * talón—, así que dos fichas borradas con el DNI vacío chocarían entre ellas y
+ * el segundo borrado fallaría.
+ */
+function vaciarCampos(id: string) {
+  return {
+    nombre: "",
+    apellido: "",
+    fechaNacimiento: FECHA_PURGADA,
+    dni: `${DNI_BORRADO}${id}`,
+    numeroPasaporte: "",
+    fechaVencimientoPasaporte: FECHA_PURGADA,
+    tutor1Nombre: "",
+    tutor1Celular: "",
+    tutor1Email: "",
+    telefonoAlumno: null,
+    emailAlumno: null,
+    alergiasSalud: null,
+    preferenciasAlojamiento: null,
+    nivelInglesAutoevaluacion: null,
+  } satisfies Record<CampoPersonal, string | null>;
+}
+
+export type BorradoPedido = {
+  /** Quién lo ejecutó (super_admin). Queda en `borrado_por`. */
+  usuarioId: string;
+  /** Quién lo pidió y cuándo: es el registro del pedido, obligatorio. */
+  motivo: string;
+};
+
+/**
+ * Vacía los datos personales de una ficha y sella el borrado.
+ *
+ * Devuelve `false` si no había nada que hacer (la ficha ya estaba borrada):
+ * el UPDATE es condicional en vez de leer-y-escribir, así un segundo pedido —o
+ * dos pestañas abiertas— no pisa la fecha, el autor ni el motivo del primero,
+ * que es lo único que prueba cuándo se cumplió.
+ *
+ * `datos_purgados_el` se sella acá también: los datos personales SE VACIARON en
+ * este instante, que es exactamente lo que esa columna registra. De paso, el
+ * barrido por retención ve la fila como ya purgada y no vuelve a escribirla.
+ */
+export async function anonimizarInscripcion(
+  id: string,
+  { usuarioId, motivo }: BorradoPedido
+): Promise<boolean> {
+  const ahora = new Date();
+
+  const filas = await db
+    .update(inscripciones)
+    .set({
+      ...vaciarCampos(id),
+      borradoEl: ahora,
+      borradoPor: usuarioId,
+      motivoBorrado: motivo,
+      datosPurgadosEl: ahora,
+    })
+    .where(and(eq(inscripciones.id, id), isNull(inscripciones.borradoEl)))
+    .returning({ id: inscripciones.id });
+
+  return filas.length > 0;
 }
 
 /** Viajes que ya recibieron al menos una inscripción (para el filtro de la bandeja). */

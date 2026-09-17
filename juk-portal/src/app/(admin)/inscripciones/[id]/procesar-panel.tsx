@@ -14,6 +14,7 @@ import type { InscripcionEstado } from "@/lib/domain/inscripciones/schema";
 
 import {
   anularInscripcionAction,
+  borrarDatosInscripcionAction,
   procesarInscripcionAction,
   reintentarAltaAction,
   resolverVinculoAction,
@@ -44,6 +45,12 @@ export type ProcesarPanelProps = {
   /** DNI de la ficha: el slug con el que se abre el alumno. */
   dni: string;
   vinoPorInvitacion: boolean;
+  /**
+   * Si el que mira puede borrar los datos a pedido. Quien autoriza es la action
+   * (`requireRole("super_admin")`); esto solo evita ofrecerle a un admin_juk un
+   * botón que lo iba a sacar de la pantalla.
+   */
+  esSuperAdmin: boolean;
 };
 
 const QUE_FALTA: Record<InscripcionEstado, string> = {
@@ -60,21 +67,41 @@ const QUE_FALTA: Record<InscripcionEstado, string> = {
     "El equipo descartó la ficha. La invitación quedó libre: esa familia puede volver a cargar con el mismo link.",
 };
 
+const DETALLE_BORRADO =
+  "Se vacían el nombre, el DNI, la fecha de nacimiento, el pasaporte, los teléfonos, los mails y todo lo que la familia contó sobre salud y preferencias. No se recuperan: no hay deshacer. Queda el talón —el número, el estado, la variante, el viaje y las fechas—, así las estadísticas de la campaña siguen dando lo mismo que daban. La ficha sale de la bandeja y esta pantalla deja de existir.";
+
+/**
+ * Si la ficha ya creó al alumno, los mismos datos viven también en su legajo, y
+ * esto no lo toca. Decirlo acá evita el peor final posible: dar un pedido por
+ * cumplido cuando la mitad del dato sigue en el sistema.
+ */
+const BORRADO_NO_ALCANZA_AL_ALUMNO =
+  " Atención: esta ficha ya creó al alumno. Esto borra la inscripción, NO su ficha de alumno ni sus documentos: eso se resuelve desde /alumnos.";
+
 const REVISION_SIN_ALUMNO =
   "Llegó sin una invitación válida, así que el alta no corrió: un formulario público no crea alumnos por su cuenta. Revisá los datos de la ficha y, si están bien, dale de alta vos.";
 
-const LABELS: Record<AccionInscripcion, string> = {
+/**
+ * El borrado a pedido no es una acción del ciclo de vida de la ficha (el dominio
+ * no lo conoce: no cambia el estado ni habilita nada), pero comparte el "una a
+ * la vez" del panel.
+ */
+type AccionPanel = AccionInscripcion | "borrar_datos";
+
+const LABELS: Record<AccionPanel, string> = {
   procesar: "Dar de alta al alumno",
   reintentar: "Reintentar el alta",
   confirmar_vinculo: "Confirmar la cuenta de familia",
   anular: "Anular la ficha",
+  borrar_datos: "Borrar los datos personales",
 };
 
-const EN_CURSO: Record<AccionInscripcion, string> = {
+const EN_CURSO: Record<AccionPanel, string> = {
   procesar: "Dando de alta…",
   reintentar: "Reintentando…",
   confirmar_vinculo: "Confirmando…",
   anular: "Anulando…",
+  borrar_datos: "Borrando…",
 };
 
 /** Qué contarle a quien apretó, según cómo quedó la ficha. */
@@ -106,11 +133,12 @@ export function ProcesarPanel({
   alumnoId,
   dni,
   vinoPorInvitacion,
+  esSuperAdmin,
 }: ProcesarPanelProps) {
   const router = useRouter();
   const toast = useToast();
   const confirm = useConfirm();
-  const [pendiente, setPendiente] = useState<AccionInscripcion | null>(null);
+  const [pendiente, setPendiente] = useState<AccionPanel | null>(null);
 
   const ficha = { estado, alumnoId };
   const acciones = accionesDeInscripcion(ficha);
@@ -118,7 +146,7 @@ export function ProcesarPanel({
   const trabajando = pendiente !== null;
 
   async function correr(
-    accion: AccionInscripcion,
+    accion: AccionPanel,
     llamar: () => Promise<ActionResult<ResultadoBandeja>>,
     exito?: (data: ResultadoBandeja) => { tono: "success" | "info"; mensaje: string }
   ) {
@@ -217,6 +245,49 @@ export function ProcesarPanel({
     );
   }
 
+  /**
+   * El borrado que pide una familia. La confirmación dice las dos cosas que
+   * nadie puede descubrir después: qué se va (y que no vuelve) y qué queda.
+   *
+   * Al terminar no se refresca: la ficha ya no existe para la bandeja y esta
+   * misma pantalla pasa a responder 404. Se vuelve al listado.
+   */
+  async function borrarDatos() {
+    const { confirmado, valor } = await confirm({
+      titulo: "¿Borrar los datos personales de esta ficha?",
+      detalle:
+        alumnoId === null
+          ? DETALLE_BORRADO
+          : `${DETALLE_BORRADO}${BORRADO_NO_ALCANZA_AL_ALUMNO}`,
+      confirmLabel: "Sí, borrar los datos",
+      tone: "danger",
+      campo: {
+        label: "Motivo del borrado (obligatorio)",
+        placeholder: "Quién lo pidió y cuándo",
+      },
+    });
+    if (!confirmado) return;
+
+    if (valor === "") {
+      toast.error("Escribí el motivo: es el único registro que queda del pedido.");
+      return;
+    }
+
+    setPendiente("borrar_datos");
+    try {
+      const r = await borrarDatosInscripcionAction({ codigo, motivo: valor });
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
+      if (r.data.ejecutada) toast.success("Listo: los datos personales de la ficha se borraron.");
+      else toast.info("Esa ficha ya estaba borrada.");
+      router.replace("/inscripciones");
+    } finally {
+      setPendiente(null);
+    }
+  }
+
   return (
     <div className="mt-5 flex flex-col gap-4 border-t border-[var(--c-border)] pt-4">
       <p className="text-[length:var(--t-small)] leading-[var(--lh-body)] text-[var(--c-ink-muted)]">
@@ -292,6 +363,26 @@ export function ProcesarPanel({
           </Button>
         )}
       </div>
+
+      {esSuperAdmin && (
+        <div className="flex flex-col gap-2 border-t border-[var(--c-border)] pt-4">
+          <p className="text-[length:var(--t-label)] leading-[var(--lh-body)] text-[var(--c-ink-subtle)]">
+            Borrado a pedido de la familia (lo promete la Política de Privacidad). Vacía los datos
+            personales para siempre y deja el talón: la ficha sigue contando en las estadísticas de
+            la campaña, pero sin nadie adentro.
+          </p>
+          <div>
+            <Button
+              type="button"
+              variant="danger"
+              disabled={trabajando}
+              onClick={() => void borrarDatos()}
+            >
+              {pendiente === "borrar_datos" ? EN_CURSO.borrar_datos : LABELS.borrar_datos}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

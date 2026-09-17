@@ -98,3 +98,82 @@ export function debePurgar(entrada: FilaRetenible & { ahora: Date }): boolean {
 
   return diasEntre(entrada.fecha, entrada.ahora) > RETENCION[clase].dias;
 }
+
+/**
+ * Con qué queda un campo de texto personal después de la purga.
+ *
+ * Vacío y no un "(purgado)": lo que la fila dice de una persona tiene que ser
+ * NADA, y el cartel de que los datos se purgaron lo pone la pantalla leyendo
+ * `datos_purgados_el`, que es el dato verdadero. Guardar copy en la base sería
+ * además una segunda fuente de verdad para algo que ya está dicho.
+ */
+export const TEXTO_PURGADO = "";
+
+/**
+ * Con qué queda una fecha personal (nacimiento, vencimiento del pasaporte).
+ *
+ * Esas dos columnas son NOT NULL y aflojarlas pide una migración sobre una
+ * tabla con datos reales de familias. Una fecha imposible es inequívoca: nadie
+ * la va a leer como un cumpleaños, y `datos_purgados_el` dice por qué está ahí.
+ */
+export const FECHA_PURGADA = "1900-01-01";
+
+/**
+ * Los campos de la ficha que se vacían, y con qué. QUÉ es un dato personal se
+ * decide acá; ejecutarlo (el UPDATE, los lotes) es del job.
+ *
+ * Lo que NO está en esta lista es el TALÓN, y queda a propósito: `id`, `numero`,
+ * `estado`, `variante`, `viaje_id`, `comunicacion_id` (el lote de la campaña),
+ * `created_at`, el consentimiento (versión, hash e instante) y los tres campos
+ * de borrado. Sin el talón, las métricas de campaña mentirían hacia atrás —una
+ * inscripción de marzo desaparecería del embudo en junio— y la prueba de a qué
+ * aceptó esa familia se perdería justo cuando alguien la reclame. Ninguno de
+ * ellos dice quién es la persona.
+ *
+ * `motivo` también queda: son frases fijas del alta ("Ese DNI ya estaba
+ * cargado…"), sin un solo dato de la ficha adentro, y son lo único que explica
+ * el estado que sobrevive. `alumno_id` queda porque la ficha del alumno tiene su
+ * propio ciclo de vida (fuera de estos plazos, MIN-16/TEC-02): borrar el vínculo
+ * no borraría nada de esa persona y sí rompería el "esta inscripción dio de alta
+ * a un alumno" de las métricas.
+ *
+ * `token_hash` sí se va: es la llave de un formulario que esta ficha ya cerró.
+ */
+export type DatosPurgadosInscripcion = {
+  nombre: string;
+  apellido: string;
+  fechaNacimiento: string;
+  dni: string;
+  numeroPasaporte: string;
+  fechaVencimientoPasaporte: string;
+  telefonoAlumno: null;
+  emailAlumno: null;
+  alergiasSalud: null;
+  tutor1Nombre: string;
+  tutor1Celular: string;
+  tutor1Email: string;
+  preferenciasAlojamiento: null;
+  nivelInglesAutoevaluacion: null;
+  tokenHash: null;
+};
+
+/** Objeto nuevo en cada llamada: nadie puede mutar la decisión por referencia. */
+export function datosPurgadosDeInscripcion(): DatosPurgadosInscripcion {
+  return {
+    nombre: TEXTO_PURGADO,
+    apellido: TEXTO_PURGADO,
+    fechaNacimiento: FECHA_PURGADA,
+    dni: TEXTO_PURGADO,
+    numeroPasaporte: TEXTO_PURGADO,
+    fechaVencimientoPasaporte: FECHA_PURGADA,
+    telefonoAlumno: null,
+    emailAlumno: null,
+    alergiasSalud: null,
+    tutor1Nombre: TEXTO_PURGADO,
+    tutor1Celular: TEXTO_PURGADO,
+    tutor1Email: TEXTO_PURGADO,
+    preferenciasAlojamiento: null,
+    nivelInglesAutoevaluacion: null,
+    tokenHash: null,
+  };
+}

@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { RETENCION, claseDe, debePurgar, fechaDeCorte } from "./retencion";
+import {
+  FECHA_PURGADA,
+  RETENCION,
+  TEXTO_PURGADO,
+  claseDe,
+  datosPurgadosDeInscripcion,
+  debePurgar,
+  fechaDeCorte,
+} from "./retencion";
 
 /** Hora deliberadamente "sucia": el plazo se cuenta por día calendario UTC. */
 const AHORA = new Date("2026-09-16T15:30:00.000Z");
@@ -148,6 +156,67 @@ describe("fecha de corte", () => {
         fecha.getTime() < corte.getTime()
       );
     }
+  });
+});
+
+describe("qué se vacía de una ficha purgada", () => {
+  it("no deja ni un dato personal: los tres del alumno, el pasaporte, el tutor y el token", () => {
+    const purgado = datosPurgadosDeInscripcion();
+
+    expect(purgado).toEqual({
+      nombre: TEXTO_PURGADO,
+      apellido: TEXTO_PURGADO,
+      fechaNacimiento: FECHA_PURGADA,
+      dni: TEXTO_PURGADO,
+      numeroPasaporte: TEXTO_PURGADO,
+      fechaVencimientoPasaporte: FECHA_PURGADA,
+      telefonoAlumno: null,
+      emailAlumno: null,
+      alergiasSalud: null,
+      tutor1Nombre: TEXTO_PURGADO,
+      tutor1Celular: TEXTO_PURGADO,
+      tutor1Email: TEXTO_PURGADO,
+      preferenciasAlojamiento: null,
+      nivelInglesAutoevaluacion: null,
+      tokenHash: null,
+    });
+  });
+
+  it("no toca el talón: nada de estado, variante, fechas, campaña ni consentimiento", () => {
+    const campos = Object.keys(datosPurgadosDeInscripcion());
+
+    for (const delTalon of [
+      "id",
+      "numero",
+      "estado",
+      "variante",
+      "viajeId",
+      "comunicacionId",
+      "alumnoId",
+      "motivo",
+      "createdAt",
+      "consentimientoVersion",
+      "consentimientoTextoHash",
+      "consentimientoEl",
+      "borradoEl",
+      "borradoPor",
+      "motivoBorrado",
+      "datosPurgadosEl",
+    ]) {
+      expect(campos, delTalon).not.toContain(delTalon);
+    }
+  });
+
+  it("devuelve un objeto nuevo cada vez: mutarlo no cambia la decisión", () => {
+    const primero = datosPurgadosDeInscripcion();
+    primero.nombre = "no debería viajar";
+
+    expect(datosPurgadosDeInscripcion().nombre).toBe(TEXTO_PURGADO);
+  });
+
+  it("la fecha de relleno es un día de calendario imposible de confundir con un cumpleaños", () => {
+    expect(FECHA_PURGADA).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(new Date(`${FECHA_PURGADA}T00:00:00.000Z`).getUTCFullYear()).toBeLessThan(1950);
   });
 });
 
