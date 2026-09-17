@@ -1,9 +1,10 @@
 import { LinkButton, PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth/helpers";
-import { getMailSettings } from "@/lib/db/queries/configuracion";
+import { getFormularioSettings, getMailSettings } from "@/lib/db/queries/configuracion";
 
 import { getEstadoServiciosAction } from "./actions";
 import { EstadoServicios } from "./estado-servicios";
+import { FormularioForm } from "./formulario-form";
 import { MailsForm } from "./mails-form";
 import { PreviewTemplates } from "./preview-templates";
 
@@ -11,13 +12,17 @@ export const metadata = { title: "Configuración" };
 
 export default async function ConfiguracionPage() {
   const session = await requireRole("super_admin");
-  const [mails, estado] = await Promise.all([getMailSettings(), getEstadoServiciosAction()]);
+  const [mails, formulario, estado] = await Promise.all([
+    getMailSettings(),
+    getFormularioSettings(),
+    getEstadoServiciosAction(),
+  ]);
 
   return (
     <>
       <PageHeader
         title="Configuración"
-        subtitle="Remitentes de email del portal, pruebas de templates y estado de los servicios."
+        subtitle="Remitentes de email del portal, variante del formulario de inscripción, pruebas de templates y estado de los servicios."
         actions={
           <LinkButton variant="secondary" href="/configuracion/cuenta">
             Mi cuenta · cambiar contraseña
@@ -30,6 +35,7 @@ export default async function ConfiguracionPage() {
           <EstadoServicios estado={estado.ok ? estado.data : null} />
           <PreviewTemplates />
         </div>
+        <FormularioForm initial={formulario} />
       </div>
     </>
   );

@@ -2,6 +2,9 @@
    carga next/font desde el root layout (nada de @import externo acá). */
 @import "./tokens.css";
 @import "./animations.css";
+/* Pieles del Application Form (/inscripcion). Va después de tokens.css: sus
+   tres bloques redefinen tokens de STUDIO dentro de su alcance. */
+@import "./form-variants.css";
 
 @tailwind base;
 @tailwind components;

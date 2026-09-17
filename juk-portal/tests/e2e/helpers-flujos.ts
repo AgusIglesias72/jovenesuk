@@ -6,8 +6,15 @@ import { hashPassword } from "better-auth/crypto";
 
 import { db } from "../../src/lib/db";
 import { accounts, asignaciones, pasosAlumno, users, viajes } from "../../src/lib/db/schema";
+import { TEXTO_CONSENTIMIENTO } from "../../src/lib/domain/privacidad/politica";
 
-import { abrirViaje, codigoViajeUnico, COLEGIO_E2E, panelAlumnosAsignados } from "./helpers";
+import {
+  abrirViaje,
+  codigoViajeUnico,
+  COLEGIO_E2E,
+  esperarHidratacion,
+  panelAlumnosAsignados,
+} from "./helpers";
 
 /*
  * Utilidades de los specs de flujos (familias-acciones, alumnos-abm,
@@ -276,4 +283,64 @@ export function pdfMinimo(nombre: string) {
 /** Escapa un literal para usarlo dentro de un RegExp. */
 export function literalRegex(texto: string): string {
   return texto.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/* ============================================================
+   Application Form público (/inscripcion)
+   ============================================================ */
+
+/** Lo mínimo que necesita una ficha para pasar la validación del schema. */
+export type FichaInscripcion = {
+  nombre: string;
+  apellido: string;
+  dni: string;
+  pasaporte: string;
+  tutorEmail: string;
+};
+
+/**
+ * Completa la ficha como la completa una familia, por nombre accesible.
+ *
+ * Los selectores son los mismos en las tres variantes del formulario y eso es
+ * parte de lo que se prueba (`inscripcion-variantes.spec.ts`): la piel cambia,
+ * el árbol accesible no. Si una variante necesitara su propia versión de esta
+ * función, la variante estaría mal.
+ *
+ * Espera la hidratación antes de tocar nada: los campos existen renderizados en
+ * el server y un fill previo a que React los conecte deja el valor en el DOM sin
+ * que corra ningún onChange.
+ */
+export async function completarFichaInscripcion(
+  page: Page,
+  ficha: FichaInscripcion
+): Promise<void> {
+  const nombre = page.getByLabel("Nombre*", { exact: true });
+  await esperarHidratacion(nombre);
+
+  await nombre.fill(ficha.nombre);
+  await page.getByLabel("Apellido*", { exact: true }).fill(ficha.apellido);
+  await page.getByLabel("Fecha de nacimiento*").fill("2011-04-04");
+  await page.getByLabel("DNI*").fill(ficha.dni);
+  await page.getByLabel("Número de pasaporte*", { exact: true }).fill(ficha.pasaporte);
+  await page.getByLabel("Vencimiento del pasaporte*").fill("2034-01-01");
+
+  await page.getByLabel("Nombre y apellido*", { exact: true }).fill("Tutora E2E");
+  await page.getByLabel("Celular*", { exact: true }).fill("+54 9 11 5555-0000");
+  await page.getByLabel("Email*", { exact: true }).fill(ficha.tutorEmail);
+
+  await page.getByRole("checkbox", { name: TEXTO_CONSENTIMIENTO }).check();
+}
+
+/** Envía la ficha y devuelve el código público que el acuse le muestra a la familia. */
+export async function enviarFichaInscripcion(page: Page): Promise<string> {
+  await page.getByRole("button", { name: "Enviar la inscripción" }).click();
+
+  // El acuse es inline y no un toast: la ficha se completa una sola vez y el
+  // código tiene que quedar en pantalla.
+  const acuse = page.getByRole("status").filter({ hasText: "Recibimos la inscripción" });
+  await expect(acuse).toBeVisible({ timeout: 60_000 });
+
+  const codigo = /INS-\d{6,}/.exec((await acuse.textContent()) ?? "")?.[0];
+  if (!codigo) throw new Error("el acuse no mostró el código de la inscripción");
+  return codigo;
 }

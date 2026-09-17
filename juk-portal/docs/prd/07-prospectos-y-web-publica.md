@@ -101,6 +101,14 @@ Estados de una ficha: `recibida` · `procesada` · `duplicada` (ese DNI ya estab
 · `error` (con el motivo, y se puede reintentar) · `anulada`. La bandeja `/inscripciones` los filtra
 y muestra los conteos por estado y por variante.
 
+**Las tres pieles.** El mismo formulario se puede servir con tres estéticas, elegibles desde
+`/configuracion` con vista previa: **A · Legajo** (sobria, la gramática del back-office; es el
+default), **B · Cuaderno** (cálida y editorial, con notas de confianza bajo los campos sensibles) y
+**C · Embarque** (una columna, controles grandes y progreso, pensada para completarla desde el
+teléfono). Cambian la piel y nada más: los campos, la validación, lo que se guarda y el árbol
+accesible son idénticos. Cada ficha registra con qué piel se cargó, para poder comparar cuál
+convierte mejor. Precedencia: `?v=` del link > variante de la campaña > la configurada > A.
+
 ### Invitaciones al formulario (campañas)
 
 Desde `/prospectos/invitaciones` el equipo arma una **campaña**: elige el viaje, la variante visual

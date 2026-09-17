@@ -2,8 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const requireRole = vi.fn();
 const getMailSettings = vi.fn();
+const setFormularioSettings = vi.fn();
 const render = vi.fn();
 const captureException = vi.fn();
+const revalidatePath = vi.fn();
+const safeAudit = vi.fn();
 
 vi.mock("@/lib/auth/helpers", () => ({
   requireRole: (...args: unknown[]) => requireRole(...args),
@@ -11,6 +14,7 @@ vi.mock("@/lib/auth/helpers", () => ({
 vi.mock("@/lib/db/queries/configuracion", () => ({
   getMailSettings: () => getMailSettings(),
   setMailSettings: vi.fn(),
+  setFormularioSettings: (...args: unknown[]) => setFormularioSettings(...args),
 }));
 vi.mock("@/lib/email", () => ({ sendEmail: vi.fn() }));
 vi.mock("@react-email/render", () => ({
@@ -19,10 +23,18 @@ vi.mock("@react-email/render", () => ({
 vi.mock("@sentry/nextjs", () => ({
   captureException: (...args: unknown[]) => captureException(...args),
 }));
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@/lib/actions/safe-audit", () => ({ safeAudit: vi.fn() }));
+vi.mock("next/cache", () => ({
+  revalidatePath: (...args: unknown[]) => revalidatePath(...args),
+}));
+vi.mock("@/lib/actions/safe-audit", () => ({
+  safeAudit: (...args: unknown[]) => safeAudit(...args),
+}));
 
-import { getEstadoServiciosAction, previewTemplateAction } from "./actions";
+import {
+  getEstadoServiciosAction,
+  guardarFormularioSettingsAction,
+  previewTemplateAction,
+} from "./actions";
 
 const MAILS = {
   nombreRemitente: "Jóvenes en UK",
@@ -50,7 +62,10 @@ describe("actions de /configuracion", () => {
     requireRole.mockReset().mockResolvedValue({ user: { id: "u1", email: "a@b.com" } });
     getMailSettings.mockReset().mockResolvedValue(MAILS);
     render.mockReset().mockResolvedValue("<html>hola</html>");
+    setFormularioSettings.mockReset().mockResolvedValue(undefined);
     captureException.mockReset();
+    revalidatePath.mockReset();
+    safeAudit.mockReset();
     for (const clave of ENV_TOCADAS) {
       original.set(clave, process.env[clave]);
       delete process.env[clave];
@@ -162,6 +177,69 @@ describe("actions de /configuracion", () => {
 
       expect(res).toEqual({ ok: false, error: "No pudimos renderizar el template." });
       expect(captureException).toHaveBeenCalledWith(fallo);
+    });
+  });
+
+  describe("guardarFormularioSettingsAction", () => {
+    it("sin super_admin no guarda nada", async () => {
+      requireRole.mockRejectedValue(new Error("NEXT_REDIRECT"));
+
+      await expect(guardarFormularioSettingsAction({ varianteActiva: "b" })).rejects.toThrow(
+        "NEXT_REDIRECT"
+      );
+      expect(requireRole).toHaveBeenCalledWith("super_admin");
+      expect(setFormularioSettings).not.toHaveBeenCalled();
+    });
+
+    it("una variante que no existe devuelve fieldErrors y no toca la base", async () => {
+      const res = await guardarFormularioSettingsAction({ varianteActiva: "z" });
+
+      expect(res.ok).toBe(false);
+      if (res.ok) return;
+      expect(res.error).toBe("Revisá la variante elegida.");
+      expect(res.fieldErrors?.varianteActiva?.length).toBeGreaterThan(0);
+      expect(setFormularioSettings).not.toHaveBeenCalled();
+    });
+
+    it("un input sin la clave tampoco guarda", async () => {
+      const res = await guardarFormularioSettingsAction({});
+
+      expect(res.ok).toBe(false);
+      expect(setFormularioSettings).not.toHaveBeenCalled();
+    });
+
+    it("guarda la variante, audita y revalida", async () => {
+      const res = await guardarFormularioSettingsAction({ varianteActiva: "c" });
+
+      expect(res).toEqual({ ok: true, data: { guardado: true } });
+      expect(setFormularioSettings).toHaveBeenCalledWith({ varianteActiva: "c" }, "u1");
+      expect(safeAudit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          accion: "update",
+          entidadTipo: "configuracion",
+          usuarioId: "u1",
+          metadata: { clave: "formulario", varianteActiva: "c" },
+        })
+      );
+      expect(revalidatePath).toHaveBeenCalledWith("/configuracion");
+      expect(revalidatePath).toHaveBeenCalledWith("/inscripcion");
+    });
+
+    it("descarta las claves de más en vez de guardarlas", async () => {
+      await guardarFormularioSettingsAction({ varianteActiva: "b", varianteActivaPosta: "c" });
+
+      expect(setFormularioSettings).toHaveBeenCalledWith({ varianteActiva: "b" }, "u1");
+    });
+
+    it("si la escritura falla, devuelve error y reporta a Sentry", async () => {
+      const fallo = new Error("db caída");
+      setFormularioSettings.mockRejectedValue(fallo);
+
+      const res = await guardarFormularioSettingsAction({ varianteActiva: "a" });
+
+      expect(res).toEqual({ ok: false, error: "No pudimos guardar la variante del formulario." });
+      expect(captureException).toHaveBeenCalledWith(fallo);
+      expect(revalidatePath).not.toHaveBeenCalled();
     });
   });
 });

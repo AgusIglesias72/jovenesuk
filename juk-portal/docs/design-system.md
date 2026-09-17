@@ -290,6 +290,31 @@ de spinners ad-hoc.
   permite usarlo como `h2`, `h3`, `h4`, `dt` o `div`; `sectionTitleClasses` expone la clase para los
   casos que no pueden usar el componente.
 
+## 10-bis. Pieles del formulario de inscripción (`.v-form-a|b|c`)
+
+El Application Form público se sirve con una de tres pieles —**Legajo**, **Cuaderno** y
+**Embarque**— que cambian estética, nunca campos ni lógica. Viven en `src/styles/form-variants.css`
+y se eligen desde `/configuracion` (o por `?v=` en el link de una campaña).
+
+Cómo están hechas, y por qué así:
+
+- Cada piel redefine un vocabulario propio `--form-*` (papel, borde, radio, sombra, rótulo, filete,
+  nota, acento) además de algunos tokens STUDIO **dentro de su alcance**. No hay clases sueltas por
+  variante en el TSX: el componente es uno solo y lee su presentación de
+  `src/app/inscripcion/variantes.ts`, con la clase completa como literal (el JIT de Tailwind lee el
+  texto del archivo: una clase interpolada no existe).
+- El vocabulario se declara en `.v-studio` y no en `:root`: los tokens STUDIO viven ahí, y una
+  variable que los referencie desde `<html>` se computa donde todavía no existen.
+- La piel se engancha **dos veces**: por la clase del contenedor y por `body:has(.v-form-X)`. La
+  segunda alcanza al shell y, sobre todo, a los popover de `Select` y `DateInput`, que se montan en
+  un **portal fuera del formulario**: una variable declarada solo en `.v-form-b` resolvería vacía
+  ahí y —como un `var()` sin fallback invalida la propiedad entera— el desplegable quedaría sin
+  fondo ni borde. Donde no haya `:has()`, el formulario se estila igual y el popover conserva el
+  STUDIO base: degrada, no se rompe.
+- Las tres exponen el **mismo árbol accesible**: los números, la volanta, el tilde y la barra de
+  progreso van en nodos `aria-hidden`, así el nombre accesible de cada grupo no cambia y los mismos
+  selectores de los E2E sirven para las tres.
+
 ## 11. Shadcn: por qué no está instalado
 
 La CLI moderna de shadcn asume **Tailwind v4** (tokens en `@theme`, `oklch`, `@import "tailwindcss"`).

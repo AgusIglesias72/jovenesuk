@@ -18,6 +18,12 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
 ## [Sin publicar]
 
 ### Agregado
+- **Tres pieles para el formulario de inscripción**, elegibles desde Configuración (con vista previa)
+  y pisables por campaña desde el link: **Legajo** (sobria, como el portal), **Cuaderno** (cálida y
+  editorial, con notas de confianza en los campos sensibles) y **Embarque** (una columna, controles
+  grandes y progreso, pensada para el teléfono). Cambia la piel, no el formulario: los campos, la
+  validación y lo que se guarda son los mismos, y cada ficha registra con cuál se cargó, para poder
+  comparar cuál convierte mejor.
 - **Invitaciones por lote desde el CRM.** Se arma una campaña eligiendo el viaje y a qué prospectos,
   y el sistema manda a cada uno su propio link al formulario. La pantalla muestra el avance y se
   puede **cerrar y retomar**: lo ya enviado no se reenvía. Los colegios dados de baja quedan

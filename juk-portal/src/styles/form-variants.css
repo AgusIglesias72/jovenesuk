@@ -1,0 +1,430 @@
+/*
+ * JUK Portal — Pieles del Application Form público (/inscripcion)
+ * ------------------------------------------------------------------
+ * Tres identidades para EL MISMO formulario: mismos campos, mismo orden, misma
+ * server action, mismo árbol accesible. Acá cambia la piel y nada más.
+ *
+ *   A · Legajo    la gramática del back-office traída al sitio público:
+ *                 geometría recta, sombras neutras, cero gradientes, rótulos
+ *                 numerados en mono, densidad media.
+ *   B · Cuaderno  editorial y cálida: papel crema, volanta numerada, título en
+ *                 la display, filete de color bajo cada sección y notas de
+ *                 confianza al margen.
+ *   C · Embarque  una sola columna contra el abandono desde el teléfono:
+ *                 controles grandes, paradas que se tildan y barra de progreso.
+ *
+ * Cómo está armado
+ * ------------------------------------------------------------------
+ * Cada bloque redefine TOKENS DE STUDIO dentro de su alcance (--r-*, --shadow-*,
+ * --c-page, --tap…). Es lo que permite reskinear componentes compuestos —Input,
+ * Textarea, DateInput, Checkbox— sin tocar una línea de su código: ya leen esos
+ * tokens. Lo propio del formulario (papel, rótulos, filete, notas, progreso) va
+ * en un vocabulario --form-* con valor base.
+ *
+ * ⚠️ POR QUÉ EL VOCABULARIO --form-* SE DECLARA EN .v-studio (el <body>)
+ * ------------------------------------------------------------------
+ * <DateInput> y <Select> montan su calendario / desplegable con createPortal
+ * sobre document.body: ese nodo NO tiene al contenedor .v-form-b entre sus
+ * ancestros. Una variable declarada ÚNICAMENTE dentro de .v-form-b resuelve
+ * vacía ahí afuera, y como una var() sin fallback invalida la propiedad entera,
+ * el popover aparecería sin fondo, sin borde y sin radio: ilegible encima del
+ * formulario. Declarando el valor base en .v-studio —el mismo elemento donde
+ * viven los tokens STUDIO, y ancestro de todo portal— lo que se escape del
+ * contenedor siempre resuelve a algo válido.
+ *
+ * (Tampoco sirve declararlas en :root: los tokens STUDIO viven en .v-studio,
+ * que es el <body>. Un `--form-papel: var(--c-surface)` puesto en <html> se
+ * computa ahí, donde --c-surface todavía no existe, y hereda ya inválido.)
+ *
+ * Por lo mismo la piel se engancha DOS veces: desde el contenedor .v-form-X y
+ * desde `body:has(.v-form-X)`. La segunda le pone la misma piel al shell
+ * (header, fondo, footer) y a los popover en portal, que de otro modo se
+ * quedarían con el STUDIO base mientras el formulario ya cambió. Donde :has()
+ * no exista, el formulario se estila igual por su clase y el popover conserva
+ * el STUDIO base — degrada, no se rompe.
+ *
+ * Qué NO hace este archivo: no cambia campos, textos de label, nombres
+ * accesibles ni el foco. Los números y tildes de sección se dibujan sobre nodos
+ * aria-hidden (ver inscripcion-form.tsx), así el nombre del grupo es idéntico
+ * en las tres.
+ */
+
+/* ── Vocabulario propio, con el valor base (= piel A sin sus overrides) ── */
+.v-studio {
+  --form-papel: var(--c-surface);
+  --form-papel-borde: var(--c-border);
+  --form-r-caja: var(--r-lg);
+  --form-sombra-caja: var(--shadow-1);
+
+  /* Shell del formulario (header y footer del layout). */
+  --form-chrome: var(--c-surface);
+  --form-chrome-borde: var(--c-border);
+
+  --form-sep-seccion: var(--sp-6);
+  --form-grilla-gap-x: var(--sp-4);
+  --form-grilla-gap-y: var(--sp-5);
+
+  /* Rótulo de sección: el orden (decorativo) y el título. */
+  --form-orden-font: var(--font-mono);
+  --form-orden-size: var(--t-label);
+  --form-orden-color: var(--c-ink-subtle);
+  --form-orden-ls: var(--ls-label);
+
+  --form-titulo-font: var(--font-display);
+  --form-titulo-size: var(--t-h3);
+  --form-titulo-color: var(--c-ink);
+  --form-titulo-ls: var(--ls-tight);
+  --form-titulo-transform: none;
+
+  /* Filete bajo el título: ancho 0 = no se dibuja. */
+  --form-filete: transparent;
+  --form-filete-alto: 0px;
+  --form-filete-ancho: 100%;
+
+  --form-nota-color: var(--c-ink-muted);
+  --form-acento: var(--c-brand);
+}
+
+/* ============================================================
+   Piezas compartidas — la estructura es la misma en las tres
+   ============================================================ */
+
+.form-caja {
+  background-color: var(--form-papel);
+  border: var(--hairline) solid var(--form-papel-borde);
+  border-radius: var(--form-r-caja);
+  box-shadow: var(--form-sombra-caja);
+}
+
+.form-seccion + .form-seccion {
+  margin-top: var(--form-sep-seccion);
+}
+
+.form-rotulo {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin-bottom: var(--sp-4);
+}
+
+.form-rotulo-caja {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.form-rotulo-orden {
+  font-family: var(--form-orden-font);
+  font-size: var(--form-orden-size);
+  font-weight: 700;
+  letter-spacing: var(--form-orden-ls);
+  line-height: var(--lh-snug);
+  color: var(--form-orden-color);
+}
+
+.form-rotulo-titulo {
+  font-family: var(--form-titulo-font);
+  font-size: var(--form-titulo-size);
+  font-weight: 700;
+  letter-spacing: var(--form-titulo-ls);
+  text-transform: var(--form-titulo-transform);
+  line-height: var(--lh-snug);
+  color: var(--form-titulo-color);
+}
+
+.form-rotulo::after {
+  content: "";
+  display: block;
+  width: var(--form-filete-ancho);
+  height: var(--form-filete-alto);
+  margin-top: var(--sp-2);
+  background-color: var(--form-filete);
+  border-radius: var(--r-pill);
+}
+
+.form-grilla {
+  display: grid;
+  gap: var(--form-grilla-gap-y) var(--form-grilla-gap-x);
+}
+
+@media (min-width: 640px) {
+  .form-grilla {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Campo que ocupa la fila entera. Sirve igual en una o en dos columnas. */
+.form-campo-ancho {
+  grid-column: 1 / -1;
+}
+
+/* Microcopy de confianza bajo un campo sensible (hoy solo lo muestra B). */
+.form-nota {
+  margin-top: var(--sp-1);
+  font-size: var(--t-small);
+  line-height: var(--lh-body);
+  color: var(--form-nota-color);
+}
+
+/* Barra de progreso (hoy solo la muestra C). */
+.form-progreso {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  overflow: hidden;
+  height: 4px;
+  margin-bottom: var(--sp-5);
+  border-radius: var(--r-pill);
+  background-color: var(--c-surface-2);
+}
+
+.form-progreso-barra {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background-color: var(--form-acento);
+  transition: width 240ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form-progreso-barra {
+    transition: none;
+  }
+}
+
+/* ============================================================
+   A · LEGAJO — "la agencia seria que ya conocés"
+   ============================================================ */
+
+.v-form-a,
+body:has(.v-form-a),
+/* El shell del layout mientras no hay marca de variante —el skeleton de
+   `loading.tsx`, que se pinta antes de resolver el token—: la piel A es la base
+   y el default, así que estrenarla ahí evita el salto al hidratar en el camino
+   más frecuente. Se apaga sola apenas el árbol trae la marca de otra variante.
+   El `:where()` es a propósito: donde no exista :has(), un `:not(:has(…))`
+   suelto invalidaría TODO el grupo (y con él `.v-form-a`); adentro de :where()
+   el parseo es tolerante y solo se cae este selector, que es de más. */
+.v-form-base:where(:not(:has(.v-form-b, .v-form-c))) {
+  /* Geometría recta: los radios de STUDIO, a la mitad. */
+  --r-xs: 3px;
+  --r-sm: 5px;
+  --r-md: 7px;
+  --r-lg: 10px;
+  --r-xl: 12px;
+  --r-pill: 6px;
+
+  /* Sombras neutras, sin halo de color: acá no flota nada. */
+  --shadow-soft: 0 1px 2px rgba(33, 48, 45, 0.06);
+  --shadow-1: 0 1px 2px rgba(33, 48, 45, 0.08);
+  --shadow-2: 0 2px 6px rgba(33, 48, 45, 0.1);
+  --shadow-3: 0 4px 14px rgba(33, 48, 45, 0.12);
+  --shadow-brand: 0 1px 2px rgba(33, 48, 45, 0.14);
+  --shadow-accent: 0 1px 2px rgba(33, 48, 45, 0.14);
+
+  /* Cero gradientes. */
+  --grad-page: none;
+
+  /* Papel plano y bordes más definidos que el hairline cálido. */
+  --c-page: #f5f3f0;
+  --c-border: #e4ded6;
+  --c-border-strong: #c7bfb4;
+
+  --form-papel-borde: var(--c-border-strong);
+  --form-r-caja: var(--r-md);
+
+  /* Densidad media: secciones y campos más juntos. */
+  --form-sep-seccion: var(--sp-5);
+  --form-grilla-gap-y: var(--sp-4);
+
+  /* Rótulo numerado en mono + regla que cierra la sección. */
+  --form-orden-font: var(--font-mono);
+  --form-orden-color: var(--c-ink-muted);
+  --form-filete: var(--c-border-strong);
+  --form-filete-alto: 1px;
+}
+
+/* Las reglas de elemento de A no se escriben contra `.v-form-base`: los hooks
+   .form-* solo existen en el formulario real, que siempre trae su marca. Al
+   shell sin marca le alcanza con las variables de arriba. */
+
+/* El número como etiqueta de carpeta: caja chica, mono, sobre superficie hundida. */
+.v-form-a .form-rotulo-orden {
+  padding: 2px 6px;
+  border: var(--hairline) solid var(--c-border-strong);
+  border-radius: var(--r-xs);
+  background-color: var(--c-surface-2);
+}
+
+.v-form-a .form-rotulo-caja {
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.v-form-a .form-rotulo::after {
+  border-radius: 0;
+}
+
+/* ============================================================
+   B · CUADERNO — editorial, cálida, para la familia que elige
+   ============================================================ */
+
+.v-form-b,
+body:has(.v-form-b) {
+  /* Papel crema en vez de tarjeta blanca: los campos (blancos) se despegan. */
+  --form-papel: #fdf8ee;
+  --form-papel-borde: var(--c-border-strong);
+  --form-r-caja: var(--r-xl);
+  --form-sombra-caja: var(--shadow-2);
+
+  --c-page: #f7efe2;
+
+  --form-chrome: #fdf8ee;
+  --form-chrome-borde: var(--c-border-strong);
+
+  --form-sep-seccion: var(--sp-6);
+  --form-grilla-gap-x: var(--sp-5);
+
+  /* Volanta en la tipografía de texto, título grande en la display. */
+  --form-orden-font: var(--font-body);
+  --form-orden-size: var(--t-label);
+  --form-orden-color: var(--c-accent-600);
+  --form-orden-ls: 0.16em;
+
+  --form-titulo-size: var(--t-h2);
+
+  --form-filete: var(--c-accent);
+  --form-filete-alto: 3px;
+  --form-filete-ancho: 3rem;
+
+  --form-nota-color: var(--c-ink-muted);
+}
+
+/* Lomo del cuaderno. */
+.v-form-b .form-caja {
+  border-left-width: 4px;
+  border-left-color: var(--c-accent);
+}
+
+/* Volanta arriba del título, no al lado. */
+.v-form-b .form-rotulo-caja {
+  display: block;
+}
+
+.v-form-b .form-rotulo-orden {
+  display: block;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+}
+
+/* La nota de confianza, como una anotación al margen. */
+.v-form-b .form-nota {
+  padding-left: var(--sp-3);
+  border-left: 2px solid var(--c-honey);
+}
+
+/* ============================================================
+   C · EMBARQUE — una columna, paradas, contra el abandono
+   ============================================================ */
+
+.v-form-c,
+body:has(.v-form-c) {
+  /* Controles grandes: --tap manda en el alto mínimo de todo el sistema. */
+  --tap: 52px;
+  --r-md: 12px;
+
+  /* Sin papel: el formulario es la página. Mínima fricción visual. */
+  --form-papel: transparent;
+  --form-papel-borde: transparent;
+  --form-sombra-caja: none;
+  --form-r-caja: 0px;
+
+  --c-page: #f6f5f2;
+  --grad-page: none;
+
+  --form-chrome: transparent;
+
+  --form-sep-seccion: var(--sp-6);
+
+  --form-titulo-size: var(--t-h3);
+
+  --form-acento: var(--c-brand);
+}
+
+/* El papel no existe: el padding de la tarjeta tampoco. */
+.v-form-c .form-caja {
+  padding: 0;
+}
+
+/* …salvo el acuse de recibo, que sí es una tarjeta. */
+.v-form-c .form-exito {
+  padding: var(--sp-6);
+  border-color: var(--c-border);
+  border-radius: var(--r-lg);
+  background-color: var(--c-surface);
+}
+
+/* Una sola columna a cualquier ancho. */
+.v-form-c .form-grilla {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Cada sección es una parada: círculo numerado a la izquierda y un hilo que
+   baja hasta la siguiente. */
+.v-form-c .form-seccion {
+  position: relative;
+  padding-left: 2.75rem;
+}
+
+.v-form-c .form-seccion::before {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 2.25rem;
+  bottom: calc(var(--form-sep-seccion) * -1);
+  width: 2px;
+  background-color: var(--c-border-strong);
+}
+
+.v-form-c .form-seccion:last-of-type::before {
+  display: none;
+}
+
+.v-form-c .form-rotulo-caja {
+  min-height: 2rem;
+  align-items: center;
+}
+
+.v-form-c .form-rotulo-orden {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid var(--c-border-strong);
+  border-radius: var(--r-pill);
+  background-color: var(--c-surface);
+  font-family: var(--font-body);
+  font-size: var(--t-small);
+  letter-spacing: normal;
+  color: var(--c-ink-muted);
+}
+
+/* Parada completa: se tilda. */
+.v-form-c .form-seccion[data-lista="si"] .form-rotulo-orden {
+  border-color: var(--c-brand);
+  background-color: var(--c-brand);
+  color: var(--c-ink-onbrand);
+}
+
+/* Parada sin campos obligatorios: se distingue, pero no promete un tilde. */
+.v-form-c .form-seccion[data-lista="opcional"] .form-rotulo-orden {
+  border-style: dashed;
+}
+
+/* El botón no cambia de tamaño al llegar al escritorio. */
+.v-form-c .form-enviar {
+  width: 100%;
+}

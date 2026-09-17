@@ -8,10 +8,15 @@ import { z } from "zod";
 
 import { safeAudit } from "@/lib/actions/safe-audit";
 import { requireRole } from "@/lib/auth/helpers";
-import { getMailSettings, setMailSettings } from "@/lib/db/queries/configuracion";
+import {
+  getMailSettings,
+  setFormularioSettings,
+  setMailSettings,
+} from "@/lib/db/queries/configuracion";
 import { sendEmail } from "@/lib/email";
 import { construirTemplatePrueba } from "@/lib/email/preview";
 import { mailSettingsSchema, type TipoEmail } from "@/lib/domain/configuracion";
+import { formularioSettingsSchema } from "@/lib/domain/configuracion/formulario";
 import {
   evaluarEntorno,
   resumenPorServicio,
@@ -53,6 +58,47 @@ export async function guardarMailsAction(
   } catch (err) {
     Sentry.captureException(err);
     return { ok: false, error: "No pudimos guardar la configuración." };
+  }
+}
+
+/**
+ * Elige qué piel sirve el Application Form público cuando el link no trae `?v=`
+ * y la campaña no fijó una. Es el anteúltimo escalón de `resolverVariante`.
+ *
+ * Solo cambia estética: los campos, la validación y la server action de la
+ * inscripción son los mismos en las tres. Por eso el único dato que se guarda
+ * es la letra de la variante, y una letra desconocida se rechaza acá en vez de
+ * llegar a la base (el formulario público igual caería al default, pero la
+ * pantalla mentiría diciendo que guardó).
+ */
+export async function guardarFormularioSettingsAction(
+  input: unknown
+): Promise<ActionResult<{ guardado: true }>> {
+  const session = await requireRole("super_admin");
+
+  const parsed = formularioSettingsSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Revisá la variante elegida.",
+      fieldErrors: fieldErrorsFromZod(parsed.error),
+    };
+  }
+
+  try {
+    await setFormularioSettings(parsed.data, session.user.id);
+    await safeAudit({
+      accion: "update",
+      entidadTipo: "configuracion",
+      usuarioId: session.user.id,
+      metadata: { clave: "formulario", ...parsed.data },
+    });
+    revalidatePath("/configuracion");
+    revalidatePath("/inscripcion");
+    return { ok: true, data: { guardado: true } };
+  } catch (err) {
+    Sentry.captureException(err);
+    return { ok: false, error: "No pudimos guardar la variante del formulario." };
   }
 }
 

@@ -26,8 +26,25 @@ declare global {
 /** Rutas con sesión de admin (las corre el proyecto "chromium"). */
 const RUTAS_ADMIN = ["/dashboard", "/alumnos", "/alumnos/nuevo"] as const;
 
-/** Rutas sin sesión: el portal público y el login. */
-const RUTAS_PUBLICAS = ["/", "/privacidad", "/login"] as const;
+/**
+ * Rutas sin sesión: el portal público, el login y el Application Form.
+ *
+ * El formulario entra TRES VECES, una por piel (`?v=a|b|c`). Comparten el árbol
+ * accesible —eso lo prueba `inscripcion-variantes.spec.ts`— pero no el CSS, y
+ * cuatro de las cinco reglas de acá son visuales: el foco visible, el nombre que
+ * queda cuando se descarta lo decorativo (el número de sección, el tilde de la
+ * parada) y el único h1 los dibuja cada variante por su cuenta. Es la pantalla
+ * más larga que completa una familia sin ayuda: si una piel rompe el foco, se
+ * queda sin poder tabular la ficha entera.
+ */
+const RUTAS_PUBLICAS = [
+  "/",
+  "/privacidad",
+  "/login",
+  "/inscripcion?v=a",
+  "/inscripcion?v=b",
+  "/inscripcion?v=c",
+] as const;
 
 /**
  * Reglas (a)-(d): se resuelven en una sola pasada por el DOM ya renderizado.

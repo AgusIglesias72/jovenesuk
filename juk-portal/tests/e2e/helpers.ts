@@ -423,3 +423,33 @@ export async function esperarHidratacion(control: Locator): Promise<void> {
 export async function ocultarOverlayDeDev(page: Page): Promise<void> {
   await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
 }
+
+/**
+ * Los controles visibles cuya fuente mide menos de 16px. Safari iOS (y la
+ * WebView de Capacitor) hacen zoom al enfocar uno más chico y no lo deshacen al
+ * salir: la página queda descolocada. El piso lo pone `src/styles/globals.css`
+ * con `!important`; esto es lo que avisa cuando una pantalla —o una piel del
+ * formulario público— lo pisa.
+ *
+ * Devuelve los culpables (`input[dni]`, `textarea[?]`…) y no un booleano: con
+ * `toEqual([])` el fallo nombra el control que hay que arreglar.
+ */
+export async function controlesConLetraChica(page: Page): Promise<string[]> {
+  return page.evaluate(() =>
+    Array.from(
+      document.querySelectorAll<HTMLElement>(
+        'input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea'
+      )
+    )
+      .filter((el) => el.getClientRects().length > 0)
+      .filter((el) => Number.parseFloat(getComputedStyle(el).fontSize) < 16)
+      .map((el) => {
+        const nombre =
+          el.getAttribute("id") ??
+          el.getAttribute("aria-label") ??
+          el.getAttribute("placeholder") ??
+          "?";
+        return `${el.tagName.toLowerCase()}[${nombre}]`;
+      })
+  );
+}

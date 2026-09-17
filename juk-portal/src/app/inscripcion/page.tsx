@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
+import * as Sentry from "@sentry/nextjs";
 
 import { EMAIL, MAIL_URL } from "@/lib/contact";
+import { getFormularioSettings } from "@/lib/db/queries/configuracion";
 import { getInvitacionByTokenHash } from "@/lib/db/queries/inscripciones-publicas";
 import { estadoInvitacion, puedeCargar } from "@/lib/domain/inscripciones/invitacion";
-import { resolverVariante } from "@/lib/domain/inscripciones/schema";
+import { resolverVariante, type Variante } from "@/lib/domain/inscripciones/schema";
 import { hashToken } from "@/lib/utils/token-opaco";
 
 import { InscripcionForm } from "./inscripcion-form";
+import { VARIANTE_CLASES } from "./variantes";
 
 /**
  * Application Form público. Se llega por el link tokenizado del mail
@@ -40,6 +43,21 @@ function primerValor(valor: string | string[] | undefined): string | undefined {
   return Array.isArray(valor) ? valor[0] : valor;
 }
 
+/**
+ * La piel jamás puede impedir una inscripción: si la configuración no se puede
+ * leer (clave todavía sin escribir, base caída), se sigue sin escalón de
+ * setting y `resolverVariante` cae al default. Un valor guardado corrupto ya lo
+ * absorbe `getFormularioSettings`.
+ */
+async function varianteConfigurada(): Promise<Variante | undefined> {
+  try {
+    return (await getFormularioSettings()).varianteActiva;
+  } catch (err) {
+    Sentry.captureException(err);
+    return undefined;
+  }
+}
+
 export default async function InscripcionPage({
   searchParams,
 }: {
@@ -48,7 +66,11 @@ export default async function InscripcionPage({
   const { t, v } = await searchParams;
   const token = primerValor(t)?.trim() || undefined;
 
-  const invitacion = token ? await getInvitacionByTokenHash(hashToken(token)) : null;
+  // Dos round-trips independientes: van juntos para no encadenarlos.
+  const [invitacion, setting] = await Promise.all([
+    token ? getInvitacionByTokenHash(hashToken(token)) : null,
+    varianteConfigurada(),
+  ]);
   const estado = invitacion ? estadoInvitacion({ ...invitacion, ahora: new Date() }) : null;
 
   if (token) {
@@ -80,13 +102,23 @@ export default async function InscripcionPage({
     }
   }
 
-  // Precedencia: parámetro del link > variante de la campaña > 'a'. El escalón
-  // del setting de /configuracion todavía no tiene query (la bandeja del
-  // back-office la trae en su etapa): `resolverVariante` cae solo al default.
-  const variante = resolverVariante({ param: primerValor(v), campana: invitacion?.variante });
+  // Precedencia: parámetro del link > variante de la campaña > el setting de
+  // /configuracion > 'a'. Cada escalón se descarta solo si no es una variante
+  // conocida, así que un `?v=` basura cae al siguiente sin romper nada: el
+  // valor del querystring no se refleja en ninguna parte de la página.
+  const variante = resolverVariante({
+    param: primerValor(v),
+    campana: invitacion?.variante,
+    setting,
+  });
 
+  // La marca de la piel va acá y no en el formulario: desde este contenedor el
+  // CSS la sube al <body> (`body:has(.v-form-b)`), y con eso quedan en la misma
+  // variante el shell del layout, el formulario y el calendario que <DateInput>
+  // monta en un portal. El porqué completo, en `layout.tsx` y en
+  // `src/styles/form-variants.css`.
   return (
-    <>
+    <div className={VARIANTE_CLASES[variante]} data-variante={variante}>
       <header className="mb-6 sm:mb-8">
         <h1 className="font-[family-name:var(--font-display)] text-[length:var(--t-h1)] font-bold tracking-[var(--ls-tight)] text-[var(--c-ink)]">
           Inscripción al viaje
@@ -109,7 +141,7 @@ export default async function InscripcionPage({
       </header>
 
       <InscripcionForm token={token} variante={variante} />
-    </>
+    </div>
   );
 }
 

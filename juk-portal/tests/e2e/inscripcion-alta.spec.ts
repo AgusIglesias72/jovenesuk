@@ -13,11 +13,17 @@ import {
   users,
 } from "../../src/lib/db/schema";
 import { fechaDeVencimiento } from "../../src/lib/domain/inscripciones/invitacion";
-import { TEXTO_CONSENTIMIENTO } from "../../src/lib/domain/privacidad/politica";
 import { generarTokenOpaco, hashToken } from "../../src/lib/utils/token-opaco";
 
 import { confirmarModal, crearViaje, esperarHidratacion, ocultarOverlayDeDev } from "./helpers";
-import { asignacionesDeAlumno, sufijoUnico, viajeIdPorCodigo } from "./helpers-flujos";
+import {
+  asignacionesDeAlumno,
+  completarFichaInscripcion,
+  enviarFichaInscripcion,
+  sufijoUnico,
+  viajeIdPorCodigo,
+  type FichaInscripcion,
+} from "./helpers-flujos";
 
 /*
  * Application Form propio — EL ALTA, de punta a punta.
@@ -77,15 +83,10 @@ function dniDeTest(): string {
   return dni;
 }
 
-type Ficha = {
-  nombre: string;
-  apellido: string;
-  dni: string;
-  pasaporte: string;
-  tutorEmail: string;
-};
-
-function fichaDeTest(sufijo: string, opts: { dni?: string; tutor?: string } = {}): Ficha {
+function fichaDeTest(
+  sufijo: string,
+  opts: { dni?: string; tutor?: string } = {}
+): FichaInscripcion {
   const dni = opts.dni ?? dniDeTest();
   return {
     nombre: "Ficha",
@@ -153,42 +154,8 @@ function inscripcionPorDni(dni: string) {
     .then((filas) => filas[0]);
 }
 
-/**
- * Completa la ficha como la completa una familia. Espera la hidratación antes
- * de tocar nada: los campos existen renderizados en el server y un fill previo
- * a que React los conecte deja el valor en el DOM sin que corra ningún onChange.
- */
-async function completarFicha(page: Page, ficha: Ficha): Promise<void> {
-  const nombre = page.getByLabel("Nombre*", { exact: true });
-  await esperarHidratacion(nombre);
-
-  await nombre.fill(ficha.nombre);
-  await page.getByLabel("Apellido*", { exact: true }).fill(ficha.apellido);
-  await page.getByLabel("Fecha de nacimiento*").fill("2011-04-04");
-  await page.getByLabel("DNI*").fill(ficha.dni);
-  await page.getByLabel("Número de pasaporte*", { exact: true }).fill(ficha.pasaporte);
-  await page.getByLabel("Vencimiento del pasaporte*").fill("2034-01-01");
-
-  await page.getByLabel("Nombre y apellido*", { exact: true }).fill("Tutora E2E");
-  await page.getByLabel("Celular*", { exact: true }).fill("+54 9 11 5555-0000");
-  await page.getByLabel("Email*", { exact: true }).fill(ficha.tutorEmail);
-
-  await page.getByRole("checkbox", { name: TEXTO_CONSENTIMIENTO }).check();
-}
-
-/** Envía y devuelve el código público que el acuse le muestra a la familia. */
-async function enviarFicha(page: Page): Promise<string> {
-  await page.getByRole("button", { name: "Enviar la inscripción" }).click();
-
-  // El acuse es inline y no un toast: la ficha se completa una sola vez y el
-  // código tiene que quedar en pantalla.
-  const acuse = page.getByRole("status").filter({ hasText: "Recibimos la inscripción" });
-  await expect(acuse).toBeVisible({ timeout: 60_000 });
-
-  const codigo = /INS-\d{6,}/.exec((await acuse.textContent()) ?? "")?.[0];
-  if (!codigo) throw new Error("el acuse no mostró el código de la inscripción");
-  return codigo;
-}
+/* Completar y enviar la ficha viven en `helpers-flujos.ts`: los comparte el
+   spec de las variantes, que recorre el MISMO formulario con las tres pieles. */
 
 /** Panel "Estado" del detalle de la ficha en el back-office. */
 function panelEstado(page: Page) {
@@ -226,8 +193,8 @@ test("con invitación válida la ficha crea al alumno, le arma la cuenta de fami
     await expect(familia.getByText(`Viaje ${codigoViaje}`)).toBeVisible();
     await expect(familia.getByText("sin el link que te mandamos por mail")).toHaveCount(0);
 
-    await completarFicha(familia, ficha);
-    codigo = await enviarFicha(familia);
+    await completarFichaInscripcion(familia, ficha);
+    codigo = await enviarFichaInscripcion(familia);
   } finally {
     await contexto.close();
   }
@@ -282,8 +249,8 @@ test("un segundo envío con el mismo DNI y otro email de tutor no le cambia la c
     const familia = await contexto.newPage();
 
     await familia.goto(`/inscripcion?t=${tokenLegitimo}`);
-    await completarFicha(familia, ficha);
-    await enviarFicha(familia);
+    await completarFichaInscripcion(familia, ficha);
+    await enviarFichaInscripcion(familia);
 
     // El ataque: los mismos datos de siempre salvo el DNI (que es el mismo) y el
     // email del tutor (que es otro). Si el alta no fuera idempotente por DNI,
@@ -295,8 +262,8 @@ test("un segundo envío con el mismo DNI y otro email de tutor no le cambia la c
     };
 
     await familia.goto(`/inscripcion?t=${tokenDelAtaque}`);
-    await completarFicha(familia, impostor);
-    codigoDelAtaque = await enviarFicha(familia);
+    await completarFichaInscripcion(familia, impostor);
+    codigoDelAtaque = await enviarFichaInscripcion(familia);
 
     const alumno = await alumnoPorDni(ficha.dni);
     if (!alumno) throw new Error(`no se creó el alumno ${ficha.dni}`);
@@ -345,8 +312,8 @@ test("sin invitación la ficha espera a una persona y el alumno nace recién cua
     // La pantalla lo avisa antes de que la familia cargue nada.
     await expect(familia.getByText("sin el link que te mandamos por mail")).toBeVisible();
 
-    await completarFicha(familia, ficha);
-    codigo = await enviarFicha(familia);
+    await completarFichaInscripcion(familia, ficha);
+    codigo = await enviarFichaInscripcion(familia);
   } finally {
     await contexto.close();
   }
@@ -405,7 +372,7 @@ test.describe("el formulario desde el teléfono", () => {
     await page.goto("/inscripcion");
     await ocultarOverlayDeDev(page);
 
-    await completarFicha(page, ficha);
+    await completarFichaInscripcion(page, ficha);
 
     // Con el formulario entero cargado (los textarea crecen, el resumen de
     // errores no está): nada se sale de pantalla.
@@ -422,7 +389,7 @@ test.describe("el formulario desde el teléfono", () => {
     expect(caja.x).toBeGreaterThanOrEqual(0);
     expect(caja.x + caja.width).toBeLessThanOrEqual(page.viewportSize()?.width ?? 0);
 
-    const codigo = await enviarFicha(page);
+    const codigo = await enviarFichaInscripcion(page);
     expect(codigo).toMatch(/^INS-\d{6,}$/);
 
     // La compuerta vale igual desde el teléfono: sin token, la ficha espera.

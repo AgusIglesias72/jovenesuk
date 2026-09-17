@@ -320,7 +320,8 @@ código); colegios, group leaders y prospectos usan el uuid.
 | Archivo | Qué hace |
 |---|---|
 | `page.tsx` | Resuelve el link tokenizado con un **SELECT puro** y decide qué mostrar: formulario, "ya recibimos tu ficha" o un único copy genérico para inválido/vencido/revocado (no le confirma a nadie qué token existe). `robots: noindex`. Vive fuera de `(public)` a propósito: ese layout monta `<Analytics/>` y el token viajaría a GA en `page_location`. |
-| `layout.tsx` | Shell propio, sin la navegación de marketing. |
+| `layout.tsx` | Shell propio, sin la navegación de marketing. Arranca con la piel base (variante A) para que el skeleton no salte al hidratar. |
+| `variantes.ts` | Qué cambia en cada piel: la clase completa como literal (nunca interpolada) y la presentación de cada variante (rótulo numerado, volanta con microcopy, paradas con progreso). |
 | `inscripcion-form.tsx` [client] | La ficha con `useActionState`, honeypot oculto, componentes del design system, consentimiento que linkea `/privacidad` y éxito inline (el sitio público no monta `ToastProvider`). |
 | `actions.ts` · `actions.test.ts` [action] | `enviarInscripcion`: Zod → honeypot → rate limit (IP, email y token) → resuelve la invitación **server-side** → persiste SIEMPRE → mails best-effort. No toca `alumnos`: el alta automática es la etapa 4. |
 | `loading.tsx` | `FormPageSkeleton`. |

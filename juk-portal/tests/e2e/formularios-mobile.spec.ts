@@ -1,6 +1,11 @@
-import { test, expect, devices, type Page } from "@playwright/test";
+import { test, expect, devices } from "@playwright/test";
 
-import { crearAlumno, crearColegio, seccionFormAlumno } from "./helpers";
+import {
+  controlesConLetraChica,
+  crearAlumno,
+  crearColegio,
+  seccionFormAlumno,
+} from "./helpers";
 
 /**
  * Los formularios del back-office desde un teléfono. La app nativa va a ser
@@ -12,26 +17,8 @@ import { crearAlumno, crearColegio, seccionFormAlumno } from "./helpers";
  */
 test.use({ viewport: devices["Pixel 7"].viewport });
 
-/** Controles cuya fuente mide menos de 16px: Safari iOS hace zoom al enfocarlos. */
-async function controlesConLetraChica(page: Page): Promise<string[]> {
-  return page.evaluate(() =>
-    Array.from(
-      document.querySelectorAll<HTMLElement>(
-        'input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea'
-      )
-    )
-      .filter((el) => el.getClientRects().length > 0)
-      .filter((el) => Number.parseFloat(getComputedStyle(el).fontSize) < 16)
-      .map((el) => {
-        const nombre =
-          el.getAttribute("id") ??
-          el.getAttribute("aria-label") ??
-          el.getAttribute("placeholder") ??
-          "?";
-        return `${el.tagName.toLowerCase()}[${nombre}]`;
-      })
-  );
-}
+/* El chequeo del piso de 16px vive en `helpers.ts`: lo comparte el formulario
+   público de inscripción, que lo corre sobre sus tres pieles. */
 
 test(
   "el alta de alumno se completa y se guarda desde un teléfono, sin zoom",
