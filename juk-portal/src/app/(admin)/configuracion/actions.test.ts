@@ -16,7 +16,16 @@ vi.mock("@/lib/db/queries/configuracion", () => ({
   setMailSettings: vi.fn(),
   setFormularioSettings: (...args: unknown[]) => setFormularioSettings(...args),
 }));
-vi.mock("@/lib/email", () => ({ sendEmail: vi.fn() }));
+// Las clases de error van SIN mockear: `motivoDeEnvioFallido` las distingue con
+// `instanceof`, y un doble no pasaría esa prueba.
+vi.mock("@/lib/email", async () => {
+  const real = await vi.importActual<typeof import("@/lib/email")>("@/lib/email");
+  return {
+    sendEmail: vi.fn(),
+    EmailConfigError: real.EmailConfigError,
+    EmailEnvioError: real.EmailEnvioError,
+  };
+});
 vi.mock("@react-email/render", () => ({
   render: (...args: unknown[]) => render(...args),
 }));
@@ -33,8 +42,10 @@ vi.mock("@/lib/actions/safe-audit", () => ({
 import {
   getEstadoServiciosAction,
   guardarFormularioSettingsAction,
+  motivoDeEnvioFallido,
   previewTemplateAction,
 } from "./actions";
+import { EmailConfigError, EmailEnvioError } from "@/lib/email";
 
 const MAILS = {
   nombreRemitente: "Jóvenes en UK",
@@ -241,5 +252,44 @@ describe("actions de /configuracion", () => {
       expect(captureException).toHaveBeenCalledWith(fallo);
       expect(revalidatePath).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("motivoDeEnvioFallido", () => {
+  it("nombra la variable que falta cuando el deploy no está configurado", () => {
+    const motivo = motivoDeEnvioFallido(new EmailConfigError("RESEND_API_KEY"));
+
+    expect(motivo).toContain("RESEND_API_KEY");
+    expect(motivo).toContain("no puede enviar");
+  });
+
+  it("muestra el motivo que dio Resend, que es el dato que sirve", () => {
+    // Los dos rechazos reales que vimos en producción: el dominio sin verificar
+    // y el límite de la cuenta sin dominio propio.
+    const dominio = motivoDeEnvioFallido(
+      new EmailEnvioError("The jovenesenuk.com domain is not verified.")
+    );
+    expect(dominio).toBe("Resend rechazó el envío: The jovenesenuk.com domain is not verified.");
+
+    const propia = motivoDeEnvioFallido(
+      new EmailEnvioError("You can only send testing emails to your own email address.")
+    );
+    expect(propia).toContain("your own email address");
+  });
+
+  it("no repite el prefijo 'Resend error:' que ya trae el mensaje de la clase", () => {
+    const motivo = motivoDeEnvioFallido(new EmailEnvioError("algo"));
+
+    expect(motivo.match(/Resend/g)).toHaveLength(1);
+  });
+
+  it("para un error que no sabemos nombrar, manda a Sentry en vez de inventar una causa", () => {
+    const motivo = motivoDeEnvioFallido(new Error("socket hang up"));
+
+    expect(motivo).toContain("Sentry");
+    // Lo que NO tiene que hacer: la lista de sospechosos que había antes y que
+    // hizo que nadie mirara la causa real durante meses.
+    expect(motivo).not.toContain("API key");
+    expect(motivo).not.toContain("dominio");
   });
 });

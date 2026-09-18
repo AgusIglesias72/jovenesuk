@@ -89,6 +89,12 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
   del colegio.
 
 ### Corregido
+- **El envío de prueba de Configuración ahora dice por qué falló.** Antes mostraba "Verificá la API
+  key de Resend y que el dominio del remitente esté verificado", que es una lista de sospechosos y no
+  un diagnóstico: el motivo real quedaba solo en Sentry. Ahora muestra el mensaje de Resend tal cual
+  —"el dominio no está verificado", "solo podés mandar pruebas a tu propia casilla"—, o nombra la
+  variable que falta en ese deploy. Es el agujero que hizo que producción estuviera meses sin poder
+  mandar un mail sin que nadie se enterara.
 - **Un campo con error se quedaba gris.** En el formulario de inscripción, cuando un dato estaba mal
   aparecía el mensaje debajo pero el campo no se pintaba de rojo, así que en una ficha larga había
   que leer campo por campo para encontrar cuál era. La causa es del sistema de diseño y **no era solo
