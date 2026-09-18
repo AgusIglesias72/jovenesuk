@@ -105,14 +105,14 @@ Lo de abajo es lo que se puede afirmar desde el repo (config, código y el `.env
 
 | Servicio | Código | Estado |
 |---|---|---|
-| **Neon (Postgres)** | ✅ `src/lib/db/`, migraciones `drizzle/0000…0019` | Proyecto `jovenes-uk` (`snowy-pine-02594515`, sa-east-1), dado de alta **por la integración de Vercel** (organización de Neon *"Vercel: agusiglesias72's projects"*: se factura por Vercel). Branches: `main` (default), `dev` (la del `.env.local`, con datos reales) y `ci-base` (padre del CI: estructura y registro de migraciones, **sin datos**). |
+| **Neon (Postgres)** | ✅ `src/lib/db/`, migraciones `drizzle/0000…0021` | Proyecto `jovenes-uk` (`snowy-pine-02594515`, sa-east-1), dado de alta **por la integración de Vercel** (organización de Neon *"Vercel: agusiglesias72's projects"*: se factura por Vercel). Branches: `main` (default, **es la base de producción**), `dev` (la del `.env.local`, con datos reales), `ci-base` (padre del CI: estructura y registro de migraciones, **sin datos**) y `respaldo-pre-0021` (foto de `main` del 18/09/2026, antes de migrar; borrable cuando el módulo esté probado). **`main` quedó al día el 18/09/2026**: venía 7 migraciones atrás (0015…0021) porque nadie migraba producción desde `0014`; se aplicaron todas de una (aditivas: sin `DROP` ni `DELETE`, un solo `ALTER COLUMN … SET DEFAULT`) y los datos quedaron intactos. Ver §10. |
 | **Better-Auth** | ✅ `src/lib/auth/` | Operativo. |
 | **Webhook del Google Form** | ✅ `api/webhooks/google-form` | Necesita `GOOGLE_FORM_WEBHOOK_SECRET` en el deploy y el form apuntando al endpoint. |
 | **Trigger.dev (jobs)** | ✅ `src/trigger/`: `daily-reminder-scan` (cron 09:00 UTC = 06:00 ART: transiciones de viajes por fecha + recordatorios), `run-reminder-scan` (manual, con dry-run), `notificar-cancelacion-viaje`, `notificar-consulta-nueva` | ⚠️ **No desplegado.** En el repo no hay deploy de Trigger (el CI no lo corre, `trigger.config.ts` cae a un placeholder sin `TRIGGER_PROJECT_ID`, y las credenciales de dev son placeholders). Consecuencias mientras siga así: **no hay recordatorios automáticos, A1 no pasa solo a *vencido* y los viajes no pasan solos a *en curso* / *finalizado***. El aviso por cancelación de un viaje no sale (la cancelación sí se hace y el error va a Sentry). El aviso de consulta nueva cae a un envío directo. |
 | **Cloudflare R2 (documentos)** | ✅ `src/lib/storage/` | En dev usa el fallback a disco `.uploads/`: directo si alguna `R2_*` está vacía, o después de un intento fallido contra R2 (con un `console.error`) si tienen placeholders. **En producción sin R2 la subida falla a propósito** (`StorageNoConfiguradoError`): no se guardan pasaportes en el disco efímero de Vercel. |
 | **Resend (mails)** | ✅ `src/lib/email/` | Dry-run con `EMAIL_DRY_RUN=1`, o implícito fuera de producción si `RESEND_API_KEY` está **vacía o ausente**. Un placeholder (el de `.env.example`, que es el que tiene hoy el `.env.local` de dev, sin `EMAIL_DRY_RUN`) desactiva el dry-run y los envíos fallan con `EmailEnvioError`. **Outreach de Prospectos**: sin `EMAIL_FROM_OUTREACH` ni `RESEND_WEBHOOK_SECRET`, y sin el DNS de `mkt.jovenesenuk.com` (§7). |
 | **Sentry** | ✅ `src/instrumentation*.ts`, CSP en `next.config.ts` | **Conectado en producción (15/09/2026)**: organización `aiglesias`, proyecto `javascript-nextjs` (región US). DSN, org, proyecto y token de CI en Vercel; el build sube los source maps con el release = commit (verificado en el log: *Uploaded files to Sentry*). Fuera de producción sigue desactivado (sin DSN en `.env.local`). |
-| **Vercel** | ✅ `vercel.json` (región `gru1`) | Root Directory = `juk-portal`. Operación en `../../.claude/docs/04-operacion-y-handoff.md`. |
+| **Vercel** | ✅ `vercel.json` (región `gru1`) | Root Directory = `juk-portal`. Operación en `../../.claude/docs/04-operacion-y-handoff.md`. ⚠️ **El proyecto no tiene dominio propio**: sus tres dominios son `jovenesuk.vercel.app` y los dos alias de `agusiglesias72s-projects`. `jovenesenuk.com` sigue apuntando a **Wix** (servidor `Pepyaka`). Y la *Deployment Protection* está en **`all_except_custom_domains`**, así que hoy **todo** el portal (incluido `/inscripcion`, que es público por diseño) pide el SSO de Vercel: entra el dueño con su sesión de vercel.com, no un tercero. Ver §10. |
 
 ## 6. Mobile
 
@@ -147,8 +147,13 @@ de cada uno —dónde hacer clic, qué pegar y cómo verificar que quedó— est
   Cómo se armó `ci-base`, en [`setup-servicios.md` §2](setup-servicios.md#2-secrets-de-neon-en-github--ci).
 - [ ] **GitHub Pro** (o repo público), para una branch protection que exija el CI en verde. Sin eso
   el CI informa, pero no bloquea merges.
-- [ ] **Dominio definitivo**: `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_PORTAL_URL` y el DNS de
-  `portal.*`, si se quiere la separación de dominios (§4).
+- [ ] **Dominio definitivo y acceso público al deploy** ⚠️ *lo más urgente del módulo nuevo.* Hoy el
+  proyecto de Vercel no tiene dominio propio (`jovenesenuk.com` sigue en Wix) y la *Deployment
+  Protection* está en `all_except_custom_domains`: todo el portal, `/inscripcion` incluido, pide el
+  SSO de Vercel. El dueño entra con su sesión; **un lead invitado, no**. Hay que conectar el dominio
+  o apagar la protección antes de mandar la primera campaña. Además `NEXT_PUBLIC_SITE_URL`,
+  `NEXT_PUBLIC_PORTAL_URL` y el DNS de `portal.*` si se quiere la separación de dominios (§4).
+  *Destraba:* que las invitaciones sirvan para alguien que no sea el dueño. Detalle en §10.
 - [ ] **App nativa**: appId, URL de producción, cuentas de Google Play y Apple Developer, una Mac
   con Xcode y el keystore de Android. Checklist en [`mobile-app/BLOQUEADO-POR-VOS.md`](mobile-app/BLOQUEADO-POR-VOS.md).
 - [ ] **Revisión legal de la Política de Privacidad** ya publicada en `/privacidad` (§4). El texto
@@ -219,3 +224,35 @@ Lo que las fases dejaron anotado como pendiente. Al saldar un ítem se borra de 
     por webhook (TEC-12), unicidad de "última cuota" solo en la query (TEC-13), reintentos de
     recordatorios fallidos (TEC-14) y transición por fecha en dos saltos (TEC-15). En todos, el código hace algo razonable hoy, pero la regla la tiene que
     definir el equipo. Detalle y opciones en [`../OPEN_DECISIONS.md`](../OPEN_DECISIONS.md). *(0b73eaf)*
+
+## 10. Estado de producción (18/09/2026)
+
+El Application Form propio se subió a producción el 18/09/2026 (commit `c9880c6`, deploy READY).
+Lo que se descubrió al hacerlo, porque hasta ese día nadie había mirado el estado real del deploy:
+
+**La base de producción venía 7 migraciones atrás.** El último `db:migrate` contra `main` había sido
+el de `0014`: faltaban `0015` (consultas y suscriptores del sitio público), `0016` (CRM de
+Prospectos), `0017` (columnas de Better-Auth 1.7), `0018` (default de rol y `rate_limits`), `0019`
+(índices, con el único de DNI), y las dos del módulo nuevo. Es decir que **el CRM de Prospectos y la
+captura de leads estaban desplegados desde hacía meses contra una base que no tenía sus tablas**.
+Migrar dev no migra producción: son dos branches de Neon distintas y el deploy de Vercel no corre
+migraciones. Antes de aplicarlas se revisó que fueran aditivas, se verificó que no hubiera DNIs
+duplicados (habrían frenado el índice único de `0019`) y se sacó la foto `respaldo-pre-0021`.
+**Regla que sale de esto: un cambio de schema no está entregado hasta que `main` de Neon lo tiene.**
+
+**El portal no es alcanzable desde afuera.** No hay dominio propio y la *Deployment Protection* está
+en `all_except_custom_domains`, así que los tres dominios `*.vercel.app` piden el SSO de Vercel.
+Para el dueño es transparente (su sesión de vercel.com lo deja pasar), pero **un lead que reciba una
+invitación no va a poder abrir `/inscripcion`**: le va a aparecer la pantalla de login de Vercel.
+Destrabarlo es conectar un dominio (§7) o apagar la protección — no es un cambio de código.
+
+**Qué sí funciona en producción hoy**: las variables que el módulo necesita están cargadas
+(`NEXT_PUBLIC_APP_URL`, `RESEND_API_KEY`, `EMAIL_FROM_ADDRESS`, `DATABASE_URL`). El acuse a la
+familia y la invitación son de tipo `comunicacion`, y el aviso al equipo, `automatico`: ninguno
+depende de `EMAIL_FROM_OUTREACH`, que sigue pendiente y solo afecta al outreach de Prospectos. El
+aviso de ficha nueva le llega a los cuatro admins activos de producción.
+
+**Qué falta para cerrar el módulo**: elegir la variante activa en `/configuracion`; la revisión
+legal y los datos de registro de la Política de Privacidad; `npm run job:purga` corre a mano hasta
+que Trigger.dev se despliegue; y los pasos del embudo que dependen de los webhooks de Resend
+(entregado, abierto, clic) dicen "no disponible" hasta que exista `RESEND_WEBHOOK_SECRET`.

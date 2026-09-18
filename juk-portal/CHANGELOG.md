@@ -63,6 +63,15 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
   aterrizaje `inscripciones` con su compuerta de alta. El formulario público tolera mejor que varias
   familias del mismo colegio carguen a la vez desde la misma red, sin aflojar el límite de los otros
   formularios.
+- **La base de producción se puso al día**: venía 7 migraciones atrás (`0015`…`0021`), o sea que el
+  CRM de Prospectos y la captura de leads del sitio público llevaban meses desplegados contra una
+  base que no tenía sus tablas. Se aplicaron las siete —todas aditivas— con una foto previa
+  (`respaldo-pre-0021`) y sin tocar un dato. Queda la regla: **migrar dev no migra producción**; un
+  cambio de schema no está entregado hasta que la branch `main` de Neon lo tiene.
+- Se documentó que el portal todavía **no es alcanzable desde afuera**: sin dominio propio y con la
+  *Deployment Protection* en `all_except_custom_domains`, hasta `/inscripcion` pide el SSO de Vercel.
+  Alcanza para que el dueño pruebe; no, para mandar la primera campaña de invitaciones.
+  ([`docs/estado-actual.md` §10](docs/estado-actual.md))
 
 ### Seguridad
 - Se sacó `NEXT_PUBLIC_ENABLE_TWEAK` de Vercel Production: la herramienta de diseño del sitio
