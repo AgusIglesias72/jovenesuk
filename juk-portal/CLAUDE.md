@@ -94,6 +94,12 @@ import type { ActionResult } from "@/lib/actions/result";
 6. **`revalidatePath` en forma literal** para rutas con slug: `revalidatePath("/viajes/[id]", "page")`.
 7. **Errores inesperados**: `Sentry.captureException(err)` y un mensaje genérico en español. Los
    esperados se traducen desde errores nombrados.
+8. **Un archivo `"use server"` solo exporta funciones `async`.** Un helper síncrono exportado desde
+   ahí (un formateador de mensajes, un cálculo) **rompe `next build`** con *"Server Actions must be
+   async functions"* — y ni el typecheck, ni el lint, ni los tests, ni el pre-push lo detectan. Ya
+   pasó: un deploy a producción falló por eso (18/09/2026). El helper va en su propio módulo (ej.
+   `src/lib/email/explicar-fallo.ts`). Antes de pushear un cambio a un `actions.ts(x)`, corré
+   `NEXT_DIST_DIR=.next-e2e npm run build` (nunca en `.next`: es la del `next dev` del dueño).
 
 ## Errores
 

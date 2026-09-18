@@ -13,7 +13,8 @@ import {
   setFormularioSettings,
   setMailSettings,
 } from "@/lib/db/queries/configuracion";
-import { EmailConfigError, EmailEnvioError, sendEmail } from "@/lib/email";
+import { sendEmail } from "@/lib/email";
+import { explicarFalloDeEnvio } from "@/lib/email/explicar-fallo";
 import { construirTemplatePrueba } from "@/lib/email/preview";
 import { mailSettingsSchema, type TipoEmail } from "@/lib/domain/configuracion";
 import { formularioSettingsSchema } from "@/lib/domain/configuracion/formulario";
@@ -142,31 +143,8 @@ export async function enviarMailPruebaAction(
     return { ok: true, data: { enviado: true } };
   } catch (err) {
     Sentry.captureException(err);
-    return { ok: false, error: motivoDeEnvioFallido(err) };
+    return { ok: false, error: explicarFalloDeEnvio(err) };
   }
-}
-
-/**
- * El motivo REAL del fallo, no un texto genérico.
- *
- * POR QUÉ: hasta el 18/09/2026 esto devolvía "Verificá la API key de Resend y
- * que el dominio del remitente esté verificado", que es una lista de sospechosos,
- * no un diagnóstico. Producción estuvo meses sin poder mandar un solo mail y
- * nadie se enteró, porque el único lugar donde estaba el motivo era Sentry.
- *
- * Mostrar el mensaje del proveedor acá es seguro: la pantalla es de `super_admin`
- * y Resend devuelve descripciones del problema ("domain is not verified", "you
- * can only send testing emails to your own email address"), nunca secretos. El
- * genérico queda solo para lo que no sabemos nombrar.
- */
-export function motivoDeEnvioFallido(err: unknown): string {
-  if (err instanceof EmailConfigError) {
-    return `${err.message} Sin esa variable, este deploy no puede enviar ningún mail.`;
-  }
-  if (err instanceof EmailEnvioError) {
-    return `Resend rechazó el envío: ${err.detalle}`;
-  }
-  return "No pudimos enviar la prueba, y el error no es uno de los conocidos. El detalle quedó en Sentry.";
 }
 
 /** Renderiza un template a HTML para previsualizarlo en pantalla (no envía nada). */

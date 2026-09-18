@@ -3,20 +3,9 @@ import { Resend } from "resend";
 import { getMailSettings } from "@/lib/db/queries/configuracion";
 import { remitenteDe, type TipoEmail } from "@/lib/domain/configuracion";
 
-export class EmailConfigError extends Error {
-  constructor(variable: string) {
-    super(`${variable} no está definida.`);
-    this.name = "EmailConfigError";
-  }
-}
+import { EmailConfigError, EmailEnvioError } from "./errors";
 
-/** Resend rechazó el envío (dominio sin verificar, API key inválida, etc.). */
-export class EmailEnvioError extends Error {
-  constructor(public readonly detalle: string) {
-    super(`Resend error: ${detalle}`);
-    this.name = "EmailEnvioError";
-  }
-}
+export { EmailConfigError, EmailEnvioError };
 
 export type EmailRegistrado = {
   to: string[];

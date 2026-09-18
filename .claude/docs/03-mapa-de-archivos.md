@@ -821,7 +821,9 @@ Cada cambio acá necesita su migración (`/juk-migracion`).
 
 | Archivo | Qué hace |
 |---|---|
-| `index.ts` · `index.test.ts` | `sendEmail`: resuelve el remitente por tipo desde la configuración y envía con Resend. Dry-run con `EMAIL_DRY_RUN=1`, o fuera de producción sin `RESEND_API_KEY` (registra en `emailsDryRun()`); en producción sin key lanza `EmailConfigError`. `EmailEnvioError` si Resend rechaza. |
+| `index.ts` · `index.test.ts` | `sendEmail`: resuelve el remitente por tipo desde la configuración y envía con Resend. Dry-run con `EMAIL_DRY_RUN=1`, o fuera de producción sin `RESEND_API_KEY` (registra en `emailsDryRun()`); en producción sin key lanza `EmailConfigError`. `EmailEnvioError` si Resend rechaza. Re-exporta las dos clases de `errors.ts`. |
+| `errors.ts` | `EmailConfigError` y `EmailEnvioError`, sin dependencias. Están aparte porque `index.ts` importa la base al cargarse: traerlas desde ahí arrastraba una conexión a Postgres a cualquier módulo que solo quisiera reconocer un error. |
+| `explicar-fallo.ts` · `explicar-fallo.test.ts` | `explicarFalloDeEnvio`: el motivo **real** de un envío fallido (la variable que falta, o el texto de Resend tal cual) para mostrárselo a quien administra, en vez de la lista de sospechosos que había antes. Lo usa el envío de prueba de `/configuracion`. No confundir con `motivoDeEnvioFallido` de `domain/inscripciones/invitacion.ts`, que lee el error guardado en la bitácora de un prospecto. |
 | `preview.tsx` | `construirTemplatePrueba`: templates con datos de ejemplo para el envío de prueba y la preview de `/configuracion`. |
 | `send-welcome.tsx` | Invitación con el link de creación de contraseña (nunca una contraseña) para equipo o familia; `loginUrlDe`. Lo llama el hook `sendResetPassword` de `lib/auth`. |
 | `send-reset-link.tsx` | Mail de restablecer contraseña. |
