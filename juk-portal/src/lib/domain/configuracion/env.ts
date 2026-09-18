@@ -131,6 +131,25 @@ export const VARIABLES_ENV: readonly VariableEnv[] = [
     enPlantilla: true,
   },
   {
+    nombre: "GOOGLE_CLIENT_ID",
+    servicio: "auth",
+    nivel: "opcional",
+    habilita:
+      'Botón "Continuar con Google" en el login. Solo entra a una cuenta que ya existe: nunca crea una.',
+    siFalta: "El botón no se muestra y el login queda solo con email y contraseña (está bien).",
+    ejemplo: "xxxxxxxxxxxx.apps.googleusercontent.com",
+    enPlantilla: true,
+  },
+  {
+    nombre: "GOOGLE_CLIENT_SECRET",
+    servicio: "auth",
+    nivel: "opcional",
+    habilita: "Secreto del cliente OAuth; va junto al ID o Google no queda habilitado.",
+    siFalta: "Ídem GOOGLE_CLIENT_ID: las dos van juntas o el provider no se declara.",
+    ejemplo: "GOCSPX-xxxxxxxxxxxx",
+    enPlantilla: true,
+  },
+  {
     nombre: "RESEND_API_KEY",
     servicio: "resend",
     nivel: "produccion",

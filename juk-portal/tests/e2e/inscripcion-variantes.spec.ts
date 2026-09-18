@@ -10,6 +10,7 @@ import { controlesConLetraChica, esperarHidratacion, ocultarOverlayDeDev } from 
 import {
   completarFichaInscripcion,
   enviarFichaInscripcion,
+  sufijoDeLetras,
   sufijoUnico,
   type FichaInscripcion,
 } from "./helpers-flujos";
@@ -109,7 +110,10 @@ function fichaDeTest(variante: Variante): FichaInscripcion {
   const dni = dniDeTest();
   return {
     nombre: "Ficha",
-    apellido: `Piel E2E ${sufijoUnico()}`,
+    // Ni un dígito, tampoco en el literal: `CARACTERES_NOMBRE` solo acepta
+    // letras, así que acá no entra el "E2E" que marca al resto de los datos de
+    // prueba. La ficha se reconoce por el DNI (99…) y por el email del tutor.
+    apellido: `Piel de Prueba ${sufijoDeLetras(sufijoUnico())}`,
     dni,
     pasaporte: `FV${variante.toUpperCase()}${dni}`,
     // Un email por ficha: el anti-abuso permite 3 envíos por email por hora, y
@@ -136,7 +140,25 @@ type PerfilAccesible = {
   grupos: string[];
   campos: string[];
   botones: string[];
+  imagenes: string[];
+  enlaces: string[];
 };
+
+/**
+ * Lo único que la pantalla puede ofrecer para irse: la política de privacidad,
+ * los dos canales de ayuda y el salto al contenido. El aislamiento del shell es
+ * una decisión escrita (ver el encabezado de `layout.tsx`) y el marco —cabecera,
+ * columna lateral, franja y pie— es lo primero que la pone en riesgo: llenar la
+ * página con links al sitio es justo lo que no se quiere.
+ */
+function esSalidaPermitida(href: string): boolean {
+  return (
+    href === "#contenido" ||
+    href.startsWith("/privacidad") ||
+    href.startsWith("mailto:") ||
+    href.startsWith("https://wa.me/")
+  );
+}
 
 /**
  * El árbol accesible del formulario, reducido a lo que un lector de pantalla
@@ -147,6 +169,12 @@ type PerfilAccesible = {
  * El nombre se calcula a mano —aria-label, aria-labelledby, <label> asociado—
  * descartando los subárboles `aria-hidden`, que es exactamente lo que hace el
  * navegador. Mismo criterio que `a11y-basico.spec.ts`.
+ *
+ * Entran también el `alt` de cada imagen y el `href` de cada enlace: desde que
+ * el formulario tiene marco (cabecera, columna lateral, franja de confianza y
+ * pie), la pantalla es mucho más que la ficha, y toda esa diferencia tiene que
+ * vivir en el CSS de las pieles. Si una variante bifurcara el marco en el TSX,
+ * la comparación de los tres perfiles lo caza acá.
  */
 async function perfilAccesible(page: Page): Promise<PerfilAccesible> {
   return page.evaluate(() => {
@@ -200,6 +228,12 @@ async function perfilAccesible(page: Page): Promise<PerfilAccesible> {
       ),
       botones: Array.from(document.querySelectorAll("button")).map(
         (boton) => nombreDe(boton) || textoAccesible(boton)
+      ),
+      imagenes: Array.from(document.querySelectorAll("img")).map(
+        (img) => img.getAttribute("alt") ?? "(sin alt)"
+      ),
+      enlaces: Array.from(document.querySelectorAll("a[href]")).map(
+        (a) => a.getAttribute("href") ?? ""
       ),
     };
   });
@@ -263,7 +297,10 @@ test.describe("el formulario público con sus tres pieles", () => {
       await esperarHidratacion(enviar);
       await enviar.click();
 
-      const resumen = page.getByRole("alert");
+      // El resumen de arriba, no los mensajes de cada campo: `ErrorText` también
+      // es `role="alert"`, así que un `getByRole("alert")` suelto resuelve a
+      // quince elementos y el modo estricto lo rechaza.
+      const resumen = page.locator("form > [role=alert]").first();
       await expect(resumen).toBeVisible({ timeout: 60_000 });
       const errores = (await resumen.innerText()).replace(/\s+/g, " ").trim();
 
@@ -284,12 +321,81 @@ test.describe("el formulario público con sus tres pieles", () => {
     // sin decir por qué.
     expect(a.perfil.grupos).toEqual([...SECCIONES]);
 
+    // El marco está de verdad en las tres. Sin esto, si se cayera entero la
+    // comparación de arriba seguiría en verde: los tres tendrían la misma nada.
+    expect(a.perfil.imagenes, "el logo de la marca en la cabecera y en el pie").toContain(
+      "Logo de Jóvenes en UK"
+    );
+    expect(a.perfil.imagenes, "la tira de acreditaciones").toContain("British Council");
+    expect(a.perfil.enlaces, "la salida a la política de privacidad").toContain("/privacidad");
+
     // …y sin embargo son tres pieles distintas. Sin esto, un CSS que dejó de
     // aplicarse haría pasar todo el test sin que quede nada que probar.
     expect(
       new Set([a.piel, b.piel, c.piel]).size,
       `las tres pieles tienen que verse distintas: ${[a, b, c].map((m) => `${m.variante}=${m.piel}`).join(" | ")}`
     ).toBe(3);
+  });
+
+  test("el marco no ofrece ninguna salida de navegación al sitio", async ({ page }) => {
+    test.setTimeout(90_000);
+
+    // La URL de esta pantalla lleva el token del link, que es una credencial: el
+    // metadata fija `follow: false` justamente para que ningún crawler salga de
+    // acá con el token pegado al referer. Y a la familia que está a la mitad de
+    // una ficha larga no se la invita a irse a navegar el sitio. Enriquecer el
+    // marco es lo que puede romper las dos cosas de una sola vez.
+    await page.goto(URL_VARIANTE.c);
+    await expect(marcaDeVariante(page)).toHaveAttribute("data-variante", "c");
+
+    const hrefs = await page
+      .locator("a[href]")
+      .evaluateAll((enlaces) => enlaces.map((a) => a.getAttribute("href") ?? ""));
+
+    const ayuda = "el marco tiene que ofrecer al menos la privacidad y la ayuda";
+    expect(hrefs.length, ayuda).toBeGreaterThan(0);
+    expect(
+      hrefs.filter((href) => !esSalidaPermitida(href)),
+      "salidas de navegación que el Application Form no puede ofrecer"
+    ).toEqual([]);
+  });
+
+  test("la barra de progreso avanza a medida que la ficha se completa", async ({ page }) => {
+    test.setTimeout(90_000);
+
+    // La barra es DECORATIVA (`aria-hidden`), así que ningún test de árbol
+    // accesible la mira: si el handler de `onInput` dejara de recalcular el
+    // avance, quedaría clavada en 0% y toda la suite seguiría en verde. Es lo
+    // primero que se ve al abrir la variante C, y lo que no se puede romper.
+    await page.goto(URL_VARIANTE.c);
+    const barra = page.locator(".form-progreso-barra");
+    await expect(barra).toBeAttached();
+
+    // El ancho va en el `style` inline (es un porcentaje calculado): leerlo de
+    // ahí no depende de que el elemento tenga caja medible con 0%.
+    const avance = async (): Promise<number> =>
+      Number.parseFloat(await barra.evaluate((el) => (el as HTMLElement).style.width)) || 0;
+
+    const nombre = page.getByLabel("Nombre*", { exact: true });
+    await esperarHidratacion(nombre);
+    expect(await avance(), "la ficha vacía arranca en 0%").toBe(0);
+
+    await nombre.fill("Ficha");
+    await expect.poll(avance, { timeout: 10_000 }).toBeGreaterThan(0);
+    const conUnCampo = await avance();
+
+    await page.getByLabel("Apellido*", { exact: true }).fill("Progreso E2E");
+    await page.getByLabel("Fecha de nacimiento*").fill("2011-04-04");
+    await page.getByLabel("DNI*").fill("99123456");
+
+    // Los cuatro obligatorios de la primera sección: el avance tiene que haber
+    // crecido, y la parada tiene que quedar tildada.
+    await expect
+      .poll(avance, { timeout: 10_000 })
+      .toBeGreaterThan(conUnCampo);
+    await expect(
+      page.getByRole("group", { name: SECCIONES[0], exact: true })
+    ).toHaveAttribute("data-lista", "si");
   });
 
   test("el envío funciona igual en las tres y la ficha registra la piel que se vio", async ({
@@ -345,11 +451,12 @@ test.describe("el formulario público con sus tres pieles", () => {
         expect(caja.x).toBeGreaterThanOrEqual(0);
         expect(caja.x + caja.width).toBeLessThanOrEqual(375);
 
-        // El otro objetivo táctil del formulario: el input del consentimiento
-        // mide 20px, lo que se tapea es el <label> que lo envuelve.
-        const consentimiento = page
-          .getByRole("checkbox", { name: TEXTO_CONSENTIMIENTO })
-          .locator("xpath=ancestor::label[1]");
+        // El otro objetivo táctil del formulario: el consentimiento. Se mide el
+        // CONTROL y no el <label> ancestro —como se hacía antes, y por eso el
+        // caso daba verde con un control de 17,5px—: ahora los 44px los lleva el
+        // input, que es lo que la familia tiene que poder tapear sin tocar el
+        // párrafo entero.
+        const consentimiento = page.getByRole("checkbox", { name: TEXTO_CONSENTIMIENTO });
         const cajaConsentimiento = await consentimiento.boundingBox();
         if (!cajaConsentimiento) {
           throw new Error(`el consentimiento no se renderizó en la variante ${variante}`);
@@ -358,7 +465,42 @@ test.describe("el formulario público con sus tres pieles", () => {
           cajaConsentimiento.height,
           `alto del consentimiento en la variante ${variante}`
         ).toBeGreaterThanOrEqual(44);
+        expect(
+          cajaConsentimiento.width,
+          `ancho del consentimiento en la variante ${variante}`
+        ).toBeGreaterThanOrEqual(44);
 
+        // Y el disparador del calendario, que es el pedido "más grande así lo
+        // abro": 44px fijos de ancho por el alto del campo, en las tres pieles
+        // (la C lleva los campos a 52px de alto y antes el ícono quedaba
+        // flotando en un cuadrado de 31,5px).
+        const calendario = page
+          .getByRole("button", { name: "elegir fecha en el calendario" })
+          .first();
+        const cajaCalendario = await calendario.boundingBox();
+        if (!cajaCalendario) {
+          throw new Error(`el disparador del calendario no se renderizó en ${variante}`);
+        }
+        expect(
+          cajaCalendario.width,
+          `ancho del disparador del calendario en la variante ${variante}`
+        ).toBeGreaterThanOrEqual(44);
+        expect(
+          cajaCalendario.height,
+          `alto del disparador del calendario en la variante ${variante}`
+        ).toBeGreaterThanOrEqual(40);
+
+        // La foto de la cabecera no baja al teléfono: ahí la pantalla es la
+        // ficha, y una postal de 420px es peso puro. Es además el elemento que
+        // más fácil desbordaría de costado (va rotada).
+        await expect(
+          page.getByRole("img", { name: "Westminster y el Big Ben, Londres" }),
+          `la foto de la cabecera en la variante ${variante}`
+        ).toBeHidden();
+
+        // La cabecera y la franja de confianza son de borde a borde, y la tira
+        // de ocho acreditaciones entra en cuatro columnas: son las tres piezas
+        // nuevas que pueden empujar la página hacia el costado.
         const desborda = await page.evaluate(
           () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
         );

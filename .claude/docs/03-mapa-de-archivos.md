@@ -47,6 +47,22 @@ ninguna línea.
   | while read -r f; do [ -e "$f" ] || continue; grep -qF "$(basename "$f")\`" .claude/docs/03-mapa-de-archivos.md || echo "sin fila: $f"; done
 ```
 
+⚠️ **Este chequeo tiene dos puntos ciegos, y los dos ya escondieron filas faltantes.** Busca el
+basename como texto suelto, así que:
+
+1. **Un nombre que es sufijo de otro ya mapeado pasa como documentado.**
+   `inscripciones.integration.test.ts` daba positivo por `purgar-inscripciones.integration.test.ts`,
+   e `inscripcion-recibida.tsx` por `send-inscripcion-recibida.tsx`. La variante estricta es la misma
+   línea cambiando el `grep`, y vale la pena correrla de vez en cuando:
+   `grep -qE "(\`|/)$(basename "$f" | sed 's/[.[\*^$]/\\\\&/g')\`"`.
+2. **Dos archivos con el mismo basename comparten una sola fila** (varios `page.tsx`, `loading.tsx`,
+   `actions.ts`). Ningún chequeo por nombre lo ve: hay que mirar que la fila hable de los dos, o
+   escribir una fila por ruta. Es la limitación que declara el encabezado de este archivo.
+
+Y una trampa de redacción que hacía fallar el chequeo sin que se notara: una fila que dice
+``| `foo.ts` · su test |`` **no documenta el test**, porque el chequeo busca el nombre literal.
+El test va con su nombre completo: ``| `foo.ts` · `foo.test.ts` |``.
+
 ---
 
 ## Vista rápida
@@ -284,7 +300,7 @@ código); colegios, group leaders y prospectos usan el uuid.
 | `prospectos-table.tsx` | Vista tabla con estado, ubicación y próxima acción. |
 | `prospectos-filters.tsx` [client] | Búsqueda y estado; al filtrar fuerza la vista tabla. |
 | `prospecto-form.tsx` [client] | Alta y edición: datos, emails y teléfonos múltiples, responsable, próxima acción e imagen (`subirImagenAction`). |
-| `actions.ts` · `actions.test.ts` [action] | `createProspectoAction`, `updateProspectoAction`, `moverProspectoAction` (el cambio de etapa queda en la bitácora; reordenar no), `importarProspectosAction`, `enviarOutreachAction` (no envía a quien se dio de baja; registra también el intento fallido), `agregarNotaAction`, `convertirAColegioAction`, `subirImagenAction`, `darDeBajaProspectoAction` (tiene test, pero hoy ninguna pantalla la llama: la baja real llega por `/baja?token=`). |
+| `actions.ts` · `actions.test.ts` [action] | `createProspectoAction`, `updateProspectoAction`, `moverProspectoAction` (el cambio de etapa queda en la bitácora; reordenar no), `importarProspectosAction`, `enviarOutreachAction` (no envía a quien se dio de baja; registra también el intento fallido), `agregarNotaAction`, `convertirAColegioAction`, `subirImagenAction`, `darDeBajaProspectoAction` (tiene test, pero hoy ninguna pantalla la llama: la baja real llega por `/baja?token=`). Las invitaciones al Application Form también salen de acá: `crearLoteInvitacionesAction` (arma la campaña y devuelve el lote), `continuarLoteAction` (una tanda), `enviarInvitacionIndividualAction` y `revocarInvitacionAction`. Nunca se confía en qué casillas mandó el cliente: llegan ids de prospecto y el servidor vuelve a derivar a quién le escribe. |
 | `loading.tsx` · `nuevo/loading.tsx` · `importar/loading.tsx` · `[id]/loading.tsx` · `[id]/editar/loading.tsx` | Skeletons: listado, formulario, formulario, detalle (armado en el propio archivo), formulario. |
 | `nuevo/page.tsx` | Alta; trae los usuarios del equipo para el responsable. |
 | `importar/page.tsx` | Importación CSV con la lista de encabezados soportados. |
@@ -293,6 +309,11 @@ código); colegios, group leaders y prospectos usan el uuid.
 | `[id]/editar/page.tsx` | Edición por uuid. |
 | `[id]/comunicaciones-panel.tsx` [client] | Bitácora: notas internas (`agregarNotaAction`) y envío de outreach por email (`enviarOutreachAction`), con el estado de tracking de cada comunicación. |
 | `[id]/convertir-button.tsx` [client] | Convierte el prospecto en colegio cliente con confirmación, o linkea al colegio si ya se convirtió. |
+| `[id]/invitar-inscripcion.tsx` [client] | Invitar de a uno desde la ficha: se elige el viaje y sale el mail en la misma llamada (es uno solo, no hay nada que retomar). Por debajo es el mismo camino que la campaña —un lote de uno—, así que hereda token hasheado, vencimiento, bitácora y tracking. Quien se dio de baja o no tiene casilla no ve el botón, solo el motivo; el servidor lo vuelve a chequear igual. El diálogo de confirmación lleva solo texto: adentro del modal hay trampa de foco y el popover del `<Select>` no tiene por qué pelearse con ella. |
+| `invitaciones/page.tsx` | Invitaciones al Application Form: armar una campaña y seguir las que ya salieron. El universo de destinatarios se calcula **en el servidor** desde el filtro de la URL, con las mismas reglas que después aplica la action, para que lo que la pantalla promete sea exactamente lo que se manda. Si el filtro se pasa del tope, la lista no viaja al cliente. Sin `RESEND_WEBHOOK_SECRET` avisa que entrega, apertura y clic no se están midiendo (un placeholder cuenta como ausente, igual que en `/configuracion`). |
+| `invitaciones/nuevo-lote.tsx` [client] | Arma la campaña (viaje, variante, destinatarios tildados) y **empuja el envío desde el navegador**: Trigger.dev no está desplegado, así que el bucle llama a `continuarLoteAction` tanda tras tanda. Corta en tres casos —terminó, la action falló, o una tanda no movió nada y las filas las tiene reservadas otra pestaña—, y el progreso vive en la base, así que la pestaña se puede cerrar. Exporta `useEnvioDeLote`, que reusa el botón "Retomar" de la tabla. Los tres estados vacíos de la lista dicen cosas distintas (CRM vacío, filtro sin resultados, universo entero excluido) y cada uno ofrece su salida. |
+| `invitaciones/lotes-table.tsx` [client] | Las campañas con su embudo, de "salió el mail" a "el equipo dio de alta al alumno", con corte por piel. Dos reglas: el número va **siempre** al lado del porcentaje (con 4 destinatarios, "50%" invita a conclusiones falsas), y lo que no se mide se dice —sin el webhook de Resend, entrega, apertura y clic van como "no disponible" y no como cero—. Los conteos llegan agregados en SQL sobre el lote entero, nunca sobre las filas visibles. Es `[client]` por el botón "Retomar". |
+| `invitaciones/loading.tsx` | Silueta de la pantalla: header, filtro del universo, panel de la campaña nueva y tabla de campañas. |
 
 ### `src/app/(admin)/consultas/` — leads de la web pública
 
@@ -310,10 +331,12 @@ código); colegios, group leaders y prospectos usan el uuid.
 | Archivo | Qué hace |
 |---|---|
 | `page.tsx` | Bandeja paginada con filtros en la URL (estado, viaje, variante, búsqueda) y una tira de StatCards con los conteos **agregados en SQL sobre el universo filtrado**, incluidos los de cada variante visual. |
-| `actions.ts` · `actions.test.ts` [action] | `procesarInscripcionAction` (da de alta una ficha pendiente), `reintentarAltaAction` (no-op sobre una ya procesada), `resolverVinculoAction` (el conflicto de cuenta: pide confirmación explícita la primera vez) y `anularInscripcionAction`. Todas requieren rol, derivan los ids de la base y auditan. |
+| `inscripciones-filters.tsx` [client] | Búsqueda con debounce por nombre, DNI o código, y estado, viaje (`searchable`) y variante escritos en la URL. Cada cambio borra `?page`: el filtro estrena universo y quedarse en la página 7 mostraría una tabla vacía sobre un resultado que sí tiene filas. |
+| `inscripciones-table.tsx` | Una fila por ficha: código y fecha, alumno, adulto responsable, viaje, variante y el estado con su motivo. El DNI va **enmascarado** (`enmascararDni`, Nivel 2) porque es la pantalla que más se abre y muchas veces con alguien mirando de costado; el DNI entero se ve recién en el detalle. El vacío distingue "todavía no entró ninguna ficha" de "sin resultados para estos filtros". |
+| `actions.ts` · `actions.test.ts` [action] | `procesarInscripcionAction` (da de alta una ficha pendiente), `reintentarAltaAction` (no-op sobre una ya procesada), `resolverVinculoAction` (el conflicto de cuenta: pide confirmación explícita la primera vez) y `anularInscripcionAction`. Todas requieren rol, derivan los ids de la base y auditan. Qué se puede hacer con cada ficha lo decide `domain/inscripciones/acciones.ts`, compartido con el panel. |
 | `[id]/procesar-panel.tsx` [client] | Las acciones sobre una ficha, con el estado y su motivo real. Deja explícito cuándo el alta se colgaría de una cuenta de familia que ya existe. |
 | `[id]/page.tsx` | Detalle por **código** `INS-000123` (no uuid: toda ruta de detalle nueva nace con slug legible). Muestra la ficha completa —acá sí se ven los datos sensibles, es el back-office—, el contexto de campaña y el sello del consentimiento con link a esa versión de la política. |
-| `loading.tsx` | Skeleton del listado. |
+| `loading.tsx` · `[id]/loading.tsx` | Listado: `PagosPageSkeleton`, que ya es esa silueta (header, cuatro cards, filtros y filas). Detalle: header y dos columnas de paneles, armado en el propio archivo; sin él, el detalle heredaría el skeleton de la bandeja. |
 
 ### `src/app/inscripcion/` — el formulario público (fuera de `(public)`)
 
@@ -322,7 +345,9 @@ código); colegios, group leaders y prospectos usan el uuid.
 | `page.tsx` | Resuelve el link tokenizado con un **SELECT puro** y decide qué mostrar: formulario, "ya recibimos tu ficha" o un único copy genérico para inválido/vencido/revocado (no le confirma a nadie qué token existe). `robots: noindex`. Vive fuera de `(public)` a propósito: ese layout monta `<Analytics/>` y el token viajaría a GA en `page_location`. |
 | `layout.tsx` | Shell propio, sin la navegación de marketing. Arranca con la piel base (variante A) para que el skeleton no salte al hidratar. |
 | `variantes.ts` | Qué cambia en cada piel: la clase completa como literal (nunca interpolada) y la presentación de cada variante (rótulo numerado, volanta con microcopy, paradas con progreso). |
-| `inscripcion-form.tsx` [client] | La ficha con `useActionState`, honeypot oculto, componentes del design system, consentimiento que linkea `/privacidad` y éxito inline (el sitio público no monta `ToastProvider`). |
+| `_marco.tsx` | Lo que rodea a la ficha: `MarcaJuk`, `HeroInscripcion`, `ComoSigue`, `FranjaDeConfianza` y `PieInscripcion`. No conoce la variante (todo sale del vocabulario `--form-*`). Tres reglas con test: ni un `<form>` ni un control nuevo, un solo `<h1>` visible y cero navegación al sitio (solo `/privacidad`, mail y WhatsApp). |
+| `inscripcion-form.tsx` [client] | La ficha con `useActionState`, honeypot oculto, componentes del design system, consentimiento que linkea `/privacidad` y éxito inline (el sitio público no monta `ToastProvider`). Su `Campo` inyecta `invalid` al control una sola vez: `<Field error>` sin `invalid` deja el campo gris. |
+| `use-validacion-en-vivo.ts` [client] | Cableado de la validación en vivo: qué campo, qué valor y cuándo se pregunta. La regla y el mensaje los pone el dominio. No se unit-testea (Vitest corre en `node`, sin jsdom); lo cubre el E2E. |
 | `actions.ts` · `actions.test.ts` [action] | `enviarInscripcion`: Zod → honeypot → rate limit (IP, email y token) → resuelve la invitación **server-side** → persiste SIEMPRE → mails best-effort. No toca `alumnos`: el alta automática es la etapa 4. |
 | `loading.tsx` | `FormPageSkeleton`. |
 
@@ -341,12 +366,13 @@ código); colegios, group leaders y prospectos usan el uuid.
 
 | Archivo | Qué hace |
 |---|---|
-| `page.tsx` | Solo super_admin: remitentes de email, previsualización de templates y estado de servicios; link a "Mi cuenta". |
+| `page.tsx` | Solo super_admin: remitentes de email, variante del formulario de inscripción, previsualización de templates y estado de servicios; link a "Mi cuenta". |
 | `mails-form.tsx` [client] | Edita los remitentes (automáticos, comunicaciones, marketing, reply-to) y manda un mail de prueba de cualquier template. |
+| `formulario-form.tsx` [client] | Elige con qué piel se sirve el Application Form público. La elección es **solo estética**: las tres variantes comparten campos, validación, action y árbol accesible, por eso la pantalla no ofrece "editar el formulario". Muestra el detalle de la variante elegida y una vista previa en un `iframe sandbox=""`: sin scripts la página no hidrata, así que ningún click de la previa llega a la base (y por eso tampoco se ve la validación en vivo). Las URLs de la previa están escritas completas por variante, nunca interpoladas. Un link de invitación o una campaña con variante propia mandan sobre este setting. |
 | `preview-templates.tsx` [client] | Renderiza un template con datos de ejemplo en un iframe `srcDoc`. |
 | `estado-servicios.tsx` | Card con qué servicios están configurados y el host de la base. Tres estados: OK, *Pendiente* (falta una variable) y *Revisar* en rojo (quedó el valor de ejemplo, que rompe distinto). |
 | `mail-templates-meta.ts` | Lista de templates disponibles para prueba y preview, con su tipo de remitente. |
-| `actions.tsx` · `actions.test.ts` [action] | `guardarMailsAction`, `enviarMailPruebaAction`, `previewTemplateAction`, `getEstadoServiciosAction` (sale del catálogo de `domain/configuracion/env.ts`, el mismo que `npm run check:env`; expone solo el host de la DB, nunca la URL; en un deploy evalúa el perfil de producción). Es `.tsx` porque renderiza emails. |
+| `actions.tsx` · `actions.test.ts` [action] | `guardarMailsAction`, `guardarFormularioSettingsAction` (la variante activa del formulario público), `enviarMailPruebaAction`, `previewTemplateAction`, `getEstadoServiciosAction` (sale del catálogo de `domain/configuracion/env.ts`, el mismo que `npm run check:env`; expone solo el host de la DB, nunca la URL; en un deploy evalúa el perfil de producción). Es `.tsx` porque renderiza emails. |
 | `loading.tsx` | `ConfigSkeleton`. |
 | `cuenta/page.tsx` | "Mi cuenta": la abre cualquier usuario del back-office (`requireSession`, no super_admin). |
 | `cuenta/cambiar-password-form.tsx` [client] | Cambio de contraseña con `authClient.changePassword`. |
@@ -356,8 +382,8 @@ código); colegios, group leaders y prospectos usan el uuid.
 | Archivo | Qué hace |
 |---|---|
 | `layout.tsx` | Pantalla partida: panel de marca a la izquierda (en `<Suspense>` porque lee `?portal=`) y formulario a la derecha. No exige sesión. |
-| `login/page.tsx` | Con una sesión real y activa redirige al `returnTo` saneado o, si no vino, al home del rol (`HOME_BY_ROLE`); esto lo decide la página y no el proxy. Avisos por `?reset=success` e `?inactivo=1`, copy para familias con `?portal=familias` y email precargado con `?email=`. |
-| `login/login-form.tsx` [client] | Login email/contraseña con Better-Auth. Credenciales incorrectas → mensaje genérico; el 403 de cuenta desactivada sí se distingue. Sanea el `returnTo`. |
+| `login/page.tsx` | Con una sesión real y activa redirige al `returnTo` saneado o, si no vino, al home del rol (`HOME_BY_ROLE`); esto lo decide la página y no el proxy. Avisos por `?reset=success` e `?inactivo=1`, copy para familias con `?portal=familias` y email precargado con `?email=`. También renderiza el `?error=` del callback de Google (`mensajeErrorOAuth`) y decide si el botón se muestra. |
+| `login/login-form.tsx` [client] | Login email/contraseña con Better-Auth. Credenciales incorrectas → mensaje genérico; el 403 de cuenta desactivada sí se distingue. Sanea el `returnTo`. Con el provider configurado suma "Continuar con Google", que pasa `errorCallbackURL` para que un fallo vuelva al login y no a la página de error de Better-Auth. |
 | `reset-password/page.tsx` | Sin token: pedir el link. Con token: crear la contraseña nueva. |
 | `reset-password/reset-form.tsx` [client] | Los dos modos. El mensaje de éxito al pedir el link es genérico para no revelar qué emails existen. |
 
@@ -494,6 +520,7 @@ Las dos quedan fuera de `(public)` a propósito: heredarían nav, footer y analy
 | Archivo | Qué hace |
 |---|---|
 | `juk-brand-panel.tsx` [client] | Panel de marca de las pantallas de auth. Copy neutro por defecto; con `?portal=familias` le habla a la familia. Es client solo para leer la URL. |
+| `google-icon.tsx` | El logo de Google inline, sin dependencias. Los hex van en `fill=` y nunca en `className`: son marca de un tercero, no se tokenizan, y la guarda de lint solo mira dentro de `className`. |
 
 ### `src/components/pwa/`
 
@@ -564,6 +591,8 @@ mano los `pgEnum` de `lib/db/schema/` (no hay derivación automática): si cambi
 |---|---|
 | `schema.ts` · `schema.test.ts` | La ficha del Application Form propio (los mismos campos que acepta el webhook del Google Form), con el DNI normalizado por `soloDigitos` en un `preprocess` y `acepta: z.literal(true)`. **No acepta `viajeId`, `alumnoId`, `comunicacionId` ni `estado`**: se derivan del token server-side. Además: los seis estados de una inscripción, `VARIANTES` a\|b\|c con `resolverVariante` (link > campaña > setting > 'a', tolerante a basura), `codigoInscripcion`/`parsearCodigoInscripcion` (INS-000123) y los filtros de la bandeja. |
 | `niveles.ts` · `niveles.test.ts` | Qué dato puede salir del sistema y cuál no: `CAMPOS_NIVEL_1` (nombre, apellido, tutor, viaje) vs `CAMPOS_NIVEL_2` (DNI, pasaporte, nacimiento, salud, teléfonos). `soloNivel1` filtra por lista blanca y `enmascararDni` deja los últimos 4. El test es de **contrato**: rompe si alguien suma un campo al formulario sin clasificarlo. |
+| `validacion-campo.ts` · `validacion-campo.test.ts` | Lo que el formulario público usa para avisar **mientras** se completa la ficha: `CAMPOS_EN_VIVO`, `validarCampoInscripcion` (el mensaje sale de `inscripcionSchema`, nunca de una segunda regla), `esCaracterImposible` (una letra en el DNI se marca en el acto) y `avisoDelCampo` (el pasaporte vencido avisa, no bloquea). Honeypot y consentimiento quedan afuera a propósito. **Es el molde para el resto de los formularios.** |
+| `acciones.ts` · `acciones.test.ts` | Qué puede hacer el equipo con una ficha según su estado (`accionesDeInscripcion`, `permiteAccion`, `estaResuelta`, `tieneVinculoPendiente`). Vive en el dominio porque la server action —que no puede confiar en qué botón se apretó— y el panel del detalle —que no puede ofrecer un botón que la action va a rechazar— no pueden discrepar. La regla que importa: `requiere_revision` **con** alumno ya no se reprocesa (el alta corrió y volver a correrla caería en `duplicado` y borraría el motivo real); lo único que queda es confirmar la cuenta de familia. |
 | `invitacion.ts` · `invitacion.test.ts` | La vida de una invitación: `estadoInvitacion` (respondida > revocada > vencida > vigente), `puedeCargar`, vigencia de 90 días, y el claim en dos fases del envío por lote (reserva de 5 minutos, tandas de 10, tope de 200, pausa entre envíos). Ninguna fecha nace adentro. |
 | `errors.ts` · `labels.ts` | Errores nombrados y las etiquetas en español de estados y variantes. |
 
@@ -723,6 +752,7 @@ Cada cambio acá necesita su migración (`/juk-migracion`).
 | `configuracion.ts` | `configuracion`: key-value JSON (por ejemplo, la clave `mails`); una clave ausente usa los defaults del código. |
 | `leads.ts` | `suscriptores`, `consultas` (enums tomados de `domain/leads`) y `form_rate_limits` (ventanas del anti-abuso). Su comentario apunta a `src/lib/domain/leads.ts`; hoy es la carpeta `domain/leads/`. |
 | `prospectos.ts` | `prospectos` (pipeline, emails y teléfonos, token de baja, colegio convertido) y `prospecto_comunicaciones` (notas y outreach con el id de Resend, más las 7 columnas de **invitación** al formulario: token hasheado con su unique, viaje, variante, vencimiento, revocación, lote y la reserva del envío por tandas). Una invitación es una comunicación más: así hereda la baja del prospecto y el tracking de Resend, sin tabla de campañas. |
+| `enums-inscripciones.ts` | Los `pgEnum` `inscripcion_estado` y `variante_formulario`, en su propio módulo porque los usan **dos tablas que se referencian entre sí**: `inscripciones` apunta a `prospecto_comunicaciones` y esa tabla usa `variante_formulario` en una columna. Declararlos dentro de `inscripciones.ts` cerraba un ciclo que explotaba en runtime (una FK es un callback y se evalúa tarde, pero `varianteFormulario(...)` corre al evaluar el módulo). Los valores salen del dominio y los nombres SQL no cambian: mover la declaración no tocó la base ni pidió migración. |
 | `inscripciones.ts` | Tabla de **aterrizaje** del formulario propio: la ficha se persiste siempre acá antes de tocar `alumnos`, para que una carga anónima no cree ni se cuelgue de una cuenta de familia sin que un humano lo mire. Trae los enums `inscripcion_estado` y `variante_formulario` (derivados del dominio), el sello del consentimiento (versión, hash del texto y fecha; **sin IP**, a propósito), las columnas de borrado y purga, y los dos primeros índices **parciales** del repo: una respuesta viva por invitación y una por DNI en curso. Las fechas van en modo `string` (ISO), no `Date`: convertirlas en el borde corre un cumpleaños un día. |
 
 ### `src/lib/db/queries/` — único lugar con Drizzle
@@ -731,7 +761,7 @@ Cada cambio acá necesita su migración (`/juk-migracion`).
 |---|---|
 | `errors.ts` · `errors.test.ts` | `FilaNoDevueltaError`, `unicaFila` (primera fila de un `.returning()`) y `esViolacionUnique` (Postgres 23505, también envuelto por Drizzle). |
 | `alertas.ts` | `getAlertas` (carga las filas y delega en `calcularAlertas`; opcionalmente por viaje), `countAlumnosEnMora`, `viajeTieneAlertas`. |
-| `alumnos.ts` | `listAlumnos` paginado (con viaje más próximo y marca de alerta), `getAlumnoById`, `getAlumnoByDni`, `createAlumno`, `updateAlumno`, `darDeBajaAlumno`, `reactivarAlumno`. |
+| `alumnos.ts` · `alumnos.integration.test.ts` | `listAlumnos` paginado (con viaje más próximo y marca de alerta), `getAlumnoById`, `getAlumnoByDni`, `createAlumno`, `updateAlumno`, `darDeBajaAlumno`, `reactivarAlumno`. La integración cubre el filtro por canal de alta: "los que entraron por el formulario" tiene que salir de la condición SQL y no de filtrar la página en memoria. |
 | `asignaciones.ts` | Roster del viaje, `countAsignacionesActivas`, `getAsignacionDePar`, `cancelarAsignacion`, `alumnosElegibles`, `viajesAsignables`, `listAsignacionesByAlumno`, `alumnoIdDeAsignacion` (base de los chequeos de ownership) y `origenDeAsignacion`. |
 | `asignar-alumno.ts` · `asignar-alumno.integration.test.ts` | Trigger de asignación: `asignarConTablero` crea o reactiva la asignación, genera las filas del M6 con `pasosIniciales` y auto-confirma el grupal decidiendo con el estado **releído** de la base. `filasTableroInicial` arma las filas. |
 | `auditoria.ts` | `registrarAuditoria`. Las actions no la llaman directo (usan `safeAudit`); los jobs sí, para no arrastrar Sentry a Trigger.dev. |
@@ -748,17 +778,16 @@ Cada cambio acá necesita su migración (`/juk-migracion`).
 | `pagos.ts` · `pagos.integration.test.ts` | Vistas consolidadas: `condicionesEstadoEfectivo` (vencida = venció antes de hoy), `listCuotasGlobal` con ORDER BY total (sin desempate se repetían o salteaban filas entre páginas), `resumenPagosGlobal` por moneda, `viajesConCuotas`, `resumenPagosPorViaje`. |
 | `pasos-alumno.ts` | `listPasosByAsignacion(es)` (una sola query para varias asignaciones: con neon-http cada query es un HTTPS), `getPasoAlumnoById`, `updatePasoAlumno`, `crearPasosParaAsignacion`. |
 | `pasos-viaje.ts` | `listOrInitPasosViaje` (crea en pendiente los que falten), `updateEstadoPasoViaje`, `updateMetadataPasoViaje`, `listGroupLeadersDeViaje`. |
-| `invitaciones.ts` · su integración | Las invitaciones al formulario, que viven en la bitácora del CRM: armar un lote, el **claim en dos pasos** que lo hace reanudable (elegir candidatas → tomarlas exigiendo `estado='pendiente'`, con reintento acotado para que dos pestañas se repartan el lote), sellar enviada/fallida, reciclar reservas vencidas, revocar y el resumen del lote agregado en SQL. ⚠️ El claim NO usa un subselect con `for update skip locked`: una subconsulta con cláusula de bloqueo se evalúa **por fila**, y la tanda se llevaba el lote entero. |
-| `alta-inscripcion.ts` · su integración | Orquesta el alta del alumno desde una ficha: idempotencia por DNI **antes de tocar nada**, `createAlumno` con canal `formulario_web`, el vínculo de familia y la asignación al viaje con su cupo. Devuelve un resultado nombrado con la rama del vínculo y **no decide política**: eso es de `actions/alta-inscripcion.ts`. Distingue `crear` de `vincular` leyendo el usuario por email antes de escribir, porque `asegurarCuentaFamilia` devuelve lo mismo en los dos casos. |
-| `retencion.ts` | Las cuatro queries del barrido por retención (listar purgables y purgar, para inscripciones e invitaciones). El job no importa `db`: la decisión de QUÉ purgar es del dominio y el acceso a datos vive acá. La idempotencia está en el WHERE (`datos_purgados_el is null`), y lo que se cuenta es el RETURNING. |
+| `invitaciones.ts` · `invitaciones.integration.test.ts` | Las invitaciones al formulario, que viven en la bitácora del CRM: armar un lote, el **claim en dos pasos** que lo hace reanudable (elegir candidatas → tomarlas exigiendo `estado='pendiente'`, con reintento acotado para que dos pestañas se repartan el lote), sellar enviada/fallida, reciclar reservas vencidas, revocar y el resumen del lote agregado en SQL. ⚠️ El claim NO usa un subselect con `for update skip locked`: una subconsulta con cláusula de bloqueo se evalúa **por fila**, y la tanda se llevaba el lote entero. |
+| `alta-inscripcion.ts` · `alta-inscripcion.integration.test.ts` | Orquesta el alta del alumno desde una ficha: idempotencia por DNI **antes de tocar nada**, `createAlumno` con canal `formulario_web`, el vínculo de familia y la asignación al viaje con su cupo. Devuelve un resultado nombrado con la rama del vínculo y **no decide política**: eso es de `actions/alta-inscripcion.ts`. Distingue `crear` de `vincular` leyendo el usuario por email antes de escribir, porque `asegurarCuentaFamilia` devuelve lo mismo en los dos casos. |
 | `resolucion-inscripcion.ts` · `anular-inscripcion.ts` | Escriben el desenlace en la ficha: estado, motivo y alumno vinculado; y la anulación, que libera la invitación para que esa familia pueda volver a cargar. |
-| `inscripciones-publicas.ts` · su integración | Lo que toca el formulario público: `getInvitacionByTokenHash` (**SELECT puro**, verificado en el test comparando la fila entera antes y después: la página se abre con un GET y un prefetch de Outlook lo dispararía), `crearInscripcion` (traduce las colisiones de los índices únicos a un motivo nombrado, nunca una excepción cruda) y `marcarInvitacionRespondida`. |
-| `inscripciones.ts` · su integración | Lo que toca el back-office: `listInscripciones` con paginación en SQL y orden total, `getInscripcionByNumero` (el slug `INS-000123`) y `resumenInscripciones`, que agrega por estado y por variante sobre el universo filtrado, no sobre la página. Las fichas con datos borrados quedan fuera de los tres. |
+| `inscripciones-publicas.ts` · `inscripciones-publicas.integration.test.ts` | Lo que toca el formulario público: `getInvitacionByTokenHash` (**SELECT puro**, verificado en el test comparando la fila entera antes y después: la página se abre con un GET y un prefetch de Outlook lo dispararía), `crearInscripcion` (traduce las colisiones de los índices únicos a un motivo nombrado, nunca una excepción cruda) y `marcarInvitacionRespondida`. |
+| `inscripciones.ts` · `inscripciones.integration.test.ts` | Lo que toca el back-office: `listInscripciones` con paginación en SQL y orden total, `getInscripcionByNumero` (el slug `INS-000123`) y `resumenInscripciones`, que agrega por estado y por variante sobre el universo filtrado, no sobre la página. Las fichas con datos borrados quedan fuera de los tres. |
 | `prospectos.ts` | `listProspectos`, `listProspectosKanban`, `getProspectoById`, `createProspecto`, `crearProspectosMasivo`, `updateProspecto`, `moverProspecto`, `getComunicaciones`, `registrarComunicacion`, `convertirAColegio`, `darDeBajaOutreach`. |
 | `prospecto-tracking.ts` | `actualizarEstadoComunicacion`, `getProspectoByUnsubToken`, `darDeBajaPorToken`. Separado de `prospectos.ts` porque lo usan endpoints públicos (webhook de Resend y `/baja`), sin guards de admin. |
 | `rate-limit-formularios.ts` | `incrementarYVerificar`: registra el intento y decide en un solo upsert atómico (leer y después escribir dejaría pasar requests simultáneos). `purgarVentanasVencidas` existe pero hoy no la llama nadie. |
 | `recordatorios.ts` | `listPasosParaRecordatorio`, `marcarPasoVencido`, `registrarNotificacionEnviada` (el insert con conflicto ignorado es el candado de dedup), `setResultadoNotificacion`. |
-| `retencion.ts` | Las cuatro consultas de la purga (MIN-16): candidatas fuera de plazo por lote (`listInscripcionesPurgables`, `listInvitacionesPurgables`) y las dos escrituras que vacían los datos personales de la ficha y borran el hash del token de la invitación. El candado de idempotencia está en el WHERE (`datos_purgados_el is null`, `token_hash is not null`), no en la memoria del job. La fecha de referencia de una ficha es `created_at` para las dos clases: la tabla no guarda un instante de procesamiento. |
+| `retencion.ts` | Las cuatro consultas de la purga (MIN-16): candidatas fuera de plazo por lote (`listInscripcionesPurgables`, `listInvitacionesPurgables`) y las dos escrituras que vacían los datos personales de la ficha y borran el hash del token de la invitación. El job no importa `db`: la decisión de QUÉ purgar es del dominio y el acceso a datos vive acá. El candado de idempotencia está en el WHERE (`datos_purgados_el is null`, `token_hash is not null`), no en la memoria del job, y lo que se cuenta es el RETURNING. La fecha de referencia de una ficha es `created_at` para las dos clases: la tabla no guarda un instante de procesamiento. |
 | `usuarios.ts` | `listUsuarios` (solo roles del equipo), `listEmailsAdmins`, `getUsuarioById`, `finalizarAltaUsuario`, `setUsuarioRole`, `setUsuarioActivo`. |
 | `viajes.ts` | `listViajes` (con inscriptos), `opcionesFiltroViajes`, `listViajesParaFiltro`, `completitudPorViaje`, `listViajesPorEstado`, `getViajeById`, `getViajeByCodigo`, `createViaje`, `updateViaje`, `setViajeEstado`. |
 
@@ -781,7 +810,8 @@ Cada cambio acá necesita su migración (`/juk-migracion`).
 
 | Archivo | Qué hace |
 |---|---|
-| `index.ts` | Config de Better-Auth: email y contraseña, sin registro público (`disabledPaths` + hook `before`), rol default `familia` (el de menor privilegio), sesión de 8 h sin cookie cache (desactivar o cambiar rol aplica en el request siguiente), reset de 24 h, mail de bienvenida o de reset según el `alta=` del callback, aviso de contraseña cambiada, rechazo con 403 de cuentas desactivadas en `databaseHooks.session.create.before` (corre después de verificar la contraseña: no sirve para sondear emails), rate limit en base (login: 5 cada 15 min en producción, 30 en dev), cookies `juk` seguras en producción. Su comentario de cabecera todavía dice "temp password emailed": hoy se manda un link. |
+| `index.ts` | Config de Better-Auth: email y contraseña, sin registro público (`disabledPaths` + hook `before`), rol default `familia` (el de menor privilegio), sesión de 8 h sin cookie cache (desactivar o cambiar rol aplica en el request siguiente), reset de 24 h, mail de bienvenida o de reset según el `alta=` del callback, aviso de contraseña cambiada, rechazo con 403 de cuentas desactivadas en `databaseHooks.session.create.before` (corre después de verificar la contraseña: no sirve para sondear emails), rate limit en base (login: 5 cada 15 min en producción, 30 en dev), cookies `juk` seguras en producción. Su comentario de cabecera todavía dice "temp password emailed": hoy se manda un link. Si están las dos variables de Google, declara además el provider social con `disableSignUp: true` y `accountLinking` sin `trustedProviders` (ADR-019). |
+| `google-oauth.ts` · `google-oauth.test.ts` | Módulo puro del botón de Google: `googleOAuthConfig` (las dos credenciales o `null`), `googleOAuthHabilitado` y `mensajeErrorOAuth`, el copy del `?error=` del callback. Un código desconocido cae al mensaje genérico; nunca devuelve `null` con un código presente. |
 | `helpers.ts` · `helpers.test.ts` | `getSession` (memoizada por request), `requireSession` (cuenta inactiva → cierra la sesión y `/login?inactivo=1`), `requireRole` (rol equivocado → al home de su rol), `requireFamilia`, `requireAdminJuk`. |
 | `client.ts` | `authClient` para el navegador con el origin actual (el dev puede correr en 3000 o 3001). |
 | `return-to.ts` · `return-to.test.ts` | `sanitizeReturnTo`: solo acepta paths relativos dentro del portal; cualquier otro destino va a `/dashboard` (evita redirects de phishing después del login). |
@@ -800,8 +830,10 @@ Cada cambio acá necesita su migración (`/juk-migracion`).
 | `send-consulta-nueva.tsx` | Aviso de consulta nueva a todos los admins activos; sin admins cae a `LEADS_NOTIFY_TO` o al reply-to. |
 | `send-reporte-dato.tsx` · `send-reporte-dato.test.ts` | Aviso al equipo cuando una familia reporta un dato incorrecto, con link a la edición del alumno por DNI. |
 | `send-outreach.tsx` | Outreach a colegios desde el remitente de marketing, con headers `List-Unsubscribe` one-click; devuelve el id de Resend. |
-| `send-inscripcion-recibida.tsx` · su test | Acuse a quien completó el formulario (tipo `comunicacion`, invita a responder). **No lleva ni un campo de Nivel 2**: el test falla si el HTML contiene el DNI o el pasaporte, porque un acuse queda en un buzón ajeno. |
-| `send-inscripcion-nueva.tsx` · su test | Aviso al equipo con el link a la ficha en el back-office y el motivo si quedó para revisión. Misma cadena de destinatarios que el resto: admins activos → `LEADS_NOTIFY_TO` → reply-to. |
+| `send-inscripcion-recibida.tsx` · `send-inscripcion-recibida.test.ts` | Acuse a quien completó el formulario (tipo `comunicacion`, invita a responder). **No lleva ni un campo de Nivel 2**: el test falla si el HTML contiene el DNI o el pasaporte, porque un acuse queda en un buzón ajeno. Sin email del tutor no manda nada; la ficha ya quedó guardada igual. |
+| `send-inscripcion-nueva.tsx` · `send-inscripcion-nueva.test.ts` | Aviso al equipo con el link a la ficha en el back-office y el motivo si quedó para revisión. Misma cadena de destinatarios que el resto: admins activos → `LEADS_NOTIFY_TO` → reply-to. Responde al tutor, así que el equipo le contesta sin abrir el portal. |
+| `send-invitacion-inscripcion.tsx` · `send-invitacion-inscripcion.test.ts` | El mail de la invitación: el **único lugar donde el token existe en claro** (la base guarda solo el hash). Sale como `comunicacion` desde info@ y no como marketing, por dos razones: el remitente de marketing todavía no tiene DNS y este mail no es contacto en frío, es el trámite que la familia espera. Igual lleva `List-Unsubscribe` siempre —es lo que hace que Gmail ofrezca su botón de baja en vez de "marcar como spam"—, y `List-Unsubscribe-Post` solo cuando hay una URL con token: sobre el `mailto:` de respaldo sería mentira. `urlInscripcion` arma el link con `URLSearchParams` (`t` y `v`, los que lee `/inscripcion`) y lee el entorno en cada llamada, no al importar el módulo. Devuelve el id de Resend para que el lote selle la fila. |
+| `__tests__/inscripcion-fixture.ts` | Una fila de `inscripciones` con **todos** los campos sensibles cargados con un valor distinguible, más `valoresNivel2De`, que deriva la lista de valores prohibidos del catálogo `CAMPOS_NIVEL_2` y no de una lista escrita a mano: un campo sensible nuevo entra solo al assert. Compartido por los tres senders del formulario para que el catálogo sea uno solo. |
 | `templates/_layout.tsx` | `EmailLayout` y piezas (`EmailHeading`, `EmailParagraph`, `EmailButton`, `EmailCallout`, `EmailMonoCode`). |
 | `templates/welcome-email.tsx` | Invitación al portal. |
 | `templates/reset-password-email.tsx` | Restablecer contraseña (link de 24 h, un solo uso). |
@@ -811,6 +843,9 @@ Cada cambio acá necesita su migración (`/juk-migracion`).
 | `templates/consulta-nueva-email.tsx` | Aviso interno de lead. |
 | `templates/reporte-dato-email.tsx` | Aviso interno de dato incorrecto. |
 | `templates/outreach-colegio.tsx` | Contacto en frío a un colegio, con link de baja obligatorio. |
+| `templates/inscripcion-recibida.tsx` | Acuse de la ficha a la familia. **Contrato de privacidad**: no tiene props para DNI, pasaporte, nacimiento, teléfonos ni salud, así que no pueden filtrarse aunque el llamador tenga la ficha entera a mano. Para reconocer la ficha alcanza el código público. |
+| `templates/inscripcion-nueva-equipo.tsx` | Aviso interno de ficha nueva, también solo con props de Nivel 1: el aviso **no es la ficha**, es el empujón para abrirla en el portal, donde hay sesión y permisos. Cambia el encabezado y la previa cuando quedó para revisar, y muestra el motivo. |
+| `templates/invitacion-inscripcion.tsx` | La invitación al Application Form, con el link que lleva el token en claro. Los props son solo contexto de campaña (a quién se saluda, el viaje, el link): nada de la ficha puede viajar acá, porque el mail sale antes de que la familia cargue un dato y a una casilla que no controlamos. El plazo no se escribe a mano, sale de `VIGENCIA_DIAS`, así que el mail no puede prometer 90 días si la invitación vence a los 30. Saluda a la persona, a la institución o en genérico: el CRM tiene prospectos cargados solo con una casilla y un "Hola null" no es opción. |
 
 `npm run email:dev` abre la preview de `templates/` con `react-email` (devDependency; su Next empaquetado trae la vulnerabilidad crítica que reporta `npm audit`, ver [06](06-seguridad.md)).
 
@@ -828,8 +863,7 @@ Cada cambio acá necesita su migración (`/juk-migracion`).
 |---|---|
 | `purgar-inscripciones.ts` · `purgar-inscripciones.integration.test.ts` | `purgarPorRetencion(ahora)`: ejecuta los plazos de `domain/privacidad/retencion` (90 días una ficha ya volcada a un alumno, 730 una sin procesar, 90 una invitación vencida sin usar). Vacía los datos personales y sella `datos_purgados_el` dejando el talón —**no borra la fila**, para que las métricas de campaña no cambien hacia atrás— y borra el hash del token de las invitaciones que ya no abren nada. El SQL acota por la fecha de corte y el dominio confirma fila por fila; va por lotes con tope, es idempotente y `ahora` entra por parámetro. Se corre con `npm run job:purga` (Trigger.dev no está desplegado); el enganche futuro (`purga-retencion`, `0 4 * * *`) está escrito en el encabezado del job. |
 | `scan-recordatorios.ts` · `scan-recordatorios.integration.test.ts` | `scanRecordatorios`: marca A1 vencido, manda los recordatorios de A1 y D1 que tocan hoy con dedup en `notificaciones_enviadas`, registra los fallidos. |
-| `enviar-lote-invitaciones.ts` · su integración | Una tanda de una campaña: recicla reservas vencidas, reserva, manda con la pausa del rate limit de Resend y sella cada fila. Un rechazo de Resend no corta la tanda (queda `fallido` con su motivo); un error de BASE sí corta, porque sin poder sellar el reciclado reenviaría. Relee el prospecto antes de cada mail: la baja se respeta aunque se haya dado después de armar el lote. |
-| `purgar-inscripciones.ts` · su integración | La purga por retención que hace verdad la política publicada: vacía los datos personales de las fichas fuera de plazo y borra el token de las invitaciones vencidas sin usar, dejando el talón. `ahora` entra por parámetro y barre por lotes. Se corre a mano con `npm run job:purga`; el enganche de Trigger (task y cron) está escrito en el encabezado para el día que se despliegue. |
+| `enviar-lote-invitaciones.ts` · `enviar-lote-invitaciones.integration.test.ts` | Una tanda de una campaña: recicla reservas vencidas, reserva, manda con la pausa del rate limit de Resend y sella cada fila. Un rechazo de Resend no corta la tanda (queda `fallido` con su motivo); un error de BASE sí corta, porque sin poder sellar el reciclado reenviaría. Relee el prospecto antes de cada mail: la baja se respeta aunque se haya dado después de armar el lote. La integración prueba lo que no se puede probar sin base: que dos corridas seguidas nunca manden dos veces el mismo token y que una fila colgada en `enviando` se recicle. |
 | `transiciones-viajes.ts` · `transiciones-viajes.integration.test.ts` | `transicionarViajesPorFecha`: confirmado → en curso y en curso → finalizado, con auditoría sin usuario. Avanza un paso por viaje por corrida. |
 
 ### `src/lib/utils/`
@@ -857,6 +891,7 @@ Cada cambio acá necesita su migración (`/juk-migracion`).
 | Archivo | Qué hace |
 |---|---|
 | `contact.ts` · `contact.test.ts` | Datos de contacto de JUK (teléfono, email, WhatsApp, redes) y `whatsappConMensaje`/`mailConAsunto`. Fuente única para el sitio y el portal de familias. |
+| `marca.ts` · `marca.test.ts` | Datos de marca compartidos por el sitio público y el Application Form: `STATS_JUK` (las cuatro cifras), `ACREDITACIONES_JUK` (los ocho sellos con su `alt`) y `FOTO_HERO_INSCRIPCION`. Sube a `src/lib/` por el mismo criterio que `contact.ts`: `(public)/_sections/` es carpeta privada de ese segmento y `/inscripcion` vive afuera. |
 | `routes.ts` · `routes.test.ts` | Fuente única de rutas: prefijos del portal, auth, páginas públicas y rutas sueltas, `HOME_BY_ROLE`, `ROBOTS_DISALLOW`. El test compara `PORTAL_PREFIXES` contra las carpetas de `app/(admin)`: **si agregás un módulo, sumalo acá**. |
 
 ---
@@ -868,7 +903,8 @@ Cada cambio acá necesita su migración (`/juk-migracion`).
 | Archivo | Qué hace |
 |---|---|
 | `tokens.css` | Dirección visual STUDIO en custom properties (`.v-studio`): paleta, tipografías, radios, sombras y gradientes. Es el único archivo que hay que tocar para cambiar el look. Guía en `juk-portal/docs/design-system.md`. |
-| `globals.css` | Importa tokens y animaciones, directivas de Tailwind y estilos base. |
+| `globals.css` | Importa tokens y animaciones, directivas de Tailwind y estilos base. Ahí viven el piso de 16px de los controles en el teléfono (con `!important` deliberado) y las dos únicas utilidades propias del proyecto, `.scroll-fino` y `.scroll-fino-onbrand`. |
+| `form-variants.css` | Vocabulario `--form-*` de las tres pieles del Application Form y del marco que lo rodea. El TSX no conoce la variante: cada piel es un override de estas variables. |
 | `animations.css` | Keyframes globales (fade, pop, slide, toast). |
 
 ### `src/trigger/` — tasks de Trigger.dev (se publican con `npm run trigger:deploy`)
@@ -906,10 +942,10 @@ se saltea por `isMobile`). `mobile` depende de `setup` y `setup-familia` porque
 |---|---|
 | `smoke.spec.ts` | Dashboard con sesión, navegación por secciones, 404 con marca y validación del alta de colegio. |
 | `auth.spec.ts` | Sin sesión, una ruta protegida redirige a login. |
-| `auth-hardening.spec.ts` | El sign-up público responde 4xx y no crea la cuenta; login fallido con error genérico. |
-| `login-ux.spec.ts` | Avisos por `?reset`, `?inactivo`, `?portal=familias`; `returnTo` a otro dominio o con backslash termina en `/dashboard`; 404 propio del back-office. |
+| `auth-hardening.spec.ts` | El sign-up público responde 4xx y no crea la cuenta; login fallido con error genérico; el login social tampoco crea cuentas. |
+| `login-ux.spec.ts` | Avisos por `?reset`, `?inactivo`, `?portal=familias`; `returnTo` a otro dominio o con backslash termina en `/dashboard`; 404 propio del back-office; los mensajes del `?error=` de Google (un Google desconocido, un código que no reconocemos) y que sin credenciales el botón no se ofrece. |
 | `a11y-basico.spec.ts` | Chequeos de accesibilidad hechos a mano (nombres accesibles, un h1, alt, foco visible) en rutas con y sin sesión. Su comentario dice que `@axe-core/playwright` no está instalado: ya está en devDependencies, pero el spec todavía no lo usa. |
-| `dashboard.spec.ts` | Secciones y accesos rápidos, stat cards con destino filtrado, alumno con pasaporte en riesgo en "acción urgente". |
+| `dashboard.spec.ts` | Secciones y accesos rápidos, stat cards con destino filtrado, alumno con pasaporte en riesgo en "acción urgente", y el menú lateral scrolleando con la barra fina de STUDIO. |
 | `colegios.spec.ts` | Alta completa y contactos obligatorios. |
 | `viajes.spec.ts` | Alta de viaje y aparición en el listado. |
 | `viajes-estado.spec.ts` | La edición solo ofrece transiciones de estado válidas. |
@@ -942,6 +978,9 @@ se saltea por `isMobile`). `mobile` depende de `setup` y `setup-familia` porque
 | `usuarios-abm.spec.ts` | Cambio de rol con confirmación, activar y desactivar, y login de un usuario desactivado (se queda en el login con el aviso). |
 | `configuracion.spec.ts` | Guardar remitentes y UI de prueba; guarda y restaura la configuración real del entorno. |
 | `configuracion-servicios.spec.ts` | Estado de servicios y preview de templates; el viejo playground `/tests` ya no existe. |
+| `inscripcion-alta.spec.ts` | El Application Form de punta a punta: con invitación válida la ficha crea al alumno, le arma la cuenta de familia y lo asigna al viaje; un segundo envío con el mismo DNI no le cambia la cuenta; sin invitación la ficha espera a la bandeja. Más el consentimiento (la casilla se pinta de rojo, abrir la política no la tilda) y un caso `@mobile` de envío desde el teléfono. |
+| `inscripcion-variantes.spec.ts` | Las tres pieles (A Legajo, B Cuaderno, C Embarque): mismo árbol accesible y mismos errores, la barra de progreso avanza, el envío registra la piel que se vio, el marco no ofrece ninguna salida de navegación al sitio, y la variante de `/configuracion` manda salvo que la pise la del link. |
+| `inscripcion-validacion.spec.ts` | Sin sesión: el formulario público avisa **mientras** se completa. Un carácter imposible se marca en el acto, un campo a medio tipear no, y el error se borra apenas el dato queda bien. No envía ninguna ficha, así que no escribe en la base ni tiene teardown. |
 | `inscripciones-bandeja.spec.ts` | La bandeja lista, filtra y pagina; el detalle abre por código `INS-000123`; los datos sensibles se ven en el back-office; anular deja el motivo; el borrado a pedido de un super_admin saca la ficha de la bandeja y deja el talón (la fila sigue, sin nadie adentro); y un caso `@mobile` de la tabla en modo tarjeta. |
 | `invitaciones-lote.spec.ts` | La campaña llega a 0 restantes por tandas y retomarla no reenvía; el dado de baja queda afuera con su motivo; una invitación revocada deja de abrir; el embudo muestra el `n` al lado del porcentaje, corta por piel y marca como "no disponible" lo que depende del webhook de Resend; abrir el link cuenta la apertura una sola vez; y un caso `@mobile` de la tabla en modo tarjeta. |
 | `familias.spec.ts` | Proyecto `familias`: resumen, breadcrumb, navegación, Pagos, Documentación, Mis datos y que no se vea el alumno de otra familia. Solo lectura sobre el seed demo. |

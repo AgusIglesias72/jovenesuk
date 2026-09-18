@@ -57,3 +57,60 @@ select:not(:disabled) {
   cursor: pointer;
 }
 
+/* Barra de scroll fina de STUDIO.
+   La barra que pone el sistema operativo es un bloque gris claro que no
+   pertenece a la dirección visual, y sobre `--grad-brand` (las dos sidebars)
+   canta: se ve una franja gris cortando el gradiente. `.scroll-fino` pinta la
+   barra y NADA más — no toca `overflow`, `overscroll-behavior` ni
+   `scrollbar-gutter`, así que el scroll táctil y el layout quedan intactos. */
+.scroll-fino {
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-scroll) transparent;
+}
+
+.scroll-fino:hover {
+  scrollbar-color: var(--c-scroll-hover) transparent;
+}
+
+/* Sobre superficies de marca (sidebar con gradiente): el mismo gris no se ve. */
+.scroll-fino-onbrand {
+  scrollbar-color: var(--c-scroll-onbrand) transparent;
+}
+
+.scroll-fino-onbrand:hover {
+  scrollbar-color: var(--c-scroll-onbrand-hover) transparent;
+}
+
+/* El respaldo de WebKit va DENTRO del @supports a propósito: en Chromium, si el
+   elemento declara `scrollbar-width`/`scrollbar-color`, las pseudo
+   `::-webkit-scrollbar-*` se ignoran. Fuera de la guarda serían código muerto
+   que confunde a quien lo lea. Acá alcanzan a Safari y a motores viejos, que son
+   además los únicos que nos dejan redondear el thumb. */
+@supports not (scrollbar-color: auto) {
+  .scroll-fino::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scroll-fino::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scroll-fino::-webkit-scrollbar-thumb {
+    background-color: var(--c-scroll);
+    border-radius: var(--r-pill);
+  }
+
+  .scroll-fino:hover::-webkit-scrollbar-thumb {
+    background-color: var(--c-scroll-hover);
+  }
+
+  .scroll-fino-onbrand::-webkit-scrollbar-thumb {
+    background-color: var(--c-scroll-onbrand);
+  }
+
+  .scroll-fino-onbrand:hover::-webkit-scrollbar-thumb {
+    background-color: var(--c-scroll-onbrand-hover);
+  }
+}
+

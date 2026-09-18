@@ -118,20 +118,26 @@ export function FormularioForm({ initial }: { initial: FormularioSettings }) {
         Vista previa
       </h3>
       <p className="mt-1 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
-        Es el formulario real, sin link de invitación y sin poder enviarse: se muestra en un marco
-        aislado, así que ningún click de acá adentro llega a la base.
+        Es la pantalla real y completa —cabecera, ficha, columna de ayuda y pie—, sin link de
+        invitación y sin poder enviarse: se muestra en un marco aislado, así que ningún click de acá
+        adentro llega a la base. Por lo mismo la previa no interactúa: no responde a los clicks ni
+        muestra la validación en vivo ni el avance de la barra de progreso. Para probar eso, abrí el
+        formulario en una pestaña.
       </p>
       {/* Mismo camino que la previa de templates: iframe con `sandbox=""`. Sin
           scripts la página no hidrata y el formulario no puede enviarse, y al
           ser un documento aparte la piel se aplica entera (el CSS de las
-          variantes cuelga del <body>, ver `src/styles/form-variants.css`). */}
+          variantes cuelga del <body>, ver `src/styles/form-variants.css`).
+
+          720px y no 520: con la cabecera nueva arriba, en 520 se veía medio hero
+          y ni un campo — justo lo que el equipo mira para elegir la piel. */}
       <iframe
         key={variante}
         title={`Vista previa del formulario — variante ${VARIANTE_LABELS[variante]}`}
         src={PREVIEW_URL[variante]}
         sandbox=""
         loading="lazy"
-        className="mt-3 h-[520px] w-full rounded-[var(--r-md)] border border-[var(--c-border)] bg-[var(--c-surface-2)]"
+        className="mt-3 h-[720px] w-full rounded-[var(--r-md)] border border-[var(--c-border)] bg-[var(--c-surface-2)]"
       />
     </section>
   );

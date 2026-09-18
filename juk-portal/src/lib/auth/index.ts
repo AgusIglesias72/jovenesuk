@@ -2,13 +2,17 @@ import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/lib/db";
+import { googleOAuthConfig } from "./google-oauth";
 import { debeBloquearAlta, SIGN_UP_PATHS } from "./sign-up-policy";
 
 /**
  * Better-Auth configuration.
  *
  * Decisions specific to JUK:
- *  - email + password only (no OAuth yet — small known team)
+ *  - email + contraseña, más Google SOLO para entrar a una cuenta que YA existe:
+ *    nunca un alta (`disableSignUp: true`, más abajo). Sin GOOGLE_CLIENT_ID y
+ *    GOOGLE_CLIENT_SECRET el provider ni se declara y el login queda solo con
+ *    email y contraseña, que es el estado normal en local y en los E2E
  *  - sessions expire at 8h of inactivity (PRD §1.3)
  *  - password reset link expires at 24h (PRD §1.2 US-04)
  *  - el equipo crea las cuentas (/usuarios y el acceso de familias) y la persona
@@ -18,6 +22,31 @@ import { debeBloquearAlta, SIGN_UP_PATHS } from "./sign-up-policy";
  *  - una cuenta desactivada no abre sesión (databaseHooks, más abajo)
  *  - no hay registro público: el sign-up solo se atiende server-side
  */
+const google = googleOAuthConfig();
+
+/*
+ * Google entra a una cuenta que ya existe; nunca crea una.
+ *
+ * `disableSignUp: true` es LA línea de seguridad: sin ella, cualquiera con un
+ * Gmail entraría al portal como `familia` (el defaultValue de `role`).
+ * Better-Auth lo corta en link-account ANTES de escribir nada en `users` ni en
+ * `accounts`, y el callback lo traduce a `/login?error=signup_disabled`.
+ *
+ * Sin las dos credenciales queda `undefined`: el provider no se declara,
+ * `/api/auth/sign-in/social` responde 404 y el botón no se muestra. Nada de
+ * `hd` (las familias usan Gmail personal, no Workspace).
+ */
+const socialProviders = google
+  ? {
+      google: {
+        clientId: google.clientId,
+        clientSecret: google.clientSecret,
+        disableSignUp: true,
+        prompt: "select_account" as const,
+      },
+    }
+  : undefined;
+
 export const auth = betterAuth({
   // En dev el server puede correr en 3000 (el del usuario) o 3001 (E2E/Claude);
   // sin esto, el origin que no coincide con BETTER_AUTH_URL devuelve 403.
@@ -42,6 +71,29 @@ export const auth = betterAuth({
       role: { type: "string", required: true, input: false, defaultValue: "familia" },
       isActive: { type: "boolean", required: true, input: false, defaultValue: true },
     },
+  },
+
+  socialProviders,
+
+  /*
+   * La vinculación se apoya en el email verificado de las dos puntas: el
+   * `email_verified` del id_token de Google y el `emailVerified` de la fila
+   * local (todas las cuentas JUK nacen con `emailVerified: true` desde el
+   * server). NO agregar google a `accountLinking.trustedProviders`: un provider
+   * "confiable" saltea el chequeo del `email_verified` del id_token, que es
+   * justo el vector de toma de cuenta.
+   *
+   * `updateUserInfoOnLink: false` (el default, explícito acá) evita que el
+   * perfil de Google pise nombre e imagen de la fila que administra el equipo.
+   * Los tokens se guardan cifrados: no los usamos para nada, en texto plano
+   * serían pasivo puro.
+   */
+  account: {
+    accountLinking: {
+      enabled: true,
+      updateUserInfoOnLink: false,
+    },
+    encryptOAuthTokens: true,
   },
 
   // Capa 1 del cierre de registro: el router HTTP responde 404 antes de tocar
@@ -117,6 +169,12 @@ export const auth = betterAuth({
    * están dados de baja. Lanzar el APIError corta antes de setear la cookie y
    * le llega al login como 403 ("Cuenta desactivada"); devolver false daría un
    * 401 genérico de credenciales.
+   *
+   * El `code` no es decorativo: el callback de OAuth solo convierte un APIError
+   * en un redirect a /login si el body lo trae. Sin él, una cuenta desactivada
+   * que entra por Google vería la respuesta cruda de la API en
+   * /api/auth/callback/google. El status sigue siendo 403, así que el login por
+   * email (que discrimina por status) no cambia de comportamiento.
    */
   databaseHooks: {
     session: {
@@ -125,7 +183,10 @@ export const auth = betterAuth({
           const { getUsuarioById } = await import("@/lib/db/queries/usuarios");
           const usuario = await getUsuarioById(session.userId);
           if (usuario && usuario.isActive === false) {
-            throw new APIError("FORBIDDEN", { message: "Cuenta desactivada" });
+            throw new APIError("FORBIDDEN", {
+              code: "cuenta_desactivada",
+              message: "Cuenta desactivada",
+            });
           }
         },
       },
@@ -158,6 +219,12 @@ export const auth = betterAuth({
       "/sign-in/email": {
         window: 60 * 15,
         max: process.env.NODE_ENV === "production" ? 5 : 30,
+      },
+      // Arrancar el flujo de Google no valida credenciales, pero sí escribe
+      // estado y pega contra Google: mismo techo que el login por email.
+      "/sign-in/social": {
+        window: 60 * 15,
+        max: process.env.NODE_ENV === "production" ? 10 : 30,
       },
     },
   },

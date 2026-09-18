@@ -6,6 +6,7 @@ import {
   countDistinct,
   desc,
   eq,
+  ilike,
   inArray,
   isNotNull,
   isNull,
@@ -24,7 +25,12 @@ import {
   type ProspectoComunicacion,
 } from "@/lib/db/schema/prospectos";
 import { viajes } from "@/lib/db/schema/viajes";
-import { LOTE_TAMANIO, RESERVA_VENCIDA_MS } from "@/lib/domain/inscripciones/invitacion";
+import {
+  LOTE_TAMANIO,
+  META_ERROR_ENVIO,
+  META_FALLIDA_EL,
+  RESERVA_VENCIDA_MS,
+} from "@/lib/domain/inscripciones/invitacion";
 import { VARIANTES, type Variante } from "@/lib/domain/inscripciones/schema";
 import type { ProspectoEstado } from "@/lib/domain/prospectos";
 import { paginarEnSql, totalDe, type Pagina, type Paginado } from "@/lib/utils/paginate";
@@ -83,10 +89,6 @@ const ESTADOS_FALLIDA: EstadoComunicacion[] = ["fallido", "rebotado", "spam"];
  */
 const ESTADOS_SELLABLES: EstadoComunicacion[] = ["enviando", "pendiente"];
 
-/** Claves del sello de error dentro de `meta` (la bitácora no tiene columna propia). */
-const META_ERROR_ENVIO = "invitacionErrorEnvio";
-const META_FALLIDA_EL = "invitacionFallidaEl";
-
 /** El motivo es para que una persona entienda qué pasó, no para guardar un stack. */
 const MAX_MOTIVO = 300;
 
@@ -100,6 +102,7 @@ const MAX_MOTIVO = 300;
  * de la pantalla signifique lo mismo dos minutos después.
  */
 export type FiltrosDestinatarios = {
+  /** Texto libre: nombre, ciudad o alguna de las casillas del prospecto. */
   q?: string;
   estado?: ProspectoEstado;
   responsableId?: string;
@@ -137,7 +140,30 @@ function condicionesDestinatarios(filtros: FiltrosDestinatarios): SQL | undefine
   if (filtros.estado) condiciones.push(eq(prospectos.estado, filtros.estado));
   if (filtros.responsableId) condiciones.push(eq(prospectos.responsableId, filtros.responsableId));
   if (filtros.q?.trim()) {
-    condiciones.push(sql`${prospectos.nombre} ilike ${`%${filtros.q.trim()}%`}`);
+    const like = `%${filtros.q.trim()}%`;
+    // Buscaba SOLO por nombre, y el mismo texto daba resultados distintos acá y
+    // en el listado del CRM (que busca nombre o ciudad, `queries/prospectos.ts`).
+    // La casilla se suma porque en ESTA pantalla el mail es la otra columna a la
+    // vista: el equipo pega el mail del contacto para encontrarlo.
+    //
+    // `emails` es un `json`, así que la comparación va elemento por elemento. El
+    // `case` no es paranoia decorativa: expandir un json que no sea array aborta
+    // la consulta ENTERA, y un `and` previo no alcanza porque el planner puede
+    // reordenarlo. Con el `case`, la fila rara simplemente no matchea.
+    const match = or(
+      ilike(prospectos.nombre, like),
+      ilike(prospectos.ciudad, like),
+      sql`exists (
+        select 1
+        from json_array_elements_text(
+          case when json_typeof(${prospectos.emails}) = 'array'
+               then ${prospectos.emails}
+               else '[]'::json end
+        ) as casilla
+        where casilla ilike ${like}
+      )`
+    );
+    if (match) condiciones.push(match);
   }
 
   return condiciones.length ? and(...condiciones) : undefined;

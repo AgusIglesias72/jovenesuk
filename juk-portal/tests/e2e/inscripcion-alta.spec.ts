@@ -13,6 +13,7 @@ import {
   users,
 } from "../../src/lib/db/schema";
 import { fechaDeVencimiento } from "../../src/lib/domain/inscripciones/invitacion";
+import { ENLACE_POLITICA, TEXTO_CONSENTIMIENTO } from "../../src/lib/domain/privacidad/politica";
 import { generarTokenOpaco, hashToken } from "../../src/lib/utils/token-opaco";
 
 import { confirmarModal, crearViaje, esperarHidratacion, ocultarOverlayDeDev } from "./helpers";
@@ -20,7 +21,9 @@ import {
   asignacionesDeAlumno,
   completarFichaInscripcion,
   enviarFichaInscripcion,
+  sufijoDeLetras,
   sufijoUnico,
+  TITULO_INSCRIPCION,
   viajeIdPorCodigo,
   type FichaInscripcion,
 } from "./helpers-flujos";
@@ -90,7 +93,11 @@ function fichaDeTest(
   const dni = opts.dni ?? dniDeTest();
   return {
     nombre: "Ficha",
-    apellido: `Alta E2E ${sufijo}`,
+    // Ni un dígito, tampoco en el literal: `CARACTERES_NOMBRE` solo acepta
+    // letras, así que acá no entra el "E2E" que marca al resto de los datos de
+    // prueba. Lo que identifica la ficha para la limpieza es el DNI (99…) y el
+    // email del tutor, no el apellido.
+    apellido: `Alta de Prueba ${sufijoDeLetras(sufijo)}`,
     dni,
     pasaporte: `FX${sufijo}`,
     // El patrón que limpia el teardown, también para la cuenta de familia que
@@ -189,7 +196,7 @@ test("con invitación válida la ficha crea al alumno, le arma la cuenta de fami
 
     // El viaje de la campaña se deriva del token, no del formulario: si se ve
     // en el encabezado es que el link resolvió a su invitación.
-    await expect(familia.getByRole("heading", { level: 1 })).toHaveText("Inscripción al viaje");
+    await expect(familia.getByRole("heading", { level: 1 })).toHaveText(TITULO_INSCRIPCION);
     await expect(familia.getByText(`Viaje ${codigoViaje}`)).toBeVisible();
     await expect(familia.getByText("sin el link que te mandamos por mail")).toHaveCount(0);
 
@@ -395,5 +402,84 @@ test.describe("el formulario desde el teléfono", () => {
     // La compuerta vale igual desde el teléfono: sin token, la ficha espera.
     expect(await alumnoPorDni(ficha.dni)).toBeUndefined();
     expect((await inscripcionPorDni(ficha.dni))?.estado).toBe("requiere_revision");
+  });
+});
+
+test.describe("el consentimiento de privacidad", () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test("sin tildar, el error se ve en la casilla y no solo en el texto de abajo", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    const ficha = fichaDeTest(sufijoUnico());
+
+    await page.goto("/inscripcion");
+    await ocultarOverlayDeDev(page);
+
+    // La ficha entera, y recién ahí se destilda: lo único que puede fallar es el
+    // consentimiento, así que el error que vuelve es el suyo.
+    await completarFichaInscripcion(page, ficha);
+    const consentimiento = page.getByRole("checkbox", { name: TEXTO_CONSENTIMIENTO });
+    await consentimiento.uncheck();
+    await page.getByRole("button", { name: "Enviar la inscripción" }).click();
+
+    await expect(consentimiento).toHaveAttribute("aria-invalid", "true");
+
+    // El cuadrado lo dibuja el hermano del input (el <input> real es invisible):
+    // hasta este cambio nada lo pintaba y el único rojo era el <p> de abajo. El
+    // color se compara contra el token resuelto, no contra un hex escrito acá.
+    const danger = await consentimiento.evaluate((el) => {
+      const sonda = document.createElement("span");
+      sonda.style.color = getComputedStyle(el).getPropertyValue("--c-danger").trim();
+      document.body.appendChild(sonda);
+      const resuelto = getComputedStyle(sonda).color;
+      sonda.remove();
+      return resuelto;
+    });
+
+    // `expect.poll` y no una lectura de un tiro: el cuadrado tiene
+    // `transition-colors duration-150`, así que leer el color apenas aparece el
+    // `aria-invalid` devuelve un valor INTERPOLADO a mitad de camino (esta
+    // aserción ya falló una vez con rgb(199,187,177), el 3% del recorrido entre
+    // el borde normal y el rojo). Vale para cualquier control del sistema: Input,
+    // Textarea y Select también transicionan el borde.
+    await expect
+      .poll(
+        () =>
+          consentimiento.evaluate(
+            (el) => getComputedStyle(el.nextElementSibling as HTMLElement).borderTopColor
+          ),
+        { message: "el borde de la casilla del consentimiento" }
+      )
+      .toBe(danger);
+
+    // Y no se guardó nada: el formulario frenó antes de llegar a la base.
+    expect(await inscripcionPorDni(ficha.dni)).toBeUndefined();
+  });
+
+  test("abrir la política desde el consentimiento no tilda la casilla", async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto("/inscripcion");
+    await ocultarOverlayDeDev(page);
+
+    const consentimiento = page.getByRole("checkbox", { name: TEXTO_CONSENTIMIENTO });
+    await esperarHidratacion(consentimiento);
+    await expect(consentimiento).not.toBeChecked();
+
+    // El <label> envuelve al link, así que en teoría el HTML exime la activación
+    // cuando el click apunta a contenido interactivo. Era una garantía escrita en
+    // un comentario y nunca verificada — y el área táctil del input, que ahora
+    // mide 44px, es justo el tipo de cambio que podría romperla en silencio.
+    const [politica] = await Promise.all([
+      page.waitForEvent("popup"),
+      consentimiento
+        .locator("xpath=ancestor::label[1]")
+        .getByRole("link", { name: ENLACE_POLITICA })
+        .click(),
+    ]);
+    await politica.close();
+
+    await expect(consentimiento).not.toBeChecked();
   });
 });

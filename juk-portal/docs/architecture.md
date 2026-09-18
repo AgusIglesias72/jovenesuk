@@ -77,7 +77,8 @@ fecha de nacimiento, salud, CUIL/CUIT, teléfonos y emails).
   desactivación aplica en el request siguiente); cuenta inactiva rechazada al **crear la sesión**,
   que corre después de verificar la contraseña y por eso no sirve para sondear qué emails existen;
   rate limit guardado en base (en memoria no sirve en serverless); reset de 24 h; contraseñas de 8
-  a 128 caracteres; cookies con prefijo `juk.`.
+  a 128 caracteres; cookies con prefijo `juk.`. El login con Google, cuando está configurado, no
+  abre una cuarta puerta de alta ([ADR-019](#adr-019--google-vincula-nunca-da-de-alta-sept-2026)).
 - **Webhooks:** el del Google Form exige un secreto de 32+ caracteres comparado en tiempo
   constante; el de Resend verifica la firma Svix con tolerancia de 5 minutos para cortar replays.
 - **Documentos** nunca públicos ([ADR-011](#adr-011--documentos-privados-vía-apiuploads-sept-2026)).
@@ -153,7 +154,9 @@ pasa por `src/lib/db/queries/`. SQL escrito a mano, solo en migraciones.
 propios (`super_admin`, `admin_juk`, `representante`, `familia`) son más simples de modelar; sin
 costo por usuario y sin lock-in.
 
-**Cuándo reconsiderar:** si hiciera falta login social o miles de altas autoservicio.
+**Cuándo reconsiderar:** si hicieran falta miles de altas autoservicio. El login con Google ya no es
+motivo: Better-Auth lo resuelve acotado a vinculación
+([ADR-019](#adr-019--google-vincula-nunca-da-de-alta-sept-2026)).
 
 ## ADR-005 · Dominio puro (mayo 2026, revisado sept 2026)
 
@@ -448,6 +451,61 @@ anónima puede tocar una cuenta existente.
 
 ---
 
+## ADR-019 · Google vincula, nunca da de alta (sept 2026)
+
+**Contexto:** el dueño pidió un botón "Continuar con Google" en el login. El PRD tenía el SSO
+descartado en dos lugares (Interno §M1 y Representante §M1), así que la decisión se reabre y queda
+como MIN-28 en `OPEN_DECISIONS.md`. El problema no es la comodidad, es el modelo de acceso del
+portal: **el registro público está cerrado** en tres capas
+([ADR-000](#adr-000--línea-base-de-seguridad-privacidad-y-observabilidad-mayo-2026-revisado-sept-2026)),
+las cuentas las crea el equipo desde `/usuarios` o desde el alta de familias, y el rol por defecto
+de la tabla `users` es `familia`. Un provider social con el comportamiento de fábrica **crea la
+cuenta que falta**: cualquier persona del mundo con un Gmail apretaría el botón y entraría al portal
+como `familia`, con el registro público cerrado y sin que nadie lo hubiera dado de alta.
+
+**Decisión:** Google no es un camino de alta, es una **segunda llave de una cuenta que el equipo ya
+creó**. Cuatro piezas, todas en `src/lib/auth/`:
+
+1. **`disableSignUp: true`** en el provider. Es la línea que hace cumplir la regla: Better-Auth la
+   aplica en link-account, **antes** de escribir nada en `users` o en `accounts`, y el callback lo
+   traduce a `/login?error=signup_disabled`. Un email de Google que no está en la base rebota con un
+   mensaje claro y no deja rastro.
+2. **Provider condicional.** Sin `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` no se declara:
+   `/api/auth/sign-in/social` responde 404 y el botón ni se renderiza. Es el estado normal en local
+   y en los E2E, y revertir la feature entera es borrar dos variables de entorno.
+3. **Vinculación apoyada en el email verificado de las dos puntas** (`account.accountLinking`): el
+   `email_verified` del id_token de Google y el `emailVerified` de la fila local, que todas las
+   cuentas JUK traen en `true` porque nacen server-side con acceso por link
+   ([ADR-017](#adr-017--accesos-por-link-no-contraseñas-temporales-sept-2026)).
+   `updateUserInfoOnLink: false` evita que el perfil de Google pise el nombre que administra el
+   equipo, y los tokens se guardan cifrados porque no los usamos para nada y en texto plano serían
+   pasivo puro.
+4. **El resto de las defensas no se toca:** el rol sigue saliendo de la base (Google no lo informa
+   ni lo cambia), la cuenta desactivada se rechaza en el mismo `databaseHooks.session.create.before`
+   que el login por email, y `/sign-in/social` tiene su propia ventana de rate limit.
+
+**Por qué NO `accountLinking.trustedProviders`:** es la forma "obvia" de que la vinculación fluya, y
+es exactamente el vector de toma de cuenta. Marcar un provider como confiable **saltea el chequeo
+del `email_verified` del id_token**: alcanzaría con un id_token donde el email de una familia
+figure sin verificar para quedarse con su cuenta. El chequeo cuesta nada y es lo único que separa
+"otro camino a mi cuenta" de "el camino a la cuenta de cualquiera".
+
+**Por qué esto no es SSO** (y por eso no contradice al PRD en el fondo, aunque sí en la letra): no
+se delega la identidad en Google, no hay dominio de Workspace habilitado (`hd`) —las familias usan
+Gmail personal—, no se aprovisionan usuarios ni roles, y apagarlo no le saca el acceso a nadie: la
+contraseña sigue existiendo.
+
+**Trade-off:** dos credenciales más para rotar y una superficie de login más. Y mientras el proyecto
+no tenga dominio propio, Google va a dejar la app en modo *Prueba*, donde solo entran los mails
+cargados como usuarios de prueba: en la práctica arranca siendo una comodidad del equipo, no de las
+familias.
+
+**Cuándo revisar:** si alguna vez se quisiera alta autoservicio (hoy no está en el producto), esto
+**no** es el mecanismo: haría falta volver a abrir ADR-000 y decidir qué rol recibe una cuenta que
+nadie creó.
+
+---
+
 ## Costos estimados
 
 Estimación de mayo 2026, no verificada contra facturas.
@@ -468,7 +526,10 @@ Estimación de mayo 2026, no verificada contra facturas.
   variables de entorno.
 - **Backups además del PITR de Neon** (¿export periódico?).
 - **CSP en enforce** con nonces en lugar de `unsafe-inline`.
-- **2FA:** fuera de v1 por PRD (M1). El SSO de Google Workspace quedó descartado por producto.
+- **2FA:** fuera de v1 por PRD (M1). El **SSO** de Google Workspace sigue descartado por producto; lo
+  que sí existe es el botón de Google acotado a vinculación
+  ([ADR-019](#adr-019--google-vincula-nunca-da-de-alta-sept-2026)), con las credenciales pendientes
+  del dueño.
 - **React Compiler:** activarlo cuando se mida la ganancia.
 - La deuda con fecha y dueño (dependencias con vulnerabilidades, servicios sin conectar) está en
   [`docs/estado-actual.md`](estado-actual.md).

@@ -144,6 +144,37 @@ base y el seed `[DEMO]`.
 Si agregás un generador con otro patrón, sumalo a `cleanup.ts`, o la base de dev se infla y los
 listados se ponen lentos.
 
+### Tres trampas que ya costaron caro
+
+Las tres aparecieron el 18/09/2026 en la misma corrida, y ninguna era un bug del producto: eran
+tests mal escritos que acusaban a código sano. Antes de "arreglar" el código porque un E2E se puso
+rojo, descartá estas.
+
+1. **Un color leído de un tiro sale interpolado.** Los controles del sistema transicionan el borde
+   (`transition-colors duration-150` en el `Checkbox`, `transition-[border-color,box-shadow]` en
+   `Input`, `Textarea` y `Select`). Leer `getComputedStyle(...).borderTopColor` apenas aparece el
+   `aria-invalid` devuelve un valor **a mitad de camino**: una aserción del borde rojo del
+   consentimiento recibió `rgb(199,187,177)`, el 3% del recorrido entre el borde normal y
+   `--c-danger`. El color no estaba en ningún archivo del repo, que es la pista de que es
+   interpolado. Va con `expect.poll(...)` o `toHaveCSS`, que reintentan; nunca un `evaluate` suelto.
+2. **`getByRole("alert")` nunca da 0.** Next monta en toda página un
+   `<div id="__next-route-announcer__" role="alert">` vacío para anunciar los cambios de ruta, así
+   que un `toHaveCount(0)` global falla siempre, aunque la pantalla no tenga ni un error. Hay que
+   acotar al `form` o al `main` (como ya hacen `usuarios-abm` y `usuarios-acceso`).
+3. **Un mensaje de error aparece dos veces, y es a propósito.** El formulario público anuncia cada
+   error en una región `aria-live="polite"` `sr-only` que repite el texto con el rótulo del campo
+   adelante ("DNI: El DNI va solo con números."), además del `<span role="alert">` visible. Un
+   `getByText(MENSAJE)` matchea por substring y rompe por strict mode. Para lo que **ve** la
+   familia, texto exacto; para lo que **escucha** el lector de pantalla, un aserto propio sobre la
+   región viva. Los dos casos valen y conviene tener los dos.
+
+Y una regla que no es de Playwright: **cuando se endurece un schema de dominio, los fixtures de los
+E2E son datos de entrada como cualquier otro.** Al sumar `CARACTERES_NOMBRE` se volvieron inválidos
+tres literales que decían `E2E` (el `2` es un dígito, y los nombres ya no los aceptan): cuatro tests
+murieron esperando 60 segundos un acuse que nunca iba a llegar. `completarFichaInscripcion` ahora
+valida la ficha contra el schema **antes** de tipearla, así el fallo nombra el campo en vez de
+agotar el timeout.
+
 ### Diagnosticar un E2E que falla
 
 - El trace de cada intento fallido queda en `test-results/` (`trace: "retain-on-failure"`). Se abre

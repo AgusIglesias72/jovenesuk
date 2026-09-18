@@ -3,7 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 
-import { Alert, Button, Checkbox, Field, Select, useConfirm, useToast } from "@/components/ui";
+import {
+  Alert,
+  Button,
+  Checkbox,
+  EmptyState,
+  Field,
+  LinkButton,
+  Select,
+  useConfirm,
+  useToast,
+} from "@/components/ui";
 import type { MotivoExclusion } from "@/lib/db/queries/invitaciones";
 import type { ViajeOpcion } from "@/lib/db/queries/viajes";
 import { MAX_DESTINATARIOS_LOTE, VIGENCIA_DIAS } from "@/lib/domain/inscripciones/invitacion";
@@ -189,6 +199,90 @@ function ProgresoLote({ avance }: { avance: Avance }) {
   );
 }
 
+/**
+ * Los tres vacíos de la lista de destinatarios, que NO significan lo mismo y por
+ * eso no comparten copy: el CRM vacío (nadie a quien invitar todavía), el filtro
+ * que no encontró a nadie y el universo que existe pero está entero excluido.
+ *
+ * El primero es el que más costó: la tabla de prospectos nació vacía en
+ * producción, la pantalla decía una línea gris sin salida y se leía como una
+ * pantalla rota. Acá tiene que haber un camino a cargar el primer contacto.
+ *
+ * Los tres se derivan de props que la pantalla ya pasa: no hace falta una query
+ * más para saber en cuál estamos.
+ */
+function DestinatariosVacios({
+  hayFiltro,
+  totalExcluidos,
+}: {
+  hayFiltro: boolean;
+  totalExcluidos: number;
+}) {
+  const limpiar = (
+    <LinkButton variant="secondary" href="/prospectos/invitaciones">
+      Limpiar el filtro
+    </LinkButton>
+  );
+
+  if (totalExcluidos > 0) {
+    return (
+      <EmptyState
+        compact
+        className="mt-3"
+        title="Ninguno de estos prospectos puede recibir la invitación"
+        action={
+          hayFiltro ? (
+            limpiar
+          ) : (
+            <LinkButton variant="secondary" href="/prospectos">
+              Ir al CRM
+            </LinkButton>
+          )
+        }
+      >
+        Están dados de baja, sin mail cargado o repitiendo una casilla. Justo acá abajo, en{" "}
+        <strong>
+          {totalExcluidos} {totalExcluidos === 1 ? "queda" : "quedan"} afuera
+        </strong>
+        , está el motivo de cada uno.
+      </EmptyState>
+    );
+  }
+
+  if (hayFiltro) {
+    return (
+      <EmptyState
+        compact
+        className="mt-3"
+        title="Ningún prospecto coincide con este filtro"
+        action={limpiar}
+      >
+        El buscador mira el nombre, la ciudad y las casillas del prospecto. Probá con otro texto o
+        sacá la etapa del pipeline.
+      </EmptyState>
+    );
+  }
+
+  return (
+    <EmptyState
+      compact
+      className="mt-3"
+      title="Todavía no hay prospectos en el CRM"
+      action={
+        <>
+          <LinkButton href="/prospectos/importar">Importar prospectos</LinkButton>
+          <LinkButton variant="secondary" href="/prospectos/nuevo">
+            + Nuevo prospecto
+          </LinkButton>
+        </>
+      }
+    >
+      Los destinatarios salen del CRM: cargá un contacto con su mail —uno tuyo alcanza para probar—
+      y va a aparecer acá para invitarlo.
+    </EmptyState>
+  );
+}
+
 export function NuevoLote({
   viajes,
   incluidos,
@@ -354,13 +448,9 @@ export function NuevoLote({
             tandas. Es a propósito: {MAX_DESTINATARIOS_LOTE} mails ya tardan un par de minutos.
           </Alert>
         ) : totalIncluidos === 0 ? (
-          <p className="mt-3 text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
-            {hayFiltro
-              ? "Ningún prospecto de este filtro puede recibir la invitación."
-              : "Todavía no hay prospectos a quienes invitar."}
-          </p>
+          <DestinatariosVacios hayFiltro={hayFiltro} totalExcluidos={totalExcluidos} />
         ) : (
-          <ul className="mt-3 flex max-h-72 flex-col gap-1 overflow-y-auto rounded-[var(--r-md)] border border-[var(--c-border)] p-2">
+          <ul className="scroll-fino mt-3 flex max-h-72 flex-col gap-1 overflow-y-auto rounded-[var(--r-md)] border border-[var(--c-border)] p-2">
             {incluidos.map((d) => (
               <li key={d.prospectoId}>
                 <Checkbox

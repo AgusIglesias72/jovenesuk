@@ -18,6 +18,26 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
 ## [Sin publicar]
 
 ### Agregado
+- **Entrar con Google.** El login suma "Continuar con Google" como **segunda forma de entrar a una
+  cuenta que ya existe**: no crea usuarios ni cambia roles, así que un Gmail que el equipo no dio de
+  alta rebota con un mensaje que explica qué hacer. El botón solo aparece cuando las credenciales
+  están cargadas; mientras no lo estén, el login es exactamente el de siempre y nadie nota la
+  diferencia. Queda abierto a quién se le muestra (equipo, familias o los dos).
+- **El Application Form avisa mientras se completa.** Una letra en el DNI se marca en el acto, y el
+  resto de los campos esperan a que la familia termine de escribir antes de decirle nada: un email a
+  medio tipear no es un error. El aviso se borra apenas el dato queda bien, el foco nunca salta solo
+  y los mensajes son los mismos que aplica el servidor, así que no puede pasar que el formulario diga
+  que está todo bien y el envío falle. También se afinó **qué se acepta**: el DNI ya no se traga
+  letras en silencio (antes `45102a` se guardaba como `45102`), los nombres no llevan números, el
+  pasaporte pide al menos 5 caracteres y el celular 8 dígitos. Un **pasaporte vencido avisa pero no
+  bloquea**: la familia que lo está renovando es justo la que se quiere ver entrar.
+- **El formulario de inscripción dejó de ser una columna de campos flotando en el vacío.** Ahora la
+  ficha viene con cabecera de marca y del viaje, "qué pasa después de enviar", los dos canales de
+  ayuda, las cifras y las acreditaciones de la agencia, y un pie. Se lee como parte del sitio sin
+  ofrecer ninguna salida a él: la familia que llegó a completar la ficha no se distrae. La ficha en
+  sí no cambió ni un campo, y las tres pieles lo reciben cada una a su manera.
+- **La pantalla de armado de una campaña explica el vacío.** Sin prospectos cargados ya no muestra
+  una tabla en blanco: dice por qué está vacía y ofrece la salida (importar o cargar prospectos).
 - **Borrado a pedido y purga por retención**: lo que la Política de Privacidad promete ahora se
   cumple solo. Un super_admin puede borrar los datos personales de una ficha dejando constancia del
   motivo, y un job (`npm run job:purga`) vacía las fichas que pasaron su plazo —90 días una ya
@@ -56,7 +76,70 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
   y queda registrado qué versión aceptó cada persona. El texto describe lo que el sistema hace hoy,
   incluido lo que todavía no borra automáticamente. Primer paso del módulo de inscripciones online.
 
+### Cambiado
+- **El botón para abrir el calendario de una fecha ahora se puede tocar.** Pasó de un ícono chico
+  pegado al borde a un botón del alto entero del campo, con fondo propio, que se ve como botón
+  también en el teléfono. El campo se sigue **tipeando**: tocarlo no abre el calendario (una fecha de
+  nacimiento de 1968 son 20 clicks de calendario contra ocho teclas). Enter sobre el campo también lo
+  abre. Los días de adentro del calendario siguen siendo chicos: queda anotado.
+- **Las barras de scroll dejaron de cortar el menú.** Los menús laterales del back-office y del
+  Portal de Familias, el diálogo de registrar un pago y la lista de destinatarios de una campaña usan
+  ahora una barra fina que respeta el color de la pantalla, en vez del bloque gris del sistema.
+- **El buscador del armado de una campaña encuentra por ciudad y por mail**, no solo por el nombre
+  del colegio.
+
+### Corregido
+- **Un campo con error se quedaba gris.** En el formulario de inscripción, cuando un dato estaba mal
+  aparecía el mensaje debajo pero el campo no se pintaba de rojo, así que en una ficha larga había
+  que leer campo por campo para encontrar cuál era. La causa es del sistema de diseño y **no era solo
+  del formulario nuevo**: el marco del campo avisa que hay error para los lectores de pantalla, pero
+  el borde rojo lo tiene que pedir cada formulario a mano, y varios lo piden solo en algunos de sus
+  campos. Quedó arreglado en `/inscripcion` y anotado como deuda para barrer el resto (el más
+  desparejo es el formulario de consulta del sitio).
+- **La casilla de consentimiento se tildaba sola.** El área sensible al toque era el párrafo entero,
+  así que intentar seleccionar el texto legal —o simplemente tocarlo— aceptaba la política sin
+  querer. Ahora el toque grande vive en la casilla, y el texto se puede leer y copiar tranquilo.
+  Enviar sin tildarla, además, ahora pinta la casilla de rojo: antes el único aviso era la línea de
+  texto de abajo.
+- **Un error al entrar con Google terminaba en una pantalla de la API.** Una cuenta desactivada que
+  intentaba entrar por Google veía la respuesta cruda del servidor en una URL de `/api/...`, en vez de
+  volver al login con el aviso de siempre. Y el login tenía previsto mostrar los errores que llegan
+  por la URL, pero nunca los mostraba: quien volvía de un intento fallido se quedaba mirando un
+  formulario vacío sin saber qué había pasado. Ahora cada caso vuelve al login con su explicación, y
+  un error que no reconocemos también dice algo en vez de callarse.
+- **Una casilla deshabilitada se veía igual que una habilitada** (mismo color, mismo cursor). Ahora
+  se nota.
+
+### Seguridad
+- **Google vincula, nunca da de alta.** El registro público del portal está cerrado y las cuentas las
+  crea el equipo; un provider social con el comportamiento de fábrica habría convertido a cualquiera
+  con un Gmail en usuario del portal. El botón se declara con el alta desactivada, así que un email
+  desconocido se rechaza **antes** de escribir nada. Tampoco se marcó a Google como proveedor de
+  confianza: eso saltearía la verificación del email que trae Google y sería la forma de quedarse con
+  la cuenta de una familia. El rol y el estado activo/inactivo se siguen leyendo de la base, y
+  arrancar el flujo tiene su propio límite de intentos. Sin las dos credenciales cargadas no existe
+  ninguna superficie nueva. ([ADR-019](docs/architecture.md))
+
 ### Interno
+- La validación en vivo del Application Form quedó como **molde para el resto de los formularios**:
+  la regla y el mensaje salen del schema de dominio —el mismo que aplica el servidor— y el hook de la
+  pantalla es solo cableado. Nunca una segunda regla escrita en el cliente.
+- Los datos de marca que comparten el sitio público y el Application Form (las cifras, las
+  acreditaciones con su texto alternativo y la foto de cabecera) pasaron a una fuente única, para que
+  no envejezcan por separado.
+- **Tres trampas de Playwright quedaron escritas** en `.claude/docs/05-testing.md`, porque las tres
+  hicieron que un test acusara a código sano: leer un color de un tiro lo agarra a mitad de la
+  transición (el borde rojo del consentimiento llegó a medir el 3% del recorrido); `getByRole("alert")`
+  sin acotar nunca da cero, porque Next monta un anunciador de rutas con ese rol en toda página; y un
+  mismo mensaje de error aparece dos veces a propósito, visible y en la región que lee el lector de
+  pantalla. Va con una regla más general: al endurecer un schema, los fixtures de los E2E son datos de
+  entrada como cualquier otro —tres literales con `E2E` adentro dejaron de ser nombres válidos— y por
+  eso el helper ahora valida la ficha contra el schema antes de tipearla, para que el fallo nombre el
+  campo en vez de agotar el timeout.
+- Decisiones nuevas en `OPEN_DECISIONS.md`: **MIN-28** (Google en el login, que reabre el SSO que el
+  PRD daba por cerrado en dos lugares), **MIN-29** (qué tan estricto es el Application Form con lo
+  que la familia tipea), **MIN-30** (hasta dónde se agranda el calendario) y **MIN-31** (qué rodea a
+  la ficha). Las cuatro tienen preguntas concretas para el dueño.
 - Cimiento del formulario de inscripción propio (etapa 2 de 7, sin pantalla todavía): la ficha y sus
   reglas en el dominio, la clasificación de qué dato puede salir del sistema y cuál no, la vida de
   una invitación con vencimiento y revocación, tokens que se guardan **hasheados**, y la tabla de

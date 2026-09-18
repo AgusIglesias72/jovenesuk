@@ -8,6 +8,7 @@ import { estadoInvitacion, puedeCargar } from "@/lib/domain/inscripciones/invita
 import { resolverVariante, type Variante } from "@/lib/domain/inscripciones/schema";
 import { hashToken } from "@/lib/utils/token-opaco";
 
+import { ComoSigue, FranjaDeConfianza, HeroInscripcion } from "./_marco";
 import { InscripcionForm } from "./inscripcion-form";
 import { VARIANTE_CLASES } from "./variantes";
 
@@ -119,28 +120,23 @@ export default async function InscripcionPage({
   // `src/styles/form-variants.css`.
   return (
     <div className={VARIANTE_CLASES[variante]} data-variante={variante}>
-      <header className="mb-6 sm:mb-8">
-        <h1 className="font-[family-name:var(--font-display)] text-[length:var(--t-h1)] font-bold tracking-[var(--ls-tight)] text-[var(--c-ink)]">
-          Inscripción al viaje
-        </h1>
-        <p className="mt-2 text-[length:var(--t-body)] leading-[var(--lh-body)] text-[var(--c-ink-muted)]">
-          {invitacion?.viajeNombre
-            ? `Completá la ficha del alumno para ${invitacion.viajeNombre}. `
-            : "Completá la ficha del alumno. "}
-          Los datos tienen que coincidir con el pasaporte: con ellos emitimos la documentación
-          del viaje.
-        </p>
+      <HeroInscripcion viajeNombre={invitacion?.viajeNombre} sinToken={!token} />
 
-        {!token && (
-          <p className="mt-4 rounded-[var(--r-md)] border border-[var(--c-warning)] bg-[var(--c-warning-bg)] px-4 py-3 text-[length:var(--t-small)] leading-[var(--lh-body)] text-[var(--c-ink)]">
-            Estás completando el formulario sin el link que te mandamos por mail. Podés enviarlo
-            igual: lo vamos a revisar a mano antes de darlo de alta, así que puede demorar un poco
-            más.
-          </p>
-        )}
-      </header>
+      {/* La ficha manda y la columna lateral acompaña: en el teléfono `ComoSigue`
+          cae DEBAJO del formulario, que es el orden correcto —primero se
+          completa, después se lee qué sigue—.
 
-      <InscripcionForm token={token} variante={variante} />
+          Los anchos están medidos, no elegidos: la raíz del proyecto es de 14px,
+          así que `max-w-5xl` son 896px y la columna del formulario queda en
+          ~580 contra los ~620 de antes. Cada campo de la grilla de dos columnas
+          de A y B pierde 20px —no se aprieta— y la columna única de C se acorta
+          un poco, que para leer de corrido es mejor. */}
+      <div className="mx-auto grid w-full max-w-5xl gap-8 px-4 py-10 sm:px-6 sm:py-12 lg:grid-cols-[minmax(0,1fr)_17rem]">
+        <InscripcionForm token={token} variante={variante} />
+        <ComoSigue />
+      </div>
+
+      <FranjaDeConfianza />
     </div>
   );
 }
@@ -150,7 +146,14 @@ const TONO_CAJA = {
   alerta: "border-[var(--c-warning)] bg-[var(--c-warning-bg)]",
 } as const;
 
-/** Pantalla de un link que no abre el formulario. Sin datos de la invitación. */
+/**
+ * Pantalla de un link que no abre el formulario. Sin datos de la invitación.
+ *
+ * NO monta el hero a propósito, y conserva su propio `<h1>`: `a11y-basico.spec.ts`
+ * exige exactamente un `<h1>` visible en cada piel, y acá no hay ficha que
+ * encabezar — con dos piezas menos la pantalla dice lo único que tiene que decir.
+ * El contenedor trae su padding porque el `<main>` del shell ya no lo pone.
+ */
 function Aviso({
   titulo,
   detalle,
@@ -161,21 +164,23 @@ function Aviso({
   tono: keyof typeof TONO_CAJA;
 }) {
   return (
-    <div
-      className={`rounded-[var(--r-xl)] border p-6 text-center shadow-[shadow:var(--shadow-1)] sm:p-10 ${TONO_CAJA[tono]}`}
-    >
-      <h1 className="font-[family-name:var(--font-display)] text-[length:var(--t-h2)] font-bold tracking-[var(--ls-tight)] text-[var(--c-ink)]">
-        {titulo}
-      </h1>
-      <p className="mx-auto mt-3 max-w-md text-[length:var(--t-body)] leading-[var(--lh-body)] text-[var(--c-ink-muted)]">
-        {detalle}
-      </p>
-      <a
-        href={MAIL_URL}
-        className="mt-6 inline-flex min-h-[var(--tap)] items-center justify-center rounded-[var(--r-pill)] bg-[var(--c-brand)] px-6 text-[length:var(--t-body)] font-semibold text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-brand)] transition-transform hover:bg-[var(--c-brand-700)] active:scale-[0.97]"
+    <div className="mx-auto w-full max-w-2xl px-4 py-14 sm:px-6 sm:py-20">
+      <div
+        className={`rounded-[var(--r-xl)] border p-6 text-center shadow-[shadow:var(--shadow-1)] sm:p-10 ${TONO_CAJA[tono]}`}
       >
-        Escribinos a {EMAIL}
-      </a>
+        <h1 className="font-[family-name:var(--font-display)] text-[length:var(--t-h2)] font-bold tracking-[var(--ls-tight)] text-[var(--c-ink)]">
+          {titulo}
+        </h1>
+        <p className="mx-auto mt-3 max-w-md text-[length:var(--t-body)] leading-[var(--lh-body)] text-[var(--c-ink-muted)]">
+          {detalle}
+        </p>
+        <a
+          href={MAIL_URL}
+          className="mt-6 inline-flex min-h-[var(--tap)] items-center justify-center rounded-[var(--r-pill)] bg-[var(--c-brand)] px-6 text-[length:var(--t-body)] font-semibold text-[var(--c-ink-onbrand)] shadow-[shadow:var(--shadow-brand)] transition-transform hover:bg-[var(--c-brand-700)] active:scale-[0.97]"
+        >
+          Escribinos a {EMAIL}
+        </a>
+      </div>
     </div>
   );
 }

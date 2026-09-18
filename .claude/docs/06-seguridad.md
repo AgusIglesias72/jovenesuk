@@ -2,7 +2,8 @@
 
 > Qué protege el sistema, dónde vive cada control y qué respetar al sumar algo. El porqué está en
 > los ADRs de [`docs/architecture.md`](../../juk-portal/docs/architecture.md): ADR-000 (línea base),
-> ADR-011 (documentos privados), ADR-012 (rate limit de formularios) y ADR-017 (accesos por link). Lo que falta endurecer está en la
+> ADR-011 (documentos privados), ADR-012 (rate limit de formularios), ADR-017 (accesos por link) y
+> ADR-019 (Google vincula, nunca da de alta). Lo que falta endurecer está en la
 > deuda de [`docs/estado-actual.md`](../../juk-portal/docs/estado-actual.md).
 
 ## Modelo de amenazas (corto)
@@ -14,6 +15,8 @@ psicofísicos, más datos de contacto y facturación de los tutores.
 | Quién | Qué intentaría | Control principal |
 |---|---|---|
 | Internet anónimo | Crearse una cuenta, fuerza bruta de login, spam en los formularios, alumnos falsos por webhook | Registro cerrado · rate limit de login · honeypot + rate limit propio · secretos de webhook en tiempo constante |
+| Cualquiera con un Gmail | Entrar por el botón de Google y que el provider le cree la cuenta que falta (rol `familia` por defecto) | `disableSignUp: true`: Better-Auth corta en link-account, antes de escribir en `users` o `accounts` |
+| Alguien con un id_token armado | Quedarse con la cuenta de una familia haciendo figurar su email sin verificar | Google **no** está en `accountLinking.trustedProviders`, así que el `email_verified` del id_token se sigue exigiendo |
 | Una familia logueada | Ver o tocar el alumno o los documentos de **otra** familia cambiando un DNI o una key en la URL | Ownership derivado server-side y 404 indistinguible |
 | Un ex-miembro o una cuenta dada de baja | Seguir entrando con una sesión viva | Sin cookie cache: la baja aplica en el request siguiente |
 | Un link de phishing | Mandar al usuario a otro dominio después del login | `returnTo` saneado |
@@ -39,6 +42,22 @@ psicofísicos, más datos de contacto y facturación de los tutores.
      alta server-side (seed, `/usuarios`, cuentas de familia) sigue funcionando.
 
   Además, `src/proxy.ts` responde 404 a `/api/auth/sign-up*` antes de llegar a Better-Auth.
+- **Login con Google: vincula, nunca da de alta** (ADR-019; `src/lib/auth/google-oauth.ts` y el
+  bloque `socialProviders` de `index.ts`). Qué impide qué:
+
+  | Control | Qué frena |
+  |---|---|
+  | `disableSignUp: true` en el provider | Que un email de Google que no está en `users` se convierta en una cuenta. Better-Auth corta en link-account, **antes** de escribir en `users` o en `accounts`; el callback lo traduce a `/login?error=signup_disabled`. Sin esto, cualquiera con un Gmail entraría como `familia`, que es el rol por defecto |
+  | Google **fuera** de `accountLinking.trustedProviders` | La toma de cuenta. Un provider "confiable" saltea el chequeo del `email_verified` del id_token; dejarlo puesto alcanzaría para vincularse a la cuenta de una familia con un email sin verificar. Del lado local el chequeo se apoya en que todas las cuentas JUK nacen con `emailVerified: true` desde el server |
+  | Provider condicional (`googleOAuthConfig()`) | Que exista superficie de OAuth sin credenciales: sin las dos variables no se declara, `/api/auth/sign-in/social` responde 404 y el botón no se renderiza |
+  | `updateUserInfoOnLink: false` · `encryptOAuthTokens: true` | Que el perfil de Google pise el nombre que administra el equipo, y que queden tokens en texto plano que no usamos para nada |
+  | Ventana propia en `/sign-in/social` | Abuso del arranque del flujo: 10 cada 15 min en producción (30 en dev). No valida credenciales, pero escribe estado y pega contra Google |
+  | El rol y el `isActive` siguen saliendo de la base | Que Google influya en los permisos. Una cuenta desactivada que entra por Google se rechaza en el mismo `databaseHooks.session.create.before` que el login por email (el `code: "cuenta_desactivada"` del `APIError` es lo que hace que el callback vuelva a `/login` en vez de escupir el JSON de la API) |
+
+  **Las dos variables son opcionales.** Sin `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` el login por
+  email queda **entero**: es el estado en local y en los E2E, y revertir la feature es borrarlas del
+  entorno. Las dos van juntas: media configuración rompería el callback, así que `googleOAuthConfig()`
+  devuelve `null` si falta cualquiera.
 - **Rol por defecto `familia`**, el de menor privilegio (migración `0018`). Quien crea un admin fija
   el rol explícitamente después del alta.
 - **Sin `cookieCache`.** Desactivar un usuario o cambiarle el rol aplica en el request siguiente, no
@@ -56,8 +75,9 @@ psicofísicos, más datos de contacto y facturación de los tutores.
     con la sesión real.
 - **Rate limit** guardado en la base (tabla `rate_limits`; en memoria no sirve en serverless):
   20 requests por minuto en general, y `/sign-in/email` con **5 intentos cada 15 minutos en
-  producción** (30 en dev, porque el equipo y los E2E comparten la IP local). Cuenta intentos, no
-  solo fallos: Better-Auth no expone un hook de login fallido.
+  producción** (30 en dev, porque el equipo y los E2E comparten la IP local) y `/sign-in/social` con
+  10 cada 15 minutos en producción. Cuenta intentos, no solo fallos: Better-Auth no expone un hook de
+  login fallido.
 - **Reset de contraseña:** el token dura **24 h** (lo que promete el mail). Al cambiarla se manda un
   aviso por mail.
 - **No hay contraseñas temporales por mail.** El alta del equipo (`src/app/(admin)/usuarios/actions.ts`)

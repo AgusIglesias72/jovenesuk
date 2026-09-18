@@ -27,6 +27,13 @@ administrar y seguro para los 4 admins.
   Dashboard. Incorrectas → error genérico (sin revelar qué campo falló). **5 intentos fallidos
   consecutivos → bloqueo temporal de 15 minutos.** Link "Olvidé mi contraseña" que envía email
   de restablecimiento.
+- **US-01b — Ingresar con Google.** Botón "Continuar con Google" debajo del form de email, visible
+  solo si el portal tiene configuradas las credenciales OAuth (si no, no se muestra y el login
+  sigue funcionando igual). **Entra únicamente a una cuenta que ya existe con ese email**: un email
+  desconocido se rechaza con un mensaje claro y **no crea cuenta**. El rol y el estado
+  activo/inactivo mandan igual que en el login por email (una cuenta desactivada tampoco entra por
+  Google). No es SSO: la identidad la sigue administrando JUK. Decisión: MIN-28 en
+  `OPEN_DECISIONS.md`.
 - **US-02 — Cerrar sesión.** Botón visible en todo momento (header o menú). Invalida la sesión
   en el servidor y borra cookie/token. URL protegida después de logout → redirige a login.
 - **US-03 — Gestión de usuarios (solo super-admin).** Crear usuario con: nombre, apellido,
@@ -40,7 +47,11 @@ administrar y seguro para los 4 admins.
 
 - 4 admins iniciales: María (CEO, **super-admin de v1**), Felix (Sales), Delfina (Marketing),
   Tomas (Operations). Arquitectura preparada para agregar más.
-- **Sin 2FA** y **sin SSO** de Google Workspace en v1 (SSO descartado definitivamente — Felix).
+- **Sin 2FA.** **Sin SSO** de Google Workspace: el SSO (delegar la identidad a Workspace, con alta
+  automática de quien tenga el dominio) sigue descartado — Felix. Lo que sí hay desde 18/09/2026 es
+  el **login con Google acotado a vinculación** (US-01b): Google abre sesión en una cuenta que el
+  equipo ya creó y **nunca crea una**. Es otra cosa que el SSO y está acotada por MIN-28
+  (`OPEN_DECISIONS.md`), pendiente de validar con Felix.
 - **Credenciales del Representante: se activan al asignarlo al viaje**, sin importar el estado
   del viaje (puede estar en Inscripción abierta). No hay ventana de días previos.
 - **Log de auditoría:** todos los accesos quedan registrados (usuario, fecha/hora, acción).

@@ -4,6 +4,7 @@ import {
   controlesConLetraChica,
   crearAlumno,
   crearColegio,
+  esperarHidratacion,
   seccionFormAlumno,
 } from "./helpers";
 
@@ -52,6 +53,47 @@ test(
     await expect(page).toHaveURL(/\/alumnos$/);
     await page.getByPlaceholder(/Buscar por nombre/).fill(alumno.apellido);
     await expect(page.getByRole("row").filter({ hasText: alumno.label })).toBeVisible();
+  }
+);
+
+test(
+  "el calendario se abre con el pulgar y deja la fecha en el campo",
+  { tag: "@mobile" },
+  async ({ page }) => {
+    // El pedido textual del dueño: "hacé más grande el icono de calendar así lo
+    // abro". Hasta acá NINGÚN test abría el calendario por click —todos usan
+    // .fill() sobre el <input type="date"> oculto—, así que el disparador podía
+    // ser de 31,5px y la suite seguía en verde.
+    await page.goto("/alumnos/nuevo");
+
+    const disparador = page
+      .getByRole("button", { name: "elegir fecha en el calendario" })
+      .first();
+    await esperarHidratacion(disparador);
+
+    const caja = await disparador.boundingBox();
+    if (!caja) throw new Error("el disparador del calendario no se renderizó");
+    expect(caja.width, "ancho del disparador del calendario").toBeGreaterThanOrEqual(44);
+
+    // Ocupa el alto del campo: si vuelve a ser un cuadradito flotante, esto cae.
+    const altoCampo = await disparador.evaluate(
+      (el) => (el.parentElement as HTMLElement).getBoundingClientRect().height
+    );
+    expect(caja.height, "alto del disparador contra el alto del campo").toBeGreaterThanOrEqual(
+      altoCampo - 2
+    );
+
+    await disparador.click();
+    const calendario = page.getByRole("dialog", { name: "elegir fecha" });
+    await expect(calendario).toBeVisible();
+
+    // El 15 existe en todos los meses: el día concreto no importa, importa que
+    // elegirlo escriba el ISO en el input nativo, que es la fuente de verdad.
+    await calendario.getByRole("button", { name: "15", exact: true }).click();
+    await expect(calendario).toBeHidden();
+    await expect(
+      seccionFormAlumno(page, "Datos personales").getByLabel("Fecha de nacimiento*")
+    ).toHaveValue(/^\d{4}-\d{2}-15$/);
   }
 );
 

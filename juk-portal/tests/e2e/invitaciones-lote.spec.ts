@@ -27,7 +27,7 @@ import { hashTexto } from "../../src/lib/utils/hash-texto";
 import { generarTokenOpaco, hashToken } from "../../src/lib/utils/token-opaco";
 
 import { confirmarModal, crearViaje, esperarHidratacion, ocultarOverlayDeDev } from "./helpers";
-import { sufijoUnico, viajeIdPorCodigo } from "./helpers-flujos";
+import { sufijoUnico, TITULO_INSCRIPCION, viajeIdPorCodigo } from "./helpers-flujos";
 
 /*
  * Invitaciones al Application Form — EL ENVÍO MASIVO (/prospectos/invitaciones).
@@ -505,6 +505,43 @@ test("un prospecto dado de baja queda afuera de la campaña, y la pantalla lo ex
   expect(alDadoDeBaja, "al que se dio de baja no se le arma ninguna invitación").toHaveLength(0);
 });
 
+test("sin destinatarios, la pantalla explica el vacío y ofrece una salida", async ({ page }) => {
+  // El universo lo deriva el servidor del filtro de la URL: con un sufijo que no
+  // existe se ve EXACTAMENTE el vacío que denunció el dueño ("no me aparece
+  // nada"), que antes era un párrafo gris sin ninguna salida.
+  const sufijo = sufijoUnico();
+  await page.goto(
+    `/prospectos/invitaciones?q=${encodeURIComponent(`Prospecto E2E ${sufijo} inexistente`)}`
+  );
+  await ocultarOverlayDeDev(page);
+
+  await expect(page.getByText("Ningún prospecto coincide con este filtro")).toBeVisible();
+  // Y no se puede mandar una campaña vacía.
+  await expect(page.getByRole("button", { name: "Enviar invitaciones" })).toBeDisabled();
+
+  // La salida existe y es un link de verdad, no un texto.
+  const limpiar = page.getByRole("link", { name: "Limpiar el filtro" });
+  await esperarHidratacion(limpiar);
+  await limpiar.click();
+  await expect(page).toHaveURL(/\/prospectos\/invitaciones$/);
+  await expect(page.getByText("Ningún prospecto coincide con este filtro")).toHaveCount(0);
+});
+
+test("el buscador del armado encuentra al prospecto por su mail", async ({ page }) => {
+  // El filtro buscaba solo por nombre: pegar la casilla del contacto —lo primero
+  // que hace alguien que acaba de cargar un prospecto para probar— no devolvía
+  // nada. Ahora mira nombre, ciudad y casillas.
+  const sufijo = sufijoUnico();
+  const [invitado] = await crearProspectos({ sufijo, cantidad: 1 });
+  if (!invitado) throw new Error("no se creó el prospecto de la prueba.");
+
+  await page.goto(`/prospectos/invitaciones?q=${encodeURIComponent(invitado.email)}`);
+  await ocultarOverlayDeDev(page);
+
+  await expect(page.getByRole("checkbox", { name: invitado.nombre })).toBeVisible();
+  await expect(page.getByText("Se van a enviar 1 mail")).toBeVisible();
+});
+
 test("una invitación revocada deja de abrir el formulario", async ({ browser, baseURL }) => {
   test.setTimeout(120_000);
   const sufijo = sufijoUnico();
@@ -541,7 +578,7 @@ test("una invitación revocada deja de abrir el formulario", async ({ browser, b
     // Antes de revocar, el link abre. Así lo que cierra la puerta abajo es la
     // revocación, y no un token mal armado.
     await familia.goto(`/inscripcion?t=${token}`);
-    await expect(familia.getByRole("heading", { level: 1 })).toHaveText("Inscripción al viaje");
+    await expect(familia.getByRole("heading", { level: 1 })).toHaveText(TITULO_INSCRIPCION);
 
     // El botón de pánico: el mismo sello que escribe `revocarInvitacionAction`
     // (todavía no tiene botón en pantalla).

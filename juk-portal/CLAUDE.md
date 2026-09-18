@@ -11,6 +11,8 @@ estado + mapa) está en el `CLAUDE.md` de la raíz del workspace.
 - **TypeScript estricto** (`strict`, `noUncheckedIndexedAccess`).
 - **Drizzle ORM** sobre Neon Postgres con el driver `neon-http`.
 - **Better-Auth**: email + contraseña, roles `super_admin`, `admin_juk`, `representante` y `familia`.
+  Google entra como **vinculación** a una cuenta que ya existe, nunca como alta (`disableSignUp`,
+  `src/lib/auth/google-oauth.ts`); sin `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` el botón no existe.
 - **Tailwind CSS v3.4** con los tokens STUDIO de `src/styles/tokens.css`.
 - **Resend + React Email** · **Trigger.dev v4** (`src/trigger/`) · **Cloudflare R2** · **Sentry**.
 - **Vitest** (unit e integración) · **Playwright** (E2E).
@@ -131,6 +133,15 @@ import type { ActionResult } from "@/lib/actions/result";
   - selects → `<Select>` de `components/ui/field.tsx` (con `searchable` si la lista es larga);
   - tablas → `TableWrap`/`Table`/`TH`/`TD` de `components/ui/data-table.tsx` (modo tarjeta en el teléfono);
   - estados vacíos → `<EmptyState>`; feedback → `useToast()`; forms con cambios sin guardar → `useUnsavedChanges`.
+- **`<Field error>` va siempre con `invalid` en el control**: `Field` clona con `aria-invalid`, pero
+  el borde rojo lo decide `invalid`. Si un formulario envuelve a `Field` en un componente propio, ese
+  componente lo inyecta una sola vez (ver `Campo` en `src/app/inscripcion/inscripcion-form.tsx`);
+  nunca dentro de `Field`, que pisaría el `invalid` explícito de los ABM.
+- **Validación en vivo** (hoy solo `/inscripcion`, y es el molde para el resto): la regla y el
+  mensaje salen del schema de dominio —`validarCampoInscripcion` en
+  `src/lib/domain/inscripciones/validacion-campo.ts`—, y el hook de al lado de la pantalla
+  (`use-validacion-en-vivo.ts`) es puro cableado. Nunca una segunda regla escrita en el cliente. El
+  criterio de cuándo se marca y el porqué están en `docs/design-system.md` §9.
 - **Loading states**: un `loading.tsx` por segmento con los skeletons de
   `components/ui/skeleton.tsx` (`ListPageSkeleton`, `FormPageSkeleton`, `FichaAlumnoSkeleton`,
   `ViajeDetalleSkeleton`, `ConfigSkeleton`, `PagosPageSkeleton`, los `Familia*Skeleton`…),
@@ -149,6 +160,12 @@ import type { ActionResult } from "@/lib/actions/result";
   producción o con `NEXT_PUBLIC_ENABLE_TWEAK=1`) usa estilos inline y `<select>` nativos. No es
   modelo para la app.
 - Los badges de estado usan el mapeo de colores del sistema (`components/ui/badge.tsx`, `docs/design-system.md`).
+- **Un dato de marca que usan dos superficies sube a `src/lib/`**, no se copia ni se importa desde
+  `(public)/_components|_sections/` (carpetas privadas de ese segmento): `src/lib/contact.ts`
+  (contacto) y `src/lib/marca.ts` (cifras, acreditaciones, la foto del Application Form).
+- **El marco de `/inscripcion`** (`src/app/inscripcion/_marco.tsx`) no puede sumar un `<form>`, un
+  control, un segundo `<h1>` ni un link al sitio: las tres cosas tienen test y el porqué está en
+  `docs/design-system.md` §10-bis.
 
 ## Moneda, fechas y datos
 

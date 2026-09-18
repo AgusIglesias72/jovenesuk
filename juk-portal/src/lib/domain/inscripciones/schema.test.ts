@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import { NumeroInscripcionInvalidoError } from "./errors";
 import { INSCRIPCION_ESTADO_LABELS, INSCRIPCION_ESTADO_TONE } from "./labels";
 import {
+  aceptaDesdeFormulario,
   codigoInscripcion,
   esHoneypotRelleno,
   INSCRIPCION_ESTADOS,
   inscripcionFiltersSchema,
   inscripcionSchema,
+  MENSAJE_FECHA_INVALIDA,
   parsearCodigoInscripcion,
   resolverVariante,
   VARIANTES,
@@ -31,6 +33,13 @@ function campos(input: unknown): string[] {
   return r.success ? [] : r.error.issues.map((i) => i.path.join("."));
 }
 
+/** El primer mensaje del campo: es exactamente el que ve la familia. */
+function mensaje(input: unknown, campo: string): string | undefined {
+  const r = inscripcionSchema.safeParse(input);
+  if (r.success) return undefined;
+  return r.error.issues.find((i) => i.path.join(".") === campo)?.message;
+}
+
 describe("inscripcionSchema", () => {
   it("acepta la ficha mínima del webhook y deja el DNI en dígitos (TEC-12)", () => {
     const r = inscripcionSchema.safeParse(VALIDO);
@@ -51,6 +60,103 @@ describe("inscripcionSchema", () => {
   it("rechaza un DNI que se queda sin dígitos suficientes", () => {
     expect(campos({ ...VALIDO, dni: "no tengo" })).toContain("dni");
     expect(campos({ ...VALIDO, dni: "123" })).toContain("dni");
+    expect(mensaje({ ...VALIDO, dni: "123" }, "dni")).toBe(
+      "El DNI tiene que tener al menos 6 números."
+    );
+  });
+
+  it("un DNI con una letra dice QUE es la letra, no que le faltan dígitos", () => {
+    // El pedido textual del dueño. Antes el preprocess borraba la letra y el
+    // mensaje hablaba del largo: "45102a" se validaba como "45102".
+    expect(mensaje({ ...VALIDO, dni: "45102a" }, "dni")).toBe("El DNI va solo con números.");
+    expect(mensaje({ ...VALIDO, dni: "45.102.338 (de la mamá)" }, "dni")).toBe(
+      "El DNI va solo con números."
+    );
+  });
+
+  it("el celular acepta +, espacios, paréntesis y guiones, y exige 8 números", () => {
+    // El E2E carga exactamente este literal: si el regex lo rechazara, se cae
+    // toda la suite de inscripciones.
+    expect(campos({ ...VALIDO, tutor1Celular: "+54 9 11 5555-0000" })).toEqual([]);
+    expect(campos({ ...VALIDO, tutor1Celular: "(011) 4555-0000" })).toEqual([]);
+    expect(mensaje({ ...VALIDO, tutor1Celular: "11 llamame" }, "tutor1Celular")).toBe(
+      "El celular va con números; podés usar +, espacios y guiones."
+    );
+    expect(mensaje({ ...VALIDO, tutor1Celular: "1234" }, "tutor1Celular")).toBe(
+      "Poné el celular con el código de área (al menos 8 números)."
+    );
+  });
+
+  it("el teléfono opcional del alumno sigue las mismas reglas de caracteres", () => {
+    expect(campos({ ...VALIDO, telefonoAlumno: "" })).toEqual([]);
+    expect(campos({ ...VALIDO, telefonoAlumno: "11 5555 0000" })).toEqual([]);
+    expect(campos({ ...VALIDO, telefonoAlumno: "no tiene" })).toContain("telefonoAlumno");
+  });
+
+  it("el pasaporte va con letras y números, y completo", () => {
+    expect(mensaje({ ...VALIDO, numeroPasaporte: "AAF#123" }, "numeroPasaporte")).toBe(
+      "El pasaporte va con letras y números, sin símbolos."
+    );
+    expect(mensaje({ ...VALIDO, numeroPasaporte: "AA1" }, "numeroPasaporte")).toBe(
+      "Ingresá el número completo del pasaporte."
+    );
+    expect(mensaje({ ...VALIDO, numeroPasaporte: "" }, "numeroPasaporte")).toBe(
+      "Ingresá el número de pasaporte"
+    );
+  });
+
+  it("los nombres van con letras: tildes y apóstrofes sí, números no", () => {
+    for (const nombre of ["María José", "O'Brien", "Ana-Lucía", "Ñuñez"]) {
+      expect(campos({ ...VALIDO, nombre }), nombre).toEqual([]);
+    }
+    expect(mensaje({ ...VALIDO, nombre: "Milagros 2" }, "nombre")).toBe(
+      "El nombre va solo con letras."
+    );
+    expect(mensaje({ ...VALIDO, apellido: "Sosa <script>" }, "apellido")).toBe(
+      "El apellido va solo con letras."
+    );
+  });
+
+  it("el email dice qué le falta, y no acepta espacios ni dos arrobas", () => {
+    expect(mensaje({ ...VALIDO, tutor1Email: "vanina@" }, "tutor1Email")).toBe(
+      "Revisá el email: parece que le falta el @ o el dominio."
+    );
+    expect(mensaje({ ...VALIDO, tutor1Email: "vani na@example.com" }, "tutor1Email")).toBe(
+      "El email va sin espacios y con un solo @."
+    );
+    expect(mensaje({ ...VALIDO, tutor1Email: "a@b@example.com" }, "tutor1Email")).toBe(
+      "El email va sin espacios y con un solo @."
+    );
+  });
+
+  it("la fecha de nacimiento no puede ser futura ni de otro siglo", () => {
+    expect(mensaje({ ...VALIDO, fechaNacimiento: "2999-01-01" }, "fechaNacimiento")).toBe(
+      "La fecha de nacimiento no puede ser futura."
+    );
+    expect(mensaje({ ...VALIDO, fechaNacimiento: "1899-12-31" }, "fechaNacimiento")).toBe(
+      "Revisá el año de nacimiento."
+    );
+    expect(campos({ ...VALIDO, fechaNacimiento: "2009-04-12" })).toEqual([]);
+  });
+
+  it("distingue el campo vacío de la fecha imposible", () => {
+    // Una fecha a medio tipear llega vacía al form: los dos mensajes tienen que
+    // ser distintos o el aviso miente con el campo lleno a la vista.
+    expect(mensaje({ ...VALIDO, fechaNacimiento: "" }, "fechaNacimiento")).toBe(
+      "Ingresá la fecha de nacimiento"
+    );
+    expect(mensaje({ ...VALIDO, fechaNacimiento: "2009-02-31" }, "fechaNacimiento")).toBe(
+      MENSAJE_FECHA_INVALIDA
+    );
+  });
+
+  it("aceptaDesdeFormulario coerciona el checkbox igual que el server", () => {
+    expect(aceptaDesdeFormulario("on")).toBe(true);
+    expect(aceptaDesdeFormulario("true")).toBe(true);
+    expect(aceptaDesdeFormulario("")).toBe(false);
+    expect(aceptaDesdeFormulario(undefined)).toBe(false);
+    expect(aceptaDesdeFormulario(null)).toBe(false);
+    expect(aceptaDesdeFormulario("off")).toBe(false);
   });
 
   it("exige los campos obligatorios del webhook", () => {

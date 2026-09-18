@@ -1,7 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  cloneElement,
+  isValidElement,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 
 import { DateInput } from "@/components/ui/date-input";
 import { Checkbox, Field, Input, Textarea } from "@/components/ui/field";
@@ -10,6 +19,7 @@ import { ENLACE_POLITICA, TEXTO_CONSENTIMIENTO } from "@/lib/domain/privacidad/p
 import { cn } from "@/lib/utils/cn";
 
 import { enviarInscripcion, registrarApertura } from "./actions";
+import { useValidacionEnVivo } from "./use-validacion-en-vivo";
 import {
   MICROCOPY,
   PRESENTACION_POR_VARIANTE,
@@ -70,7 +80,9 @@ const ETIQUETAS: Record<string, string> = {
  * Las secciones del formulario, con los campos que cada una necesita para
  * darse por completa. La lista de obligatorios se escribe acá y no se deduce
  * del atributo `required` del DOM: el form va con `noValidate` y los controles
- * no lo llevan (la validación real es la del schema, en el server).
+ * no lo llevan. La validación es siempre la del schema de dominio —en vivo
+ * mientras se completa (`use-validacion-en-vivo.ts`) y otra vez en el server,
+ * que es el que decide—, nunca la del navegador.
  */
 const SECCIONES = [
   {
@@ -121,6 +133,9 @@ export function InscripcionForm({ token, variante, preset = {} }: Props) {
   // barra de progreso. Solo lo sigue la variante que los muestra — mirar el
   // formulario entero en cada tecla no tiene sentido si nada lo dibuja.
   const [llenos, setLlenos] = useState<ReadonlySet<string>>(() => new Set<string>());
+  // Validación en vivo: marca un dato mal escrito mientras la familia completa
+  // la ficha, con las mismas reglas que después aplica el server.
+  const vivo = useValidacionEnVivo(ETIQUETAS);
 
   // El resumen recibe el foco al fallar: el error puede estar a cuatro pantallas
   // de scroll del botón y nadie lo ve si solo se marca el campo.
@@ -152,6 +167,10 @@ export function InscripcionForm({ token, variante, preset = {} }: Props) {
   // `input` burbujea desde todos los controles, incluido el <input type="date">
   // oculto de <DateInput>, que despacha el evento a mano al commitear su ISO.
   function alEscribir(e: React.FormEvent<HTMLFormElement>) {
+    vivo.alEscribir(e);
+    // El avance solo lo sigue la variante que lo dibuja: mirar el formulario
+    // entero en cada tecla no tiene sentido si nada lo muestra.
+    if (!presentacion.progreso) return;
     const datos = new FormData(e.currentTarget);
     setLlenos(
       new Set(REQUERIDOS.filter((campo) => String(datos.get(campo) ?? "").trim() !== ""))
@@ -160,7 +179,10 @@ export function InscripcionForm({ token, variante, preset = {} }: Props) {
 
   const avance = Math.round((llenos.size / REQUERIDOS.length) * 100);
 
-  const fe = (k: string) => (state && !state.ok ? state.fieldErrors?.[k]?.[0] : undefined);
+  // Manda lo que diga la validación en vivo; el `fieldError` del server es el
+  // respaldo (y, en `acepta`, el único: el consentimiento no se valida en vivo).
+  const fe = (k: string) =>
+    vivo.errorDe(k, state && !state.ok ? state.fieldErrors?.[k]?.[0] : undefined);
   const nota = (campo: string) => (presentacion.microcopy ? MICROCOPY[campo] : undefined);
   const errores =
     state && !state.ok
@@ -208,7 +230,11 @@ export function InscripcionForm({ token, variante, preset = {} }: Props) {
   return (
     <form
       action={action}
-      onInput={presentacion.progreso ? alEscribir : undefined}
+      onInput={alEscribir}
+      // React escucha `focusout`, que sí burbujea: un solo handler alcanza para
+      // los 14 campos. La validación no depende de la variante —es el
+      // formulario, no la piel—, así que va sin condicionar.
+      onBlur={vivo.alSalir}
       className="form-caja p-5 sm:p-8"
       noValidate
     >
@@ -250,107 +276,155 @@ export function InscripcionForm({ token, variante, preset = {} }: Props) {
         </div>
       )}
 
+      {/* Región viva propia, y no el <AvisoErrores> del sistema: ese es
+          `assertive` (correcto para un envío que falló) y acá interrumpiría al
+          lector de pantalla en cada campo. Con `polite` espera a que la persona
+          termine de hablar. */}
+      <p aria-live="polite" className="sr-only">
+        {vivo.anuncio}
+      </p>
+
       <Seccion indice={0} presentacion={presentacion} llenos={llenos}>
-        <Campo label="Nombre" required error={fe("nombre")} help="Como figura en el pasaporte">
-          <Input name="nombre" autoComplete="off" />
-        </Campo>
-        <Campo label="Apellido" required error={fe("apellido")}>
-          <Input name="apellido" autoComplete="off" />
-        </Campo>
-        <Campo label="Fecha de nacimiento" required error={fe("fechaNacimiento")}>
-          <DateInput name="fechaNacimiento" />
+        <Campo
+          name="nombre"
+          label="Nombre"
+          required
+          error={fe("nombre")}
+          help="Como figura en el pasaporte"
+        >
+          <Input autoComplete="off" />
         </Campo>
         <Campo
+          name="apellido"
+          label="Apellido"
+          required
+          error={fe("apellido")}
+          help="Como figura en el pasaporte"
+        >
+          <Input autoComplete="off" />
+        </Campo>
+        <Campo
+          name="fechaNacimiento"
+          label="Fecha de nacimiento"
+          required
+          error={fe("fechaNacimiento")}
+        >
+          <DateInput />
+        </Campo>
+        <Campo
+          name="dni"
           label="DNI"
           required
           error={fe("dni")}
           help="Solo números, sin puntos"
           nota={nota("dni")}
         >
-          <Input name="dni" inputMode="numeric" autoComplete="off" />
+          <Input inputMode="numeric" autoComplete="off" />
         </Campo>
       </Seccion>
 
       <Seccion indice={1} presentacion={presentacion} llenos={llenos}>
-        <Campo label="Número de pasaporte" required error={fe("numeroPasaporte")}>
-          <Input name="numeroPasaporte" autoComplete="off" />
+        <Campo
+          name="numeroPasaporte"
+          label="Número de pasaporte"
+          required
+          error={fe("numeroPasaporte")}
+          help="Letras y números, como figura en el pasaporte"
+        >
+          <Input autoComplete="off" />
         </Campo>
         <Campo
+          name="fechaVencimientoPasaporte"
           label="Vencimiento del pasaporte"
           required
           error={fe("fechaVencimientoPasaporte")}
           help="Tiene que seguir vigente al terminar el viaje"
           nota={nota("fechaVencimientoPasaporte")}
+          // Un pasaporte vencido AVISA pero no frena el envío: la familia que
+          // lo está renovando es justo la que el equipo quiere ver entrar.
+          aviso={vivo.avisos.fechaVencimientoPasaporte}
         >
-          <DateInput name="fechaVencimientoPasaporte" />
+          <DateInput />
         </Campo>
       </Seccion>
 
       <Seccion indice={2} presentacion={presentacion} llenos={llenos}>
         <Campo
+          name="tutor1Nombre"
           label="Nombre y apellido"
           required
           error={fe("tutor1Nombre")}
+          help="Quien firma la inscripción"
           className="form-campo-ancho"
         >
-          <Input name="tutor1Nombre" autoComplete="name" defaultValue={preset.tutor1Nombre} />
+          <Input autoComplete="name" defaultValue={preset.tutor1Nombre} />
         </Campo>
         <Campo
+          name="tutor1Celular"
           label="Celular"
           required
           error={fe("tutor1Celular")}
           help="Con código de área, para una urgencia durante el viaje"
           nota={nota("tutor1Celular")}
         >
-          <Input name="tutor1Celular" inputMode="tel" autoComplete="tel" />
+          <Input inputMode="tel" autoComplete="tel" />
         </Campo>
         <Campo
+          name="tutor1Email"
           label="Email"
           required
           error={fe("tutor1Email")}
           help="Por acá te escribimos y accedés al Portal de Familias"
           nota={nota("tutor1Email")}
         >
-          <Input
-            type="email"
-            name="tutor1Email"
-            autoComplete="email"
-            defaultValue={preset.tutor1Email}
-          />
+          <Input type="email" autoComplete="email" defaultValue={preset.tutor1Email} />
         </Campo>
       </Seccion>
 
       <Seccion indice={3} presentacion={presentacion} llenos={llenos}>
-        <Campo label="Teléfono del alumno" help="Opcional" error={fe("telefonoAlumno")}>
-          <Input name="telefonoAlumno" inputMode="tel" autoComplete="off" />
-        </Campo>
-        <Campo label="Email del alumno" help="Opcional" error={fe("emailAlumno")}>
-          <Input type="email" name="emailAlumno" autoComplete="off" />
+        <Campo
+          name="telefonoAlumno"
+          label="Teléfono del alumno"
+          help="Opcional"
+          error={fe("telefonoAlumno")}
+        >
+          <Input inputMode="tel" autoComplete="off" />
         </Campo>
         <Campo
+          name="emailAlumno"
+          label="Email del alumno"
+          help="Opcional"
+          error={fe("emailAlumno")}
+        >
+          <Input type="email" autoComplete="off" />
+        </Campo>
+        <Campo
+          name="nivelInglesAutoevaluacion"
           label="Nivel de inglés"
           help="Opcional. Con tus palabras: básico, intermedio, avanzado, un examen rendido…"
           error={fe("nivelInglesAutoevaluacion")}
           className="form-campo-ancho"
         >
-          <Input name="nivelInglesAutoevaluacion" autoComplete="off" />
+          <Input autoComplete="off" />
         </Campo>
         <Campo
+          name="alergiasSalud"
           label="Alergias y datos de salud"
           help="Opcional. Alergias, medicación o cualquier cosa a tener en cuenta durante el viaje"
           error={fe("alergiasSalud")}
           className="form-campo-ancho"
           nota={nota("alergiasSalud")}
         >
-          <Textarea name="alergiasSalud" rows={3} />
+          <Textarea rows={3} />
         </Campo>
         <Campo
+          name="preferenciasAlojamiento"
           label="Preferencias de alojamiento"
           help="Opcional. Dieta, convivencia, con quién le gustaría compartir"
           error={fe("preferenciasAlojamiento")}
           className="form-campo-ancho"
         >
-          <Textarea name="preferenciasAlojamiento" rows={3} />
+          <Textarea rows={3} />
         </Campo>
       </Seccion>
 
@@ -375,7 +449,11 @@ export function InscripcionForm({ token, variante, preset = {} }: Props) {
           aria-label={TEXTO_CONSENTIMIENTO}
           aria-invalid={fe("acepta") ? true : undefined}
           aria-describedby={fe("acepta") ? "error-acepta" : undefined}
-          className="items-start"
+          // `min-h-0`: el objetivo táctil ya lo lleva el input, así que reservar
+          // --tap de alto (52px en la piel C) contra dos líneas de texto solo
+          // dejaba aire muerto antes del botón. `select-text` devuelve la
+          // posibilidad de copiar el texto legal, que el componente bloquea.
+          className="items-start min-h-0 select-text"
           label={
             <span className="text-[length:var(--t-small)] leading-[var(--lh-body)]">
               {ANTES_DEL_ENLACE}
@@ -483,6 +561,13 @@ function Seccion({ indice, presentacion, llenos, children }: SeccionProps) {
 
 type CampoProps = {
   label: string;
+  /**
+   * El campo del schema. Nombra al control (lo inyecta este componente, igual
+   * que `Field` inyecta el id y los aria) y marca el wrapper con `data-campo`:
+   * de ahí saca la validación en vivo a qué campo pertenece un evento, porque
+   * el input visible de `<DateInput>` no tiene `name` propio.
+   */
+  name: string;
   children: ReactNode;
   required?: boolean;
   help?: string;
@@ -491,20 +576,32 @@ type CampoProps = {
   /** Microcopy de confianza. Va como texto suelto, no como descripción del
       control: `aria-describedby` tiene que decir lo mismo en las tres. */
   nota?: string;
+  /** Advertencia que NO impide enviar (hoy: el pasaporte ya vencido). */
+  aviso?: string;
 };
 
-function Campo({ nota, className, children, ...props }: CampoProps) {
-  if (!nota) {
-    return (
-      <Field className={className} {...props}>
-        {children}
-      </Field>
-    );
-  }
+function Campo({ name, nota, aviso, className, children, ...props }: CampoProps) {
+  // El `invalid` se inyecta UNA sola vez, acá, y no en los catorce call sites:
+  // sale del mismo `error` que ya recibe el campo, así que no se pueden
+  // desincronizar. Tampoco va en `Field` (`components/ui/field.tsx`), que solo
+  // clona con `aria-invalid`: ahí pisaría el `invalid` explícito que pasan los
+  // ABM del back-office.
+  const control = isValidElement(children)
+    ? cloneElement(children as ReactElement<{ invalid?: boolean; name?: string }>, {
+        invalid: Boolean(props.error),
+        name,
+      })
+    : children;
+
   return (
-    <div className={cn("flex flex-col", className)}>
-      <Field {...props}>{children}</Field>
-      <p className="form-nota">{nota}</p>
+    <div className={cn("flex flex-col", className)} data-campo={name}>
+      <Field {...props}>{control}</Field>
+      {nota && <p className="form-nota">{nota}</p>}
+      {aviso && (
+        <p className="mt-1 text-[length:var(--t-small)] font-medium text-[var(--c-warning)]">
+          {aviso}
+        </p>
+      )}
     </div>
   );
 }

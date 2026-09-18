@@ -197,6 +197,7 @@ variable falta) se ve en `/configuracion` (solo `super_admin`), en la tarjeta "E
 | App | `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_PORTAL_URL` (opcional: activa el split `portal.*`) | — |
 | Neon | `DATABASE_URL` (pooled), `DATABASE_URL_UNPOOLED` (migraciones) | Sin `DATABASE_URL` la app no arranca (ni compila: `src/lib/db/index.ts` tira al importarse). Sin `DATABASE_URL_UNPOOLED`, `drizzle-kit` usa `DATABASE_URL`; la app no la lee |
 | Better-Auth | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | No hay login |
+| Google OAuth (opcional) | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (las dos o ninguna) | El provider no se declara, `/api/auth/sign-in/social` responde 404 y el login no ofrece el botón. El login por email queda **entero**: es el estado esperado en local y en el CI. Con media configuración, `googleOAuthConfig()` devuelve `null` y se comporta igual que si faltaran las dos |
 | Resend | `RESEND_API_KEY`, `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME`, `EMAIL_REPLY_TO`, `EMAIL_FROM_COMUNICACIONES`, `EMAIL_FROM_OUTREACH`, `LEADS_NOTIFY_TO` | Fuera de producción los mails se renderizan y loguean sin salir (dry-run). En producción el envío falla. Los remitentes también se configuran en `/configuracion`, que tiene prioridad sobre el env |
 | Resend (webhook) | `RESEND_WEBHOOK_SECRET` (`whsec_…`) | Los eventos de tracking se ignoran (responde 200) |
 | Cloudflare R2 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` (bucket **privado**, sin `R2_PUBLIC_URL`) | En local (sin `VERCEL` ni `NODE_ENV=production`) los documentos van a `.uploads/`, también si R2 está configurado pero no responde (con un `console.error`). En producción y en **cualquier deploy de Vercel, Preview incluido**, la subida falla explícito (`StorageNoConfiguradoError`) |
@@ -207,6 +208,18 @@ variable falta) se ve en `/configuracion` (solo `super_admin`), en la tarjeta "E
 | Tweaker del sitio público | `NEXT_PUBLIC_ENABLE_TWEAK` | Es el `DesignTweaker` de `src/app/(public)/layout.tsx`, no el Design Lab retirado (ADR-015). En dev se muestra siempre; en un build de producción solo con `=1` (staging). En producción no se setea |
 | Mails en tests | `EMAIL_DRY_RUN=1` | Lo fijan Playwright y el CI |
 | Seeds y E2E | `SEED_TEST_PASSWORD`, `SEED_FAMILIA_PASSWORD`, `E2E_*`, `PW_PORT`, `E2E_SERVER`, `E2E_DATABASE_URL`, `INTEGRATION_DATABASE_URL` | Ver [05-testing](05-testing.md) |
+
+**`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` por entorno.** La URI de redirección del OAuth Client
+tiene que ser **exactamente** `<BETTER_AUTH_URL>/api/auth/callback/google`, así que cada entorno con
+una URL distinta necesita su propia entrada en Google Cloud Console (alta paso a paso en
+[`docs/setup-servicios.md`](../../juk-portal/docs/setup-servicios.md)):
+
+| Entorno | Qué va | Por qué |
+|---|---|---|
+| **Local** | Sin setear (van comentadas en `.env.example`). Si las querés probar, el OAuth Client necesita `http://localhost:3000/api/auth/callback/google` y `http://localhost:3001/…` como URIs autorizadas | Copiar el valor de ejemplo declararía el provider con credenciales falsas: el botón aparecería solo para fallar |
+| **CI** | Sin setear, a propósito | Los E2E prueban justamente que **sin credenciales el botón no se ofrece**. Setearlas mandaría la suite a un consentimiento de Google que nadie puede completar |
+| **Preview de Vercel** | Sin setear | Cada preview tiene una URL distinta y Google no acepta comodines en la URI de redirección |
+| **Producción** | Las dos, en Vercel (Production). Rotar el secret es regenerarlo en Google Cloud Console, actualizarlo en Vercel y redeployar | Es el único entorno con URL estable. Mientras sea un `vercel.app` y no un dominio propio, Google probablemente deje la app en modo *Prueba*: solo entran los mails cargados como usuarios de prueba |
 
 ## Dependencias
 

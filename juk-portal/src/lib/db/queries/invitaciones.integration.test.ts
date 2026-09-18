@@ -58,7 +58,7 @@ describe.skipIf(!integracionHabilitada)("Envío masivo de invitaciones contra Po
 
   async function crearProspecto(
     sufijo: string,
-    opts: { emails?: string[]; suscrito?: boolean } = {}
+    opts: { emails?: string[]; suscrito?: boolean; ciudad?: string } = {}
   ): Promise<{ id: string; nombre: string }> {
     const nombre = `${PREFIJO}${sufijo}`;
     const [row] = await fx
@@ -66,7 +66,7 @@ describe.skipIf(!integracionHabilitada)("Envío masivo de invitaciones contra Po
       .insert(prospectos)
       .values({
         nombre,
-        ciudad: "[INT] Ciudad",
+        ciudad: opts.ciudad ?? "[INT] Ciudad",
         emails: opts.emails ?? [emailDe(sufijo.toLowerCase())],
         suscritoOutreach: opts.suscrito ?? true,
         unsubscribeToken: randomUUID(),
@@ -291,6 +291,43 @@ describe.skipIf(!integracionHabilitada)("Envío masivo de invitaciones contra Po
       incluidos: [],
       excluidos: [],
     });
+  });
+
+  it("el buscador del armado encuentra por ciudad y por casilla, no solo por nombre", async () => {
+    // `q` no filtra por ids: el universo es la tabla entera, así que el texto
+    // buscado lleva la corrida adentro para no cruzarse con otra en paralelo.
+    const marca = `Bristol${fx.corrida}`;
+    const porCiudad = await crearProspecto("FiltroCiudad", { ciudad: `Sur de ${marca}` });
+    const porMail = await crearProspecto("FiltroMail", {
+      emails: [emailDe("filtromail"), `dire+${marca.toLowerCase()}@int.jovenesenuk.com`],
+    });
+    // Mismo prefijo de corrida en el nombre, pero sin la marca: es el control de
+    // que el filtro filtra.
+    await crearProspecto("FiltroAjeno");
+
+    const porCiudadBuscada = await q.destinatariosDesdeProspectos({ q: marca });
+    expect(porCiudadBuscada.incluidos.map((i) => i.prospectoId).sort()).toEqual(
+      [porCiudad.id, porMail.id].sort()
+    );
+
+    // La casilla se busca en TODO el array, pero el mail que se manda sigue
+    // siendo el primero no vacío: encontrarlo por la segunda no cambia a dónde
+    // le llega.
+    const encontradoPorMail = porCiudadBuscada.incluidos.find(
+      (i) => i.prospectoId === porMail.id
+    );
+    expect(encontradoPorMail?.email).toBe(emailDe("filtromail"));
+
+    // En minúsculas también: el ilike es el mismo que usa el listado del CRM.
+    const enMinusculas = await q.destinatariosDesdeProspectos({ q: marca.toLowerCase() });
+    expect(enMinusculas.incluidos.map((i) => i.prospectoId).sort()).toEqual(
+      [porCiudad.id, porMail.id].sort()
+    );
+
+    // Y el nombre sigue funcionando como antes.
+    const porNombre = await q.destinatariosDesdeProspectos({ q: `${PREFIJO}FiltroAjeno` });
+    expect(porNombre.incluidos).toHaveLength(1);
+    expect(porNombre.incluidos[0]!.prospectoNombre).toBe(`${PREFIJO}FiltroAjeno`);
   });
 
   it("la paginación con el mismo timestamp no repite ni saltea", async () => {

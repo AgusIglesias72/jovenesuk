@@ -44,6 +44,7 @@ import {
 import type { Inscripcion } from "@/lib/db/schema/inscripciones";
 import { estadoInvitacion, puedeCargar } from "@/lib/domain/inscripciones/invitacion";
 import {
+  aceptaDesdeFormulario,
   codigoInscripcion,
   esHoneypotRelleno,
   inscripcionSchema,
@@ -196,7 +197,7 @@ export async function enviarInscripcion(
     nivelInglesAutoevaluacion: texto(formData, "nivelInglesAutoevaluacion"),
 
     website: texto(formData, "website"),
-    acepta: texto(formData, "acepta") === "on" || texto(formData, "acepta") === "true",
+    acepta: aceptaDesdeFormulario(texto(formData, "acepta")),
   });
 
   if (!parsed.success) {

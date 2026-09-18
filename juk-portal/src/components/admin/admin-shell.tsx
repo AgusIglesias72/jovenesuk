@@ -211,7 +211,7 @@ function SidebarBody({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto overscroll-contain">
+      <div className="scroll-fino scroll-fino-onbrand flex-1 overflow-y-auto overscroll-contain">
         <SidebarSection title="Operación">
           <SidebarItem
             icon={<IconGrid />}

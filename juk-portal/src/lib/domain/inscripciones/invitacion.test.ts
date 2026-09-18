@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   LOTE_TAMANIO,
   MAX_DESTINATARIOS_LOTE,
+  META_ERROR_ENVIO,
+  META_FALLIDA_EL,
   PAUSA_ENTRE_ENVIOS_MS,
   RESERVA_VENCIDA_MS,
   VIGENCIA_DIAS,
@@ -11,6 +13,7 @@ import {
   excedeMaximoDestinatarios,
   fechaDeVencimiento,
   lotesDe,
+  motivoDeEnvioFallido,
   puedeCargar,
   puedeReservar,
   reservaVencida,
@@ -169,5 +172,46 @@ describe("tope y armado del lote", () => {
     expect(duracionEstimadaMs(0)).toBe(0);
     expect(duracionEstimadaMs(1)).toBe(0);
     expect(duracionEstimadaMs(3)).toBe(2 * PAUSA_ENTRE_ENVIOS_MS);
+  });
+});
+
+describe("motivo de un envío fallido", () => {
+  /**
+   * Las dos claves ya tienen filas escritas en producción: si alguien las
+   * "mejora", el motivo sellado antes del cambio deja de leerse para siempre.
+   */
+  it("las claves del sello son exactamente las que ya están en la base", () => {
+    expect(META_ERROR_ENVIO).toBe("invitacionErrorEnvio");
+    expect(META_FALLIDA_EL).toBe("invitacionFallidaEl");
+  });
+
+  it("devuelve el motivo que selló el envío", () => {
+    expect(
+      motivoDeEnvioFallido({
+        [META_ERROR_ENVIO]: "The jovenesenuk.com domain is not verified",
+        [META_FALLIDA_EL]: "2026-09-18T10:00:00.000Z",
+      })
+    ).toBe("The jovenesenuk.com domain is not verified");
+  });
+
+  it("recorta los espacios del motivo", () => {
+    expect(motivoDeEnvioFallido({ [META_ERROR_ENVIO]: "  422 dominio inexistente\n" })).toBe(
+      "422 dominio inexistente"
+    );
+  });
+
+  it("sin meta, sin la clave o con la clave vacía no hay nada que mostrar", () => {
+    expect(motivoDeEnvioFallido(null)).toBeNull();
+    expect(motivoDeEnvioFallido(undefined)).toBeNull();
+    expect(motivoDeEnvioFallido({})).toBeNull();
+    expect(motivoDeEnvioFallido({ estadoNuevo: "contactado" })).toBeNull();
+    expect(motivoDeEnvioFallido({ [META_ERROR_ENVIO]: "" })).toBeNull();
+    expect(motivoDeEnvioFallido({ [META_ERROR_ENVIO]: "   " })).toBeNull();
+  });
+
+  it("un motivo que no es texto se ignora en vez de romper la pantalla", () => {
+    expect(motivoDeEnvioFallido({ [META_ERROR_ENVIO]: 422 })).toBeNull();
+    expect(motivoDeEnvioFallido({ [META_ERROR_ENVIO]: { message: "no" } })).toBeNull();
+    expect(motivoDeEnvioFallido({ [META_ERROR_ENVIO]: null })).toBeNull();
   });
 });

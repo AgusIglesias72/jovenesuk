@@ -73,14 +73,20 @@ function invitacionVigente(extra: Record<string, unknown> = {}) {
   };
 }
 
+/**
+ * Los nombres van sin corchetes (el prefijo "[INT]" que usan otros fixtures):
+ * el schema exige que un nombre lleve solo letras, y esta ficha tiene que poder
+ * pasar la misma validación que la de una familia. La marca de dato de prueba
+ * queda en el email.
+ */
 const FICHA_VALIDA: Record<string, string> = {
-  nombre: "[INT] Malena",
-  apellido: "[INT] Iglesias",
+  nombre: "Malena",
+  apellido: "Iglesias",
   fechaNacimiento: "2009-04-12",
   dni: "45102338",
   numeroPasaporte: "AAB123456",
   fechaVencimientoPasaporte: "2031-08-30",
-  tutor1Nombre: "[INT] Carolina Iglesias",
+  tutor1Nombre: "Carolina Iglesias",
   tutor1Celular: "+54 9 11 5555 5555",
   tutor1Email: "int+tutor@int.jovenesenuk.com",
   acepta: "on",
@@ -149,7 +155,38 @@ describe("enviarInscripcion — validación y anti-abuso", () => {
 
     expect(res.ok).toBe(false);
     if (res.ok) throw new Error("debía fallar");
-    expect(res.fieldErrors?.acepta).toBeDefined();
+    // Y el mensaje está en español: el literal de zod contestaba "Invalid
+    // literal value, expected true" y eso llegaba al resumen de la familia.
+    expect(res.fieldErrors?.acepta?.[0]).toBe("Tenés que aceptar para continuar");
+    expect(q.crearInscripcion).not.toHaveBeenCalled();
+  });
+
+  it("el consentimiento tildado ('on') sigue pasando tras unificar la coerción", async () => {
+    // El cliente y el server coercionan el mismo casillero con la misma regla
+    // (`aceptaDesdeFormulario`): si se separaran, el formulario marcaría en
+    // rojo algo que el server acepta.
+    for (const marcado of ["on", "true"]) {
+      resetearMocks();
+      q.dentroDelLimite.mockResolvedValue(true);
+      q.getInvitacionByTokenHash.mockResolvedValue(null);
+      q.crearInscripcion.mockResolvedValue({
+        ok: true,
+        inscripcion: { id: "ins-1", numero: 123, estado: "requiere_revision" },
+      });
+
+      const res = await enviarInscripcion(null, formulario({ acepta: marcado }));
+      expect(res.ok, `acepta=${marcado}`).toBe(true);
+    }
+  });
+
+  it("un DNI con letras vuelve marcado, y el mensaje dice qué pasó", async () => {
+    // La validación en vivo del formulario es una comodidad: el que decide
+    // sigue siendo el server, con el mismo mensaje.
+    const res = await enviarInscripcion(null, formulario({ dni: "45102a" }));
+
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error("debía fallar");
+    expect(res.fieldErrors?.dni?.[0]).toBe("El DNI va solo con números.");
     expect(q.crearInscripcion).not.toHaveBeenCalled();
   });
 

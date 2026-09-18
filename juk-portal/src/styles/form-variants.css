@@ -60,6 +60,33 @@
   --form-chrome: var(--c-surface);
   --form-chrome-borde: var(--c-border);
 
+  /* ── El MARCO: lo que rodea a la ficha ──
+     Cabecera con la marca y el viaje, columna de "qué pasa después", franja de
+     confianza y pie. Es lo que hace que /inscripcion se lea como parte del
+     sitio y no como un formulario suelto. El TSX del marco consume SOLO este
+     vocabulario: ninguna pieza conoce la variante (se la da `body:has(…)`), así
+     que las tres comparten un único árbol y cambian de piel por CSS. */
+  --form-hero-fondo: var(--c-surface-inverse);
+  --form-hero-velo: radial-gradient(700px 360px at 90% -20%, rgba(255, 138, 91, 0.16), transparent 60%),
+    radial-gradient(540px 300px at -5% 120%, rgba(70, 179, 160, 0.2), transparent 55%);
+  --form-hero-tinta: var(--c-ink-onbrand);
+  --form-hero-tinta-muted: var(--c-ink-onbrand-muted);
+  --form-hero-volanta: var(--c-honey);
+  --form-hero-pad-y: var(--sp-7);
+  --form-hero-tilde-fondo: rgba(244, 250, 247, 0.12);
+  --form-hero-tilde-tinta: var(--c-honey);
+
+  --form-aside-papel: var(--c-surface);
+  --form-aside-borde: var(--c-border);
+  --form-aside-r: var(--r-lg);
+
+  --form-confianza-fondo: var(--c-surface);
+
+  --form-cierre-fondo: var(--c-surface-inverse);
+  --form-cierre-borde: rgba(244, 250, 247, 0.16);
+  --form-cierre-tinta: var(--c-ink-onbrand);
+  --form-cierre-tinta-muted: var(--c-ink-onbrand-muted);
+
   --form-sep-seccion: var(--sp-6);
   --form-grilla-gap-x: var(--sp-4);
   --form-grilla-gap-y: var(--sp-5);
@@ -192,6 +219,52 @@
   }
 }
 
+/* ── El marco (cabecera, columna lateral, franja de confianza y pie) ──
+   Estructura idéntica en las tres pieles: acá solo se consume el vocabulario
+   --form-* de arriba. El markup vive en `src/app/inscripcion/_marco.tsx`. */
+
+.marco-hero {
+  padding-top: var(--form-hero-pad-y);
+  padding-bottom: var(--form-hero-pad-y);
+  background-color: var(--form-hero-fondo);
+  color: var(--form-hero-tinta);
+}
+
+/* El velo va en un nodo propio y no en un ::before: encima se apoya contenido
+   real, y un pseudo con z-index negativo se pierde detrás del fondo del <body>
+   cuando el contenedor no crea stacking context. */
+.marco-hero-velo {
+  background-image: var(--form-hero-velo);
+}
+
+.marco-tilde {
+  background-color: var(--form-hero-tilde-fondo);
+  color: var(--form-hero-tilde-tinta);
+}
+
+.marco-aside {
+  background-color: var(--form-aside-papel);
+  border: var(--hairline) solid var(--form-aside-borde);
+  border-radius: var(--form-aside-r);
+}
+
+.marco-confianza {
+  background-color: var(--form-confianza-fondo);
+}
+
+.marco-cierre {
+  background-color: var(--form-cierre-fondo);
+  color: var(--form-cierre-tinta);
+}
+
+.marco-cierre-borde {
+  border-color: var(--form-cierre-borde);
+}
+
+.marco-cierre-muted {
+  color: var(--form-cierre-tinta-muted);
+}
+
 /* ============================================================
    A · LEGAJO — "la agencia seria que ya conocés"
    ============================================================ */
@@ -242,6 +315,17 @@ body:has(.v-form-a),
   --form-orden-color: var(--c-ink-muted);
   --form-filete: var(--c-border-strong);
   --form-filete-alto: 1px;
+
+  /* El marco, en la misma gramática: cabecera oscura pero plana (cero
+     gradientes, como el resto de A) y pie sobre superficie hundida en vez de
+     panel oscuro — el Legajo no usa dos bloques oscuros en la misma pantalla. */
+  --form-hero-velo: none;
+  --form-hero-volanta: var(--c-brand-300);
+  --form-aside-r: var(--r-md);
+  --form-cierre-fondo: var(--c-surface-2);
+  --form-cierre-borde: var(--c-border-strong);
+  --form-cierre-tinta: var(--c-ink);
+  --form-cierre-tinta-muted: var(--c-ink-muted);
 }
 
 /* Las reglas de elemento de A no se escriben contra `.v-form-base`: los hooks
@@ -298,6 +382,30 @@ body:has(.v-form-b) {
   --form-filete-ancho: 3rem;
 
   --form-nota-color: var(--c-ink-muted);
+
+  /* El marco, sobre el mismo papel crema: B no tiene paneles oscuros en ningún
+     lado, así que una cabecera invertida le rompería la calidez editorial. */
+  --form-hero-fondo: #fdf8ee;
+  --form-hero-velo: none;
+  --form-hero-tinta: var(--c-ink);
+  --form-hero-tinta-muted: var(--c-ink-muted);
+  --form-hero-volanta: var(--c-accent-600);
+  --form-hero-tilde-fondo: var(--c-brand-100);
+  --form-hero-tilde-tinta: var(--c-brand);
+
+  --form-aside-papel: #fdf8ee;
+  --form-aside-borde: var(--c-border-strong);
+  --form-confianza-fondo: #fdf8ee;
+
+  --form-cierre-fondo: #f7efe2;
+  --form-cierre-borde: var(--c-border-strong);
+  --form-cierre-tinta: var(--c-ink);
+  --form-cierre-tinta-muted: var(--c-ink-muted);
+}
+
+/* El filete de color que cierra cada sección, también bajo la cabecera. */
+.v-form-b .marco-hero {
+  border-bottom: 3px solid var(--c-accent);
 }
 
 /* Lomo del cuaderno. */
@@ -349,6 +457,24 @@ body:has(.v-form-c) {
   --form-titulo-size: var(--t-h3);
 
   --form-acento: var(--c-brand);
+
+  /* El marco en C tiene que ocupar sin estorbar: la ficha se completa desde el
+     teléfono y la cabecera es lo único que se ve antes del primer campo, así
+     que va más compacta que en las otras dos. El papel plano de la piel (sin
+     `--grad-page`) se compensa acá: los bloques del marco traen su propia
+     superficie y bordes definidos, que es lo que le faltaba a la pantalla. */
+  --form-hero-pad-y: var(--sp-6);
+  --form-aside-borde: var(--c-border-strong);
+}
+
+/* La línea de troquel del talón de embarque, al pie de la cabecera. */
+.v-form-c .marco-hero::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  border-top: 2px dashed rgba(244, 250, 247, 0.28);
 }
 
 /* El papel no existe: el padding de la tarjeta tampoco. */

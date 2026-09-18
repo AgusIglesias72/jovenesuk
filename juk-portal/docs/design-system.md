@@ -71,6 +71,7 @@ Resumen por grupo. Los valores exactos están en `src/styles/tokens.css`.
 | Superficies | `--c-page` (crema `#fbf7f2`), `--c-surface`, `--c-surface-2/3`, `--c-surface-inverse` (`#173f3a`), `--c-overlay` | `--grad-page` (dos radiales fijos al viewport), `--grad-brand` |
 | Tinta | `--c-ink` (`#21302d`, nunca negro puro), `--c-ink-muted`, `--c-ink-subtle`, `--c-ink-onbrand(-muted)`, `--c-ink-onaccent` | |
 | Bordes | `--c-border`, `--c-border-strong`, `--c-border-brand`, `--c-ring` | |
+| Scroll | `--c-scroll(-hover)`, `--c-scroll-onbrand(-hover)` | rgba: la barra corre sobre `--grad-brand` y un sólido lo cortaría |
 | Semánticos | `--c-success`, `--c-warning`, `--c-danger` (+ `--c-danger-700` para hover del botón destructivo sólido), `--c-info`, `--c-neutral`, cada uno con su `-bg` | |
 
 ### Estados de negocio
@@ -124,6 +125,12 @@ Uso desde Tailwind, sin espacios dentro del valor: `pt-[var(--safe-top)]`,
 
 `--img-login` y `--grad-login-veil` (panel del login).
 
+Las imágenes de marca viven en `public/landing/` (logo, 8 acreditaciones, fotos de viajes,
+testimonios y banderas) y desde el marco de `/inscripcion` alimentan también al Application Form,
+que está fuera del route group público. El **catálogo** —las cuatro cifras y las ocho
+acreditaciones, con su `alt`— es uno solo: `src/lib/marca.ts` (mismo criterio que `src/lib/contact.ts`;
+`(public)/_sections/` es carpeta privada de ese segmento y nadie la importa desde afuera).
+
 ## 4. Fuentes
 
 | Variable | Familia | Uso |
@@ -152,6 +159,8 @@ Se cargan con `next/font/google` en `src/app/layout.tsx` y sobreescriben los fal
   aplique el componente; sin `!important` el control volvía a 13 px y el zoom reaparecía. No se
   pisa desde un componente.
 - Cursor `pointer` en todo lo clickeable (el preflight de Tailwind lo resetea).
+- **`.scroll-fino` / `.scroll-fino-onbrand`**: la barra de scroll de STUDIO (§7). Son las dos únicas
+  utilidades propias del archivo; todo lo demás se resuelve con Tailwind.
 
 **`src/app/(public)/landing.css`** (solo el sitio público, lo importa `(public)/layout.tsx`): keyframes
 propios (`landing-marquee`, `landing-rise`, `landing-drift`, `landing-dash`, `landing-ping`) y el
@@ -194,8 +203,22 @@ reduced motion (§12).
   de escritorio (`min-h` de 32 px para `sm` y de 36 px para `default` e `icon`; el ancho de `icon`
   es `w-9`, 31,5 px con la raíz de 14 px, así que no es cuadrado) se aplica solo con
   `lg:[@media(pointer:fine)]`: pantalla grande **y** puntero fino. Una notebook táctil conserva los
-  44 px. `Pagination` sigue la misma regla (`h-9`/`w-9` en escritorio). `Checkbox` (`field.tsx`)
-  también mide `min-h-[var(--tap)]`.
+  44 px. `Pagination` sigue la misma regla (`h-9`/`w-9` en escritorio). En `Checkbox` (`field.tsx`)
+  los 44 px los lleva **el `<input>`**, absoluto y centrado sobre el cuadrado de 17,5 px: el
+  `min-h-[var(--tap)]` del `<label>` sigue ahí para la fila, pero ya no es lo que aporta el objetivo
+  táctil. Antes sí lo era, y en un consentimiento de dos líneas eso significaba que tocar cualquier
+  palabra del párrafo tildaba la casilla. Como el input es `absolute`, el consumidor puede pisar el
+  `min-h` sin perder el target (el consentimiento de `/inscripcion` usa `min-h-0 select-text`).
+- **Barra de scroll fina** (`.scroll-fino` y `.scroll-fino-onbrand`, `globals.css`). La barra del
+  sistema es un bloque gris claro que corta el gradiente `--grad-brand` de las dos sidebars. La
+  utilidad lee `--c-scroll*` (rgba, para no tapar el gradiente) y **solo** toca `scrollbar-width`,
+  `scrollbar-color` y las pseudo de WebKit: nunca `overflow`, `overscroll-behavior` ni
+  `scrollbar-gutter`, así que el scroll táctil queda igual. Hoy la usan el menú del back-office
+  (`admin-shell.tsx`), el del Portal de Familias (`familias/_shell.tsx`), el diálogo de registrar
+  pago y la lista de destinatarios de invitaciones. El bloque `::-webkit-scrollbar-*` va dentro de
+  `@supports not (scrollbar-color: auto)` a propósito: en Chromium las propiedades estándar ganan y
+  las pseudo se ignoran, así que fuera de la guarda serían código muerto. El thumb redondeado solo
+  se ve en Safari y en motores viejos; en el teléfono la barra es flotante y no cambia nada.
 - **Tablas como tarjetas en el teléfono.** `<Table responsive>` (`data-table.tsx`) convierte la tabla
   en una lista de tarjetas por debajo de 640 px: el encabezado se oculta y cada celda muestra su
   rótulo, que sale de `<TD label="…">` (pasale a cada celda el mismo texto que su `<TH>`). Las celdas
@@ -239,7 +262,7 @@ reduced motion (§12).
 | `pagination.tsx` | `Pagination` | Obligatoria en tablas que pueden superar 50 filas |
 | `confirm-dialog.tsx` | `ConfirmProvider`, `useConfirm` | Reemplazo de `window.confirm`. Tonos `danger`, `warning`, `brand`; campo de texto opcional (motivo). El foco entra en el control seguro, Tab cicla adentro (`indiceFocoTrap` es puro y testeado), Escape cancela, el scroll del fondo queda bloqueado y al cerrar vuelve el foco a quien lo abrió. Lo montan los dos shells |
 | `toast.tsx` | `ToastProvider`, `useToast` | Pila de avisos con safe area y `--bottom-nav-h`. Lo montan los dos shells |
-| `skeleton.tsx` | `Skeleton`, piezas y siluetas por pantalla | Piezas: `PageHeaderSkeleton`, `FiltersSkeleton`. Siluetas: `ListPageSkeleton`, `PagosPageSkeleton`, `PanelSkeleton`, `FormPageSkeleton`, `ConfigSkeleton`, `FichaAlumnoSkeleton`, `ViajeDetalleSkeleton` y las del portal de familias (`FamiliaResumenSkeleton`, `FamiliaDocumentacionSkeleton`, `FamiliaPagosSkeleton`, `FamiliaViajeSkeleton`, `FamiliaDatosSkeleton`, que no están en el barrel) |
+| `skeleton.tsx` | `Skeleton`, piezas y siluetas por pantalla | Piezas: `PageHeaderSkeleton`, `FiltersSkeleton`. Siluetas: `ListPageSkeleton`, `PagosPageSkeleton`, `PanelSkeleton`, `FormPageSkeleton`, `InscripcionSkeleton`, `ConfigSkeleton`, `FichaAlumnoSkeleton`, `ViajeDetalleSkeleton` y las del portal de familias (`FamiliaResumenSkeleton`, `FamiliaDocumentacionSkeleton`, `FamiliaPagosSkeleton`, `FamiliaViajeSkeleton`, `FamiliaDatosSkeleton`, que no están en el barrel) |
 | `globe-loader.tsx` | `GlobeLoader` | Loader de marca. **No se usa** en la app (decisión 12/06/2026) |
 | `popover-position.ts` | `posicionarPopover`, `clasesPopover`, `varsPopover`, `medirPopover` | Geometría de los popovers (§7). Fuera del barrel |
 | `use-scroll-lock.ts` | `useScrollLock` | Bloqueo de scroll (§7). Fuera del barrel |
@@ -277,9 +300,49 @@ de spinners ad-hoc.
   label, `.fill()` de Playwright). Encima hay un campo de texto donde se **tipea** la fecha en
   DD/MM/AAAA y un calendario propio que navega días → meses → años, en un portal. API compatible con
   `<Input type="date">`.
+  - El **disparador del calendario** ocupa el alto entero del campo (`self-stretch`) y **44 px fijos**
+    de ancho, con fondo `--c-surface-2` en reposo y un divisor a la izquierda: se lee como botón, no
+    como un glifo. Los 44 px van en px arbitrarios y **no** en `var(--tap)` porque la piel C del
+    Application Form redefine `--tap` a 52 px y en una columna única de 375 px ese bloque gris se
+    comería el 14 % del campo. El ícono mide `h-5 w-5` con `strokeWidth 1.8`.
+  - **El calendario NO se abre al enfocar el campo**, y es deliberado: el componente existe para
+    poder **tipear** la fecha (una fecha de nacimiento de 1968 son 20 clicks contra ocho teclas), en
+    el teléfono el popover taparía el campo recién tocado, y adentro del diálogo de registrar pago
+    el manejo de Escape y Tab mira el `aria-expanded` del disparador. Atajo de teclado: **Enter**
+    sobre el campo de texto también lo abre.
+  - Deuda a la vista: los días del calendario y las flechas ← → siguen midiendo 31,5 px. Subirlos a
+    44 obliga a llevar `ANCHO_CALENDARIO` de 296 a ~336 px y a verificar pantallas de 320 px.
 - **Errores:** `useErroresDeFormulario` da `fe(campo)` para `<Field error>`, `reportar(fieldErrors)`
   cuando la action falla (lleva el foco al primer control con `aria-invalid` y lo centra en
   pantalla) y el texto para `<AvisoErrores>`, que se lo anuncia a un lector de pantalla.
+- **⚠️ `<Field error>` va SIEMPRE acompañado de `invalid` en el control.** `Field` clona al hijo con
+  `aria-invalid`, pero el **borde rojo lo decide la prop `invalid`** de `Input`, `Textarea`, `Select`
+  y `DateInput`. Pasar solo `error` deja el campo gris con el mensaje debajo: es el bug que tenía el
+  formulario de inscripción. Los ABM del back-office lo pasan a mano
+  (`invalid={!!fe("nombre")}`); si un formulario envuelve a `Field` en un componente propio, ese
+  componente lo inyecta una sola vez (`cloneElement(children, { invalid: Boolean(error) })`), como
+  hace `Campo` en `src/app/inscripcion/inscripcion-form.tsx`. **Nunca dentro de `Field`**: ahí
+  pisaría con `undefined` el `invalid` explícito de quienes ya lo pasan.
+- **`Checkbox` y el error:** no tiene prop `invalid` porque no va dentro de `Field`; su caja se pinta
+  desde el `aria-invalid` del input con `peer-aria-[invalid=true]:`. Va como variante **arbitraria**
+  a propósito: Tailwind 3.4 no trae `aria-invalid` entre sus variants `aria-*` y `tailwind.config.ts`
+  no la extiende, así que `peer-aria-invalid:` se ignoraría en silencio y el estado de error quedaría
+  sin pintar sin que nada falle. Lo cubre `tests/e2e/inscripcion-alta.spec.ts`, que compara el
+  `border-color` computado contra `--c-danger`. Deshabilitado ahora también se ve
+  (`has-[:disabled]:opacity-60` en el `<label>`, no en la caja, para no pelearle el fondo a
+  `peer-checked`).
+- **Validación en vivo** (hoy: `/inscripcion`; es el molde para los demás formularios). La regla y el
+  mensaje salen del schema de dominio —los mismos que aplica el server—, nunca de una segunda regla
+  escrita en el cliente. El criterio de cuándo se marca:
+  - mientras se completa un campo por **primera vez** no se marca nada (un email a medio tipear no
+    es un error), salvo que el carácter sea **imposible** (una letra en el DNI): eso se marca al
+    instante;
+  - una vez marcado, el error se borra **apenas** el dato queda bien, sin esperar al blur;
+  - el **mensaje** no cambia bajo los dedos: si sigue mal mientras escribe, el texto se recalcula al
+    salir del campo;
+  - el foco **nunca** se mueve solo (por eso no se reusa `useErroresDeFormulario`, que enfoca el
+    primer control inválido), y el anuncio va en una región `aria-live="polite"` propia, no en
+    `<AvisoErrores>`, que es `assertive` e interrumpiría en cada campo.
 
 ## 10. Vacíos y títulos de sección
 
@@ -314,6 +377,34 @@ Cómo están hechas, y por qué así:
 - Las tres exponen el **mismo árbol accesible**: los números, la volanta, el tilde y la barra de
   progreso van en nodos `aria-hidden`, así el nombre accesible de cada grupo no cambia y los mismos
   selectores de los E2E sirven para las tres.
+
+### El marco (`src/app/inscripcion/_marco.tsx`)
+
+La ficha no vive sola: alrededor hay una **cabecera** con la marca, el viaje y tres promesas; una
+**columna lateral** con "qué pasa después" y los dos canales de ayuda; una **franja de confianza**
+con las cifras y las acreditaciones; y un **pie** de tres columnas. Es lo que hace que `/inscripcion`
+se lea como parte del sitio en vez de como un formulario suelto — la piel C, que apaga el papel y
+fuerza una sola columna, era la que más lo necesitaba.
+
+- Vocabulario propio, declarado en `.v-studio` con valor base por la misma razón que el resto:
+  `--form-hero-*` (fondo, velo de radiales, tinta, volanta, padding vertical y el círculo del
+  tilde), `--form-aside-*` (papel, borde, radio), `--form-confianza-fondo` y `--form-cierre-*`
+  (fondo, borde y tinta del pie). Las clases de estructura son `.marco-hero`, `.marco-hero-velo`,
+  `.marco-tilde`, `.marco-aside`, `.marco-confianza` y `.marco-cierre`.
+- **El marco no conoce la variante**: no hay un solo `if (variante === …)` en el TSX. A trae la
+  cabecera oscura pero plana y el pie sobre superficie hundida; B la lleva entera al papel crema con
+  el filete de acento abajo; C la hace más compacta y le dibuja la línea de troquel del talón de
+  embarque. Todo eso son overrides de esas variables, más dos reglas de elemento.
+- Tres reglas que no se negocian, y las tres tienen su test: **ni un `<form>` ni un control** nuevo
+  (el spec toma la piel con `page.locator("form")` en modo estricto, y todo control entra en el
+  piso de 16px del teléfono); **un solo `<h1>` visible**, el de la cabecera —el camino del link
+  inválido no monta cabecera y conserva el suyo—; y **cero salidas de navegación** más allá de
+  `/privacidad`, el `mailto:` y el `wa.me` (la URL lleva un token, y el metadata fija `follow: false`).
+- El `<main>` del shell no lleva ancho ni padding: el ancho lo pone cada bloque
+  (`mx-auto max-w-5xl px-4`), que es lo que permite que la cabecera y la franja sean de borde a
+  borde. El header **no** es sticky: la barra de progreso de C ya lo es, y se pisarían.
+- La foto de la cabecera va `hidden lg:block` y **sin `priority`**: no se baja al teléfono, que es
+  donde se completa la mayoría de las fichas.
 
 ## 11. Shadcn: por qué no está instalado
 

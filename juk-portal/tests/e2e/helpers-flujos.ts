@@ -6,6 +6,7 @@ import { hashPassword } from "better-auth/crypto";
 
 import { db } from "../../src/lib/db";
 import { accounts, asignaciones, pasosAlumno, users, viajes } from "../../src/lib/db/schema";
+import { validarCampoInscripcion } from "../../src/lib/domain/inscripciones/validacion-campo";
 import { TEXTO_CONSENTIMIENTO } from "../../src/lib/domain/privacidad/politica";
 
 import {
@@ -35,6 +36,18 @@ export function sufijoUnico(): string {
   secuencia += 1;
   const azar = Math.floor(Math.random() * 36 ** 2).toString(36);
   return `${Date.now().toString(36)}${secuencia.toString(36)}${azar}`.toUpperCase();
+}
+
+/**
+ * El mismo sufijo, sin dígitos (0-9 → G-P).
+ *
+ * Los campos de nombre del Application Form aceptan solo letras
+ * (`CARACTERES_NOMBRE`, `src/lib/domain/inscripciones/schema.ts`), así que un
+ * apellido de prueba tiene que poder pasar exactamente la misma validación que
+ * el de una familia. La unicidad de la corrida la sigue dando el sufijo.
+ */
+export function sufijoDeLetras(sufijo: string): string {
+  return sufijo.replace(/\d/g, (d) => String.fromCharCode(71 + Number(d)));
 }
 
 export function webhookSecret(): string {
@@ -289,6 +302,17 @@ export function literalRegex(texto: string): string {
    Application Form público (/inscripcion)
    ============================================================ */
 
+/**
+ * El `<h1>` del formulario público. Lo asierta más de un spec (que el link
+ * tokenizado abre la ficha, y no el aviso de "este link no está disponible"):
+ * escrito una sola vez, un cambio de copy se arregla en un lugar.
+ *
+ * Es una copia del literal de `src/app/inscripcion/_marco.tsx` y no un import:
+ * ese módulo es un server component con `next/image` adentro, y traerlo a un
+ * proceso de Node solo para leer un string no vale el riesgo.
+ */
+export const TITULO_INSCRIPCION = "Completá tu inscripción";
+
 /** Lo mínimo que necesita una ficha para pasar la validación del schema. */
 export type FichaInscripcion = {
   nombre: string;
@@ -297,6 +321,49 @@ export type FichaInscripcion = {
   pasaporte: string;
   tutorEmail: string;
 };
+
+/**
+ * Lo que no varía entre fichas de prueba. El nombre del tutor va SIN dígitos
+ * (`CARACTERES_NOMBRE`, `src/lib/domain/inscripciones/schema.ts`): "Tutora E2E"
+ * tiene un 2 y hacía rechazar el envío entero.
+ */
+const TUTOR_NOMBRE = "Tutora de Prueba";
+const TUTOR_CELULAR = "+54 9 11 5555-0000";
+const FECHA_NACIMIENTO = "2011-04-04";
+const VENCIMIENTO_PASAPORTE = "2034-01-01";
+
+/**
+ * Revisa la ficha de test contra el MISMO schema que aplica el server, antes de
+ * tipear una sola tecla.
+ *
+ * Sin esto, un dato de prueba que el schema rechaza no se nota: el envío vuelve
+ * con `fieldErrors`, el acuse nunca aparece y el spec muere 60 segundos después
+ * esperando un toast, sin decir qué campo estaba mal. Con esto, el fallo nombra
+ * el campo y el mensaje en el acto. Es una guarda del fixture, no una
+ * validación que reemplace a la del producto: la ficha se sigue enviando igual.
+ */
+function revisarFicha(ficha: FichaInscripcion): void {
+  const malos = (
+    [
+      ["nombre", ficha.nombre],
+      ["apellido", ficha.apellido],
+      ["fechaNacimiento", FECHA_NACIMIENTO],
+      ["dni", ficha.dni],
+      ["numeroPasaporte", ficha.pasaporte],
+      ["fechaVencimientoPasaporte", VENCIMIENTO_PASAPORTE],
+      ["tutor1Nombre", TUTOR_NOMBRE],
+      ["tutor1Celular", TUTOR_CELULAR],
+      ["tutor1Email", ficha.tutorEmail],
+    ] as const
+  ).flatMap(([campo, valor]) => {
+    const error = validarCampoInscripcion(campo, valor);
+    return error ? [`${campo} ("${valor}"): ${error}`] : [];
+  });
+
+  if (malos.length > 0) {
+    throw new Error(`La ficha de test no pasa el schema de inscripciones — ${malos.join(" · ")}`);
+  }
+}
 
 /**
  * Completa la ficha como la completa una familia, por nombre accesible.
@@ -314,18 +381,20 @@ export async function completarFichaInscripcion(
   page: Page,
   ficha: FichaInscripcion
 ): Promise<void> {
+  revisarFicha(ficha);
+
   const nombre = page.getByLabel("Nombre*", { exact: true });
   await esperarHidratacion(nombre);
 
   await nombre.fill(ficha.nombre);
   await page.getByLabel("Apellido*", { exact: true }).fill(ficha.apellido);
-  await page.getByLabel("Fecha de nacimiento*").fill("2011-04-04");
+  await page.getByLabel("Fecha de nacimiento*").fill(FECHA_NACIMIENTO);
   await page.getByLabel("DNI*").fill(ficha.dni);
   await page.getByLabel("Número de pasaporte*", { exact: true }).fill(ficha.pasaporte);
-  await page.getByLabel("Vencimiento del pasaporte*").fill("2034-01-01");
+  await page.getByLabel("Vencimiento del pasaporte*").fill(VENCIMIENTO_PASAPORTE);
 
-  await page.getByLabel("Nombre y apellido*", { exact: true }).fill("Tutora E2E");
-  await page.getByLabel("Celular*", { exact: true }).fill("+54 9 11 5555-0000");
+  await page.getByLabel("Nombre y apellido*", { exact: true }).fill(TUTOR_NOMBRE);
+  await page.getByLabel("Celular*", { exact: true }).fill(TUTOR_CELULAR);
   await page.getByLabel("Email*", { exact: true }).fill(ficha.tutorEmail);
 
   await page.getByRole("checkbox", { name: TEXTO_CONSENTIMIENTO }).check();

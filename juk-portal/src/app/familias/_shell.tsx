@@ -157,7 +157,7 @@ export function FamiliaShell({
 
         <nav
           aria-label="Secciones"
-          className="mt-6 flex-1 space-y-1 overflow-y-auto"
+          className="scroll-fino scroll-fino-onbrand mt-6 flex-1 space-y-1 overflow-y-auto overscroll-contain"
         >
           {MODULOS.map((mod) =>
             mod.soon ? (

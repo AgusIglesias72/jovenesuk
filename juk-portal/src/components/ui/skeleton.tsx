@@ -154,6 +154,72 @@ export function FormPageSkeleton({ fields = 8 }: { fields?: number }) {
   );
 }
 
+/**
+ * /inscripcion: cabecera de borde a borde, la ficha con su columna lateral y la
+ * franja de cifras. No reusa `FormPageSkeleton` porque esa silueta —header
+ * chico y una card— dejó de ser la de la pantalla cuando el formulario ganó su
+ * marco, y un skeleton que no espeja el layout produce justo el salto que
+ * viene a evitar.
+ *
+ * Trae su propio `mx-auto max-w-5xl px-4`: el `<main>` de `/inscripcion` no
+ * lleva ancho ni padding (los pone cada bloque, para que la cabecera pueda ser
+ * full-bleed).
+ */
+export function InscripcionSkeleton({ fields = 12 }: { fields?: number }) {
+  return (
+    <div role="status" aria-label="Cargando…">
+      <div className="bg-[var(--form-hero-fondo)] py-[var(--form-hero-pad-y)]">
+        <div className="mx-auto w-full max-w-5xl px-4 sm:px-6">
+          <Skeleton className="h-3 w-28 opacity-40" />
+          <Skeleton className="mt-4 h-9 w-80 max-w-full opacity-40" />
+          <Skeleton className="mt-4 h-4 w-full max-w-xl opacity-30" />
+          <Skeleton className="mt-2 h-4 w-64 max-w-full opacity-30" />
+        </div>
+      </div>
+
+      <div className="mx-auto grid w-full max-w-5xl gap-8 px-4 py-10 sm:px-6 sm:py-12 lg:grid-cols-[minmax(0,1fr)_17rem]">
+        <CardShell>
+          <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
+            {Array.from({ length: fields }).map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-11 w-full" />
+              </div>
+            ))}
+          </div>
+          <div className="mt-8 flex justify-end">
+            <Skeleton className="h-11 w-48 rounded-[var(--r-pill)]" />
+          </div>
+        </CardShell>
+
+        <div className="flex flex-col gap-4">
+          {Array.from({ length: 2 }).map((_, card) => (
+            <CardShell key={card}>
+              <Skeleton className="h-5 w-40 max-w-full" />
+              <div className="mt-4 space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-4 w-full" />
+                ))}
+              </div>
+            </CardShell>
+          ))}
+        </div>
+      </div>
+
+      <div className="border-y border-[var(--c-border)] bg-[var(--form-confianza-fondo)] py-10">
+        <div className="mx-auto grid w-full max-w-5xl grid-cols-2 gap-6 px-4 sm:px-6 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex flex-col items-center gap-2">
+              <Skeleton className="h-7 w-20" />
+              <Skeleton className="h-3 w-28 max-w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** /configuracion: header con acción, dos cards de formulario y dos cards de panel. */
 export function ConfigSkeleton() {
   return (

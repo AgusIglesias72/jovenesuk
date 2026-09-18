@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Alert } from "@/components/ui";
+import { googleOAuthHabilitado, mensajeErrorOAuth } from "@/lib/auth/google-oauth";
 import { getSession } from "@/lib/auth/helpers";
 import { sanitizeReturnTo } from "@/lib/auth/return-to";
 import { HOME_BY_ROLE } from "@/lib/routes";
@@ -45,6 +46,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     redirect(params.returnTo ? returnTo : home);
   }
   const copy = params.portal === "familias" ? COPY.familias : COPY.equipo;
+  // El callback de Google vuelve con `?error=<code>`: si no se muestra acá, la
+  // persona queda mirando un login vacío sin saber por qué no entró.
+  const errorOAuth = mensajeErrorOAuth(params.error);
 
   return (
     <div>
@@ -73,7 +77,24 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </div>
       )}
 
-      <LoginForm defaultEmail={params.email ?? ""} returnTo={returnTo} />
+      {errorOAuth && (
+        <div className="mb-4">
+          <Alert level="critical" title={errorOAuth.titulo}>
+            {errorOAuth.detalle}
+          </Alert>
+        </div>
+      )}
+
+      <LoginForm
+        defaultEmail={params.email ?? ""}
+        returnTo={returnTo}
+        googleHabilitado={googleOAuthHabilitado()}
+        // Sin returnTo explícito volvemos a /login a propósito: esta misma
+        // página redirige por rol, así una familia aterriza en /familias sin
+        // rebotar por /dashboard. `sanitizeReturnTo` no sirve acá (solo acepta
+        // los prefijos de portal, y /login no es uno).
+        callbackGoogle={params.returnTo ? returnTo : "/login"}
+      />
 
       <p className="mt-6 text-center text-[length:var(--t-small)] text-[var(--c-ink-muted)]">
         ¿Olvidaste tu contraseña?{" "}

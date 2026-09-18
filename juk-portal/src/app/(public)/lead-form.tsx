@@ -138,7 +138,9 @@ export function LeadForm() {
           aria-label={TEXTO_CONSENTIMIENTO}
           aria-invalid={fe("acepta") ? true : undefined}
           aria-describedby={fe("acepta") ? "error-acepta" : undefined}
-          className="items-start"
+          // Mismo ajuste que el consentimiento de /inscripcion: el objetivo
+          // táctil lo lleva el input, y el texto legal se tiene que poder copiar.
+          className="items-start min-h-0 select-text"
           label={
             <span className="text-[length:var(--t-small)] leading-[var(--lh-body)]">
               {ANTES_DEL_ENLACE}

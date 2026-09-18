@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
-import { EMAIL, MAIL_URL } from "@/lib/contact";
-
+import { MarcaJuk, PieInscripcion } from "./_marco";
 import { VARIANTE_CLASE_BASE } from "./variantes";
 
 /**
@@ -17,8 +16,23 @@ import { VARIANTE_CLASE_BASE } from "./variantes";
  *  2. TopNav y Footer invitan a irse a navegar el sitio en medio de una ficha
  *     larga. Acá la única salida es terminar de completarla.
  *
- * Por lo mismo el shell es mínimo: la marca, el contenido y una línea legal.
- * Nada de nav de marketing ni `landing.css`.
+ * Por lo mismo el shell NO tiene nav de marketing ni `landing.css`, y las únicas
+ * salidas de toda la pantalla son la política de privacidad y los dos canales de
+ * ayuda (mail y WhatsApp).
+ *
+ * Dentro de ese límite, sí tiene mobiliario: la marca arriba, la cabecera con el
+ * viaje, la columna de "qué pasa después", la franja con las cifras y las
+ * acreditaciones, y un pie de tres columnas (`_marco.tsx`). La ficha sola era una
+ * columna de campos flotando en el vacío, y la familia que llega desde un mail no
+ * tenía cómo saber que estaba en el lugar correcto.
+ *
+ * El header NO es sticky: la barra de progreso de la piel C es `position: sticky;
+ * top: 0` (`src/styles/form-variants.css`) y las dos se pisarían justo en la
+ * pieza que hace que la ficha se termine.
+ *
+ * El `<main>` no lleva ancho ni padding propios: el ancho lo pone cada bloque
+ * (`mx-auto max-w-5xl px-4`), que es lo que permite que la cabecera y la franja
+ * de confianza sean de borde a borde.
  *
  * LA PIEL DE LA VARIANTE (A · Legajo, B · Cuaderno, C · Embarque)
  * --------------------------------------------------------------
@@ -55,41 +69,22 @@ export default function InscripcionLayout({ children }: { children: ReactNode })
       </a>
 
       <header className="border-b border-[var(--form-chrome-borde)] bg-[var(--form-chrome)]">
-        <div className="mx-auto flex w-full max-w-3xl flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-4 sm:px-6">
-          <span className="font-[family-name:var(--font-display)] text-[length:var(--t-small)] font-bold uppercase tracking-[0.14em] text-[var(--c-brand)]">
-            Jóvenes en UK
-          </span>
-          <span className="text-[length:var(--t-label)] uppercase tracking-[var(--ls-label)] text-[var(--c-ink-subtle)]">
+        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-5 sm:px-6">
+          <MarcaJuk />
+          <span className="text-right text-[length:var(--t-label)] uppercase tracking-[var(--ls-label)] text-[var(--c-ink-subtle)]">
             Formulario de inscripción
+            <span className="block normal-case tracking-normal">
+              Educational Tour Operator · +10 años
+            </span>
           </span>
         </div>
       </header>
 
-      <main id="contenido" className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
+      <main id="contenido" className="flex-1">
         {children}
       </main>
 
-      <footer className="border-t border-[var(--form-chrome-borde)] px-4 py-6 sm:px-6">
-        <p className="mx-auto max-w-3xl text-[length:var(--t-small)] leading-[var(--lh-body)] text-[var(--c-ink-subtle)]">
-          Tratamos tus datos según nuestra{" "}
-          <a
-            href="/privacidad"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-semibold text-[var(--c-brand)] underline underline-offset-2"
-          >
-            Política de Privacidad
-          </a>
-          . Ante cualquier duda, escribinos a{" "}
-          <a
-            href={MAIL_URL}
-            className="font-semibold text-[var(--c-brand)] underline underline-offset-2"
-          >
-            {EMAIL}
-          </a>
-          .
-        </p>
-      </footer>
+      <PieInscripcion />
     </div>
   );
 }

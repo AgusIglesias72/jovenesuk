@@ -26,7 +26,7 @@ de `admin_juk` o `super_admin`.
 
 | Módulo | Estado | Pantalla | Spec | Qué hay · qué falta |
 |---|---|---|---|---|
-| **M1 · Login y cuentas** | ✅ | `/login`, `/reset-password`, `/configuracion/cuenta` | 02 §Módulo 1 | Registro público cerrado; bloqueo tras 5 intentos en 15 min en producción; acceso por link para crear la contraseña (24 h); "Mi cuenta" para cambiarla; una cuenta desactivada ve el aviso y no entra. |
+| **M1 · Login y cuentas** | ✅ | `/login`, `/reset-password`, `/configuracion/cuenta` | 02 §Módulo 1 | Registro público cerrado; bloqueo tras 5 intentos en 15 min en producción; acceso por link para crear la contraseña (24 h); "Mi cuenta" para cambiarla; una cuenta desactivada ve el aviso y no entra. Botón "Continuar con Google" **listo en código pero apagado** (faltan las credenciales: §5 y §7); vincula a una cuenta existente, nunca da de alta (ADR-019, MIN-28 ⭐). |
 | **M2 · Dashboard** | 🟡 | `/dashboard` | 02 §Módulo 2 | **Hay:** stat cards que llevan al listado filtrado, alertas reales (pasaporte, mora, pasos bloqueados, police checks, Parental Consent viejo), "Alumnos con acción urgente", viajes próximos y del próximo año, accesos rápidos. **Falta del PRD:** calendario visual de viajes, métricas históricas y resumen semanal por email. |
 | **M3 · Colegios** | ✅ | `/colegios` | 02 §Módulo 3 | ABM con config documental por colegio (Requerido / Opcional / N-A) y tipo de entrada (ETA / VISA / ninguna). Sin ficha de detalle: alta y edición. |
 | **M4 · Viajes** | ✅ | `/viajes`, `/viajes/<código>` | 02 §Módulo 4 | Grupal e individual, 4 tipos de representante, flujo de pago derivado, máquina de estados, confirmación automática al 5.º inscripto, filtros por año/país/colegio. Detalle con cupo, progreso de trámites, alertas, Group Leaders, alumnos, pasos M7 y pagos. Las transiciones por fecha (a *en curso* / *finalizado*) dependen del job diario → ver §5. |
@@ -98,7 +98,8 @@ Lo de abajo es lo que se puede afirmar desde el repo (config, código y el `.env
 > (desde el 15/09). Se sacó `NEXT_PUBLIC_ENABLE_TWEAK`, que estaba en Production. Faltan
 > `EMAIL_FROM_COMUNICACIONES`, `EMAIL_FROM_OUTREACH` y `RESEND_WEBHOOK_SECRET` (esperan el dominio de
 > mails; un remitente `@gmail.com` haría fallar los envíos, porque Resend solo manda desde un dominio
-> verificado) y `NEXT_PUBLIC_PORTAL_URL` (opcional).
+> verificado), `NEXT_PUBLIC_PORTAL_URL` (opcional) y `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`
+> (opcionales, §7: sin ellas el botón de Google no aparece y el login por email queda entero).
 > Desde afuera solo se ven los nombres: Vercel no devuelve los valores encriptados, así que **no se
 > puede afirmar desde acá que R2, Resend y Trigger tengan credenciales reales y no los moldes de
 > `.env.example`**. Eso se confirma en `/configuracion` del deploy, o subiendo un documento de prueba.
@@ -107,6 +108,7 @@ Lo de abajo es lo que se puede afirmar desde el repo (config, código y el `.env
 |---|---|---|
 | **Neon (Postgres)** | ✅ `src/lib/db/`, migraciones `drizzle/0000…0021` | Proyecto `jovenes-uk` (`snowy-pine-02594515`, sa-east-1), dado de alta **por la integración de Vercel** (organización de Neon *"Vercel: agusiglesias72's projects"*: se factura por Vercel). Branches: `main` (default, **es la base de producción**), `dev` (la del `.env.local`, con datos reales), `ci-base` (padre del CI: estructura y registro de migraciones, **sin datos**) y `respaldo-pre-0021` (foto de `main` del 18/09/2026, antes de migrar; borrable cuando el módulo esté probado). **`main` quedó al día el 18/09/2026**: venía 7 migraciones atrás (0015…0021) porque nadie migraba producción desde `0014`; se aplicaron todas de una (aditivas: sin `DROP` ni `DELETE`, un solo `ALTER COLUMN … SET DEFAULT`) y los datos quedaron intactos. Ver §10. |
 | **Better-Auth** | ✅ `src/lib/auth/` | Operativo. |
+| **Google OAuth (botón del login)** | ✅ `src/lib/auth/google-oauth.ts` + `socialProviders` en `src/lib/auth/index.ts` | ⚠️ **Código listo, credenciales pendientes del dueño** (§7). Sin `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` el provider no se declara y el botón no se muestra: es el estado en local, en el CI y **hoy también en producción**. Entra únicamente a una cuenta que ya existe, nunca crea una ([ADR-019](architecture.md#adr-019--google-vincula-nunca-da-de-alta-sept-2026)); apagarlo es borrar las dos variables. |
 | **Webhook del Google Form** | ✅ `api/webhooks/google-form` | Necesita `GOOGLE_FORM_WEBHOOK_SECRET` en el deploy y el form apuntando al endpoint. |
 | **Trigger.dev (jobs)** | ✅ `src/trigger/`: `daily-reminder-scan` (cron 09:00 UTC = 06:00 ART: transiciones de viajes por fecha + recordatorios), `run-reminder-scan` (manual, con dry-run), `notificar-cancelacion-viaje`, `notificar-consulta-nueva` | ⚠️ **No desplegado.** En el repo no hay deploy de Trigger (el CI no lo corre, `trigger.config.ts` cae a un placeholder sin `TRIGGER_PROJECT_ID`, y las credenciales de dev son placeholders). Consecuencias mientras siga así: **no hay recordatorios automáticos, A1 no pasa solo a *vencido* y los viajes no pasan solos a *en curso* / *finalizado***. El aviso por cancelación de un viaje no sale (la cancelación sí se hace y el error va a Sentry). El aviso de consulta nueva cae a un envío directo. |
 | **Cloudflare R2 (documentos)** | ✅ `src/lib/storage/` | En dev usa el fallback a disco `.uploads/`: directo si alguna `R2_*` está vacía, o después de un intento fallido contra R2 (con un `console.error`) si tienen placeholders. **En producción sin R2 la subida falla a propósito** (`StorageNoConfiguradoError`): no se guardan pasaportes en el disco efímero de Vercel. |
@@ -145,6 +147,16 @@ de cada uno —dónde hacer clic, qué pegar y cómo verificar que quedó— est
 - [x] **Neon en GitHub** (15/09/2026): secret `NEON_API_KEY` (key acotada al proyecto `jovenes-uk`,
   nombre `github-actions-ci-jovenesuk`) y variables `NEON_PROJECT_ID` y `NEON_PARENT_BRANCH=ci-base`.
   Cómo se armó `ci-base`, en [`setup-servicios.md` §2](setup-servicios.md#2-secrets-de-neon-en-github--ci).
+- [ ] **Google OAuth Client**, para que aparezca el botón "Continuar con Google" del login. En Google
+  Cloud Console: crear un cliente de tipo *Aplicación web* con la URI de redirección **exacta**
+  `<BETTER_AUTH_URL>/api/auth/callback/google`, y cargar `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET`
+  en Vercel (Production). Paso a paso en [`setup-servicios.md` §8](setup-servicios.md#8-google-oauth--botón-continuar-con-google-opcional).
+  *Destraba:* una segunda forma de entrar a una cuenta que ya existe (nunca un alta: ADR-019).
+  ⚠️ **Con un `vercel.app` y sin dominio propio, Google va a dejar la app en modo *Prueba***: solo
+  pueden usar el botón los mails cargados a mano como usuarios de prueba. Hasta que esté el dominio
+  (y con él la verificación de la app), el botón le sirve **al equipo**, no a las familias. Por eso
+  esto va después del dominio en la fila de prioridades, y por eso sigue abierto en MIN-28 a quién se
+  le muestra el botón.
 - [ ] **GitHub Pro** (o repo público), para una branch protection que exija el CI en verde. Sin eso
   el CI informa, pero no bloquea merges.
 - [ ] **Dominio definitivo y acceso público al deploy** ⚠️ *lo más urgente del módulo nuevo.* Hoy el
@@ -220,10 +232,22 @@ Lo que las fases dejaron anotado como pendiente. Al saldar un ítem se borra de 
     imprime la contraseña temporal en consola.
 12. **Decisiones de producto que abrieron los tests**: reactivación de la cuenta de familia
     (MIN-24), C1 auto-aprobado o vuelto atrás por la familia (MIN-25), estados de C1/A3 fijados a
-    mano (MIN-26), plan de cuotas al reinscribir una asignación cancelada (MIN-27), DNI con puntos
+    mano (MIN-26), plan de cuotas al reinscribir una asignación cancelada (MIN-27), Google en el
+    login (MIN-28), qué tan estricto es el Application Form (MIN-29), el calendario de `DateInput`
+    (MIN-30), el marco del Application Form (MIN-31), DNI con puntos
     por webhook (TEC-12), unicidad de "última cuota" solo en la query (TEC-13), reintentos de
     recordatorios fallidos (TEC-14) y transición por fecha en dos saltos (TEC-15). En todos, el código hace algo razonable hoy, pero la regla la tiene que
     definir el equipo. Detalle y opciones en [`../OPEN_DECISIONS.md`](../OPEN_DECISIONS.md). *(0b73eaf)*
+13. **`<Field error>` sin `invalid` en el control.** `Field` clona al hijo con `aria-invalid`, pero el
+    borde rojo lo decide la prop `invalid`, que cada formulario pasa a mano. Se arregló en
+    `/inscripcion` (su `Campo` lo inyecta una sola vez) y quedó escrito en
+    [`design-system.md` §9](design-system.md), pero varios formularios siguen pasando `error` sin
+    `invalid` en parte de sus campos —`lead-form.tsx` y `viaje-form.tsx` son los más desparejos—: el
+    mensaje aparece debajo y el campo queda gris. Barrerlos, o mover la inyección a un envoltorio
+    común.
+14. **Los días del calendario de `DateInput` miden 31,5 px**, por debajo del mínimo táctil de 44 del
+    proyecto. El disparador ya se agrandó; subir los días obliga a llevar `ANCHO_CALENDARIO` de 296 a
+    ~336 px y a verificar pantallas de 320 px (MIN-30 en [`../OPEN_DECISIONS.md`](../OPEN_DECISIONS.md)).
 
 ## 10. Estado de producción (18/09/2026)
 

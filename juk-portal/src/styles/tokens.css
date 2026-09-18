@@ -65,6 +65,14 @@
   --c-border-brand: #9fd9cf;
   --c-ring: rgba(31, 111, 99, 0.12);
 
+  /* Barra de scroll (utilidad `.scroll-fino` en globals.css). Van con alfa y no
+     con un color sólido porque el contenedor que más las necesita —la sidebar—
+     corre sobre `--grad-brand`: un gris opaco cortaría el gradiente. */
+  --c-scroll: rgba(33, 48, 45, 0.2);
+  --c-scroll-hover: rgba(33, 48, 45, 0.35);
+  --c-scroll-onbrand: rgba(244, 250, 247, 0.28);
+  --c-scroll-onbrand-hover: rgba(244, 250, 247, 0.45);
+
   /* ── Semánticos ── */
   --c-success: #2f9e6f;
   --c-success-bg: #e2f5ec;

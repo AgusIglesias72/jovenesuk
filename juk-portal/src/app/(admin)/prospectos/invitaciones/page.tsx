@@ -105,7 +105,7 @@ export default async function InvitacionesPage({
           <Input
             name="q"
             defaultValue={filtros.q ?? ""}
-            placeholder="Nombre o ciudad del colegio…"
+            placeholder="Nombre, ciudad o mail…"
           />
         </Field>
         <Field label="Etapa del pipeline">

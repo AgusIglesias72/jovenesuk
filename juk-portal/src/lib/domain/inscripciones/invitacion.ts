@@ -52,6 +52,37 @@ export const MAX_DESTINATARIOS_LOTE = 200;
 export const PAUSA_ENTRE_ENVIOS_MS = 600;
 
 /**
+ * Con qué claves el envío sella un fallo dentro de `meta` (la bitácora de
+ * comunicaciones no tiene columna para el motivo).
+ *
+ * Viven acá y no en la query porque el que las ESCRIBE es la query y el que las
+ * LEE es una pantalla cliente, que no puede importar `@/lib/db`: con la clave
+ * repetida en los dos lados, un typo en uno de ellos no rompe nada y el motivo
+ * simplemente deja de verse.
+ *
+ * ⚠️ Los dos strings ya tienen filas escritas en producción: esto es un cambio
+ * de dónde vive la constante, nunca un rename del valor.
+ */
+export const META_ERROR_ENVIO = "invitacionErrorEnvio";
+export const META_FALLIDA_EL = "invitacionFallidaEl";
+
+/**
+ * El motivo por el que Resend rechazó el mail, listo para mostrar.
+ *
+ * Devuelve `null` en todo lo que no sea un texto con contenido, así la pantalla
+ * no tiene que distinguir "no falló" de "falló y el job no alcanzó a sellar el
+ * motivo": en los dos casos no hay nada que mostrar.
+ */
+export function motivoDeEnvioFallido(
+  meta: Record<string, unknown> | null | undefined
+): string | null {
+  const valor = meta?.[META_ERROR_ENVIO];
+  if (typeof valor !== "string") return null;
+  const limpio = valor.trim();
+  return limpio === "" ? null : limpio;
+}
+
+/**
  * - vigente: el link abre el formulario.
  * - vencida: pasaron los 90 días y nadie la usó.
  * - revocada: el equipo la dio de baja a mano (se mandó al contacto equivocado,

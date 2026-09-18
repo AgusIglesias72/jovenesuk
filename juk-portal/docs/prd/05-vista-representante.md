@@ -99,7 +99,10 @@ Comportamiento diferencial del portal cuando inicia sesión un Representante. La
 
 - **RESUELTO** — Timing de activación de credenciales: se activan al asignar el Representante al viaje, independientemente del estado del viaje. No hay ventana de días previos al inicio.
 - **RESUELTO** — Cambio de email propio: el Representante lo solicita; JUK lo aprueba y actualiza manualmente.
-- **RESUELTO** — Google SSO para Representantes: no se implementará.
+- **RESUELTO** — Google SSO para Representantes: **el SSO no se implementará** (no se delega la
+  identidad a Google ni se crean cuentas automáticamente). Desde 18/09/2026 sí existe el **login
+  con Google acotado a vinculación** (Interno US-01b): el botón entra a la cuenta que JUK ya creó
+  para ese Representante y nunca da de alta. Lo acota MIN-28 en `OPEN_DECISIONS.md`.
 
 ---
 

@@ -49,6 +49,12 @@ describe("esPlaceholder", () => {
     expect(esPlaceholder("juk-documentos-prod")).toBe(false);
   });
 
+  it("reconoce el molde del secreto de Google OAuth", () => {
+    expect(esPlaceholder("GOCSPX-xxxxxxxxxxxx")).toBe(true);
+    expect(esPlaceholder("xxxxxxxxxxxx.apps.googleusercontent.com")).toBe(true);
+    expect(esPlaceholder("GOCSPX-9aB3kQ7pL2")).toBe(false);
+  });
+
   it("un ejemplo que también es un valor usable no se marca (falso positivo caro)", () => {
     expect(esPlaceholder("juk-documents")).toBe(false);
     expect(esPlaceholder("juk")).toBe(false);
@@ -173,6 +179,26 @@ describe("catálogo", () => {
     for (const servicio of SERVICIOS_ENV) {
       expect(VARIABLES_ENV.some((v) => v.servicio === servicio)).toBe(true);
     }
+  });
+
+  it("las de Google son opcionales del servicio auth y su ausencia no rompe producción", () => {
+    const google = VARIABLES_ENV.filter((v) => v.nombre.startsWith("GOOGLE_CLIENT_"));
+    expect(google.map((v) => v.nombre)).toEqual(["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"]);
+    for (const v of google) {
+      expect(v.servicio).toBe("auth");
+      expect(v.nivel).toBe("opcional");
+      expect(v.enPlantilla).toBe(true);
+    }
+
+    // El login por email tiene que seguir alcanzando: sin Google, producción ok.
+    const sinGoogle = entornoCompleto();
+    delete sinGoogle.GOOGLE_CLIENT_ID;
+    delete sinGoogle.GOOGLE_CLIENT_SECRET;
+    const r = evaluarEntorno(sinGoogle, "produccion");
+    expect(r.ok).toBe(true);
+    expect(
+      resumenPorServicio(r).find((f) => f.servicio === "auth")?.estado
+    ).toBe("ok");
   });
 
   it("las requeridas son las que no tienen fallback: app, base y auth", () => {

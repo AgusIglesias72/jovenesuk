@@ -145,6 +145,11 @@ después**. El índice se declara en el schema de Drizzle y entra por migración
   `minimumCacheTTL` de 31 días. Las imágenes de `public/landing/` se optimizaron (de ~11 MB a
   2,9 MB): las grandes (programas, salidas, testimonios, trips) pasaron a WebP y las acreditaciones
   y el logo se recomprimieron sin cambiar de formato. Una imagen nueva del sitio entra ya optimizada y por `next/image`.
+  - **`/inscripcion`** es el único caso fuera del sitio público: el marco del Application Form
+    (`src/app/inscripcion/_marco.tsx`) suma el logo dos veces, las 8 acreditaciones y una foto de
+    cabecera. Ninguna va con `priority`: la foto es `hidden lg:block` —con carga diferida el
+    navegador ni la pide en el teléfono, que es donde se completa la mayoría de las fichas— y los
+    logos están abajo del fold. El resto del marco es texto, sin un solo componente de cliente.
 - **Fuentes:** con `next/font` desde el root layout; nada de `@import` externo en CSS (bloquea el render).
 - **Service worker** (`public/sw.js`, registrado solo en producción por `src/components/pwa/sw-register.tsx`):
   navegaciones network-first con fallback a `/offline`; cache-first solo para `/icons/` y `/fonts/`

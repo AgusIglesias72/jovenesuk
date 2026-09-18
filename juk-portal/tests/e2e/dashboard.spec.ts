@@ -40,6 +40,35 @@ test.describe("dashboard M2", () => {
     }
   });
 
+  test("el menú lateral scrollea con la barra fina de STUDIO", async ({ page }) => {
+    // La barra del sistema es un bloque gris claro que corta el gradiente de la
+    // sidebar. Lo que se prueba no es el color (eso es una captura) sino las dos
+    // cosas que se pueden romper sin que nadie se entere: que la utilidad haya
+    // llegado de verdad, y que maquillar la barra no haya matado el scroll.
+    await page.setViewportSize({ width: 1280, height: 500 });
+    await page.goto("/dashboard");
+
+    const menu = page.locator("aside .scroll-fino");
+    await expect(menu).toHaveCount(1);
+
+    const medidas = await menu.evaluate((el) => ({
+      desborda: el.scrollHeight > el.clientHeight,
+      // Los valores iniciales son "auto": si la clase no se aplicó, se delata.
+      // El color se mira por "rgb" y no por `!== "auto"` porque un motor que no
+      // soporte la propiedad devolvería "" y el assert pasaría de casualidad.
+      color: window.getComputedStyle(el).getPropertyValue("scrollbar-color"),
+      ancho: window.getComputedStyle(el).getPropertyValue("scrollbar-width"),
+    }));
+    expect(medidas.desborda, "la lista de módulos tiene que desbordar a 500px de alto").toBe(true);
+    expect(medidas.ancho).toBe("thin");
+    expect(medidas.color).toContain("rgb");
+
+    await menu.evaluate((el) => {
+      el.scrollTop = 80;
+    });
+    expect(await menu.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  });
+
   test("las stat cards llevan a la pantalla ya filtrada", async ({ page }) => {
     const destinos = [
       ["Alumnos", "/alumnos", "Alumnos"],

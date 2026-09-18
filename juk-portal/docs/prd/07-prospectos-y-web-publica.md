@@ -66,8 +66,10 @@ salud, preferencias) y se guarda **siempre** en la tabla de aterrizaje `inscripc
 
 Reglas (`enviarInscripcion` en `src/app/inscripcion/actions.ts`), en este orden:
 
-1. **Validación** con `inscripcionSchema`. El DNI se normaliza a dígitos (TEC-12). El schema no
-   acepta `viajeId`, `alumnoId` ni `estado`: se derivan del token en el servidor.
+1. **Validación** con `inscripcionSchema`. El DNI se normaliza a dígitos (TEC-12), pero recién
+   **después** de comprobar los caracteres: un DNI con una letra se rechaza diciendo que va solo
+   con números, en vez de borrarla en silencio y hablar del largo. El schema no acepta `viajeId`,
+   `alumnoId` ni `estado`: se derivan del token en el servidor.
 2. **Honeypot** `website`: si viene relleno, responde éxito sin guardar nada.
 3. **Rate limit** por IP (20 cada 10 minutos, más ancho que los otros formularios porque varias
    familias del mismo colegio comparten red), por email (3/h) y por token (60/h).
@@ -81,6 +83,32 @@ Reglas (`enviarInscripcion` en `src/app/inscripcion/actions.ts`), en este orden:
 
 Abrir el link **no escribe nada**: solo un envío del formulario crea la ficha. Es deliberado — los
 escáneres de links de Outlook y los antivirus corporativos abren las URLs de un mail solos.
+
+**Qué acepta cada campo, y cuándo se avisa.** Las reglas de caracteres viven en
+`inscripcionSchema` y son una sola: el formulario las aplica **en vivo** mientras la familia
+completa la ficha (`validarCampoInscripcion` + `use-validacion-en-vivo.ts`) y el server las vuelve
+a aplicar al enviar, con el mismo mensaje. El criterio de cuándo se marca:
+
+| Campo | Acepta | Se marca |
+|---|---|---|
+| Nombre, apellido, nombre del tutor | Letras, tildes, apóstrofes y guiones. **Sin números** | Al escribir un carácter imposible |
+| DNI | Números, con puntos, espacios o guiones. 6 a 20 dígitos | Al escribir una letra o un símbolo |
+| Pasaporte | Letras y números, mínimo 5 | Al escribir un símbolo |
+| Celular del tutor y teléfono del alumno | Números, con `+`, paréntesis, espacios, puntos y guiones; al menos 8 dígitos | Al escribir una letra |
+| Emails | Sin espacios y con un solo `@` | Al escribir un espacio o un segundo `@` |
+| Fechas | DD/MM/AAAA que exista en el calendario; la de nacimiento, ni futura ni anterior a 1900 | Al salir del campo |
+| Texto libre (salud, preferencias, nivel de inglés) | Cualquier cosa, con su tope de largo | Al salir del campo |
+
+Dos cosas que NO se marcan mientras se escribe: el **honeypot** (marcarlo le enseñaría al bot qué
+lo delata) y el **consentimiento** (tabular fuera del casillero sin tildarlo es lo que hace
+cualquiera que todavía está leyendo la política: se marca recién si el envío falla). Cuando se
+marca, **el rojo va en el casillero** y no solo en el texto de abajo: antes el cuadrado seguía gris
+y la familia no encontraba qué le faltaba. Y el casillero se tapea en 44 px propios, así que tocar
+el párrafo del consentimiento —dos líneas de texto legal, con el link a la política adentro— ya no
+tilda ni destilda nada sin querer.
+
+El **pasaporte vencido** es un aviso, no un error: la ficha se puede enviar igual. Una familia que
+está renovando el pasaporte es justo la que el equipo quiere ver entrar en la bandeja.
 
 **El alta del alumno (ADR-018).** Con una invitación válida, enviar la ficha crea el alumno
 `pre_inscripto` con canal `formulario_web`, le arma la cuenta del Portal de Familias y lo asigna al
@@ -109,6 +137,25 @@ teléfono). Cambian la piel y nada más: los campos, la validación, lo que se g
 accesible son idénticos. Cada ficha registra con qué piel se cargó, para poder comparar cuál
 convierte mejor. Precedencia: `?v=` del link > variante de la campaña > la configurada > A.
 
+La vista previa de `/configuracion` muestra la pantalla entera, pero **no interactúa**: va en un
+iframe sin scripts, así que ni la validación en vivo ni el avance de la barra de progreso se ven ahí.
+Para probar eso, el formulario se abre en una pestaña.
+
+**Qué ve la familia alrededor de la ficha.** El formulario no se sirve solo: lo rodea la
+identidad del sitio. Arriba, la marca y una cabecera con el viaje al que se inscribe, el título y
+tres promesas ("se completa en unos 10 minutos", "podés hacerlo desde el teléfono", "solo lo ve el
+equipo que organiza tu viaje"); al costado —debajo, en el teléfono—, **qué pasa después** de enviar
+(número de inscripción en pantalla, acuse por mail, revisión y apertura del Portal de Familias) y
+cómo pedir ayuda por mail o WhatsApp; abajo, las cifras de la agencia y las ocho acreditaciones,
+justo antes del botón de enviar. Las tres pieles reciben ese marco con su propia identidad, pero es
+**la misma estructura**: ninguna variante agrega, saca ni mueve una pieza.
+
+Y una regla que no se negocia: **el marco no ofrece navegación al sitio**. No hay links a
+programas, salidas, notas ni al login — las únicas salidas son la política de privacidad y los dos
+canales de ayuda. Son dos razones a la vez: la URL lleva el token de la invitación (una credencial
+que no puede salir con el referer, y por eso la página va `noindex, nofollow`), y a una familia que
+está a la mitad de una ficha larga no se la invita a irse a navegar.
+
 ### Invitaciones al formulario (campañas)
 
 Desde `/prospectos/invitaciones` el equipo arma una **campaña**: elige el viaje, la variante visual
@@ -127,6 +174,13 @@ Reglas:
    **no reenvía** lo que ya salió. Una reserva trabada más de 5 minutos vuelve sola a la cola.
 4. **Revocar** una invitación corta el link en el acto, incluso si el mail todavía no salió.
 5. La invitación **vence a los 90 días**.
+6. **El buscador del universo** filtra por **nombre, ciudad o casilla** del prospecto: el mismo
+   texto significa lo mismo que en el listado del CRM, y además encuentra por mail, que es la otra
+   columna a la vista en esta pantalla.
+7. **Los vacíos se explican, y no son el mismo vacío.** Cuando no queda ningún destinatario, la
+   pantalla distingue tres situaciones porque piden cosas distintas: *no hay prospectos en el CRM*
+   (lleva a importar o a cargar el primero), *el filtro no encontró a nadie* (ofrece limpiarlo) y
+   *los encontrados están todos excluidos* (remite al detalle de por qué queda afuera cada uno).
 
 ⚠️ Mientras Trigger.dev no esté desplegado, el envío avanza con la pantalla abierta (200
 destinatarios ≈ un par de minutos). La pantalla lo dice.

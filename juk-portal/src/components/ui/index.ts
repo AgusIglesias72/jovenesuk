@@ -68,6 +68,7 @@ export {
   PagosPageSkeleton,
   PanelSkeleton,
   FormPageSkeleton,
+  InscripcionSkeleton,
   FichaAlumnoSkeleton,
   ViajeDetalleSkeleton,
   ConfigSkeleton,

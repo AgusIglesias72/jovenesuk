@@ -35,6 +35,28 @@ test("el sign-up público responde 4xx y no crea la cuenta", async ({ request, b
   expect(filas).toHaveLength(0);
 });
 
+/*
+ * Google nunca da de alta. Sin credenciales en el entorno el provider ni se
+ * declara (404), y con credenciales `disableSignUp: true` corta antes de
+ * escribir en `users`: en los dos casos la respuesta es 4xx y la tabla queda
+ * igual. Es el test que protege la línea de seguridad del frente.
+ */
+test("el login social no crea cuentas", async ({ request, baseURL }) => {
+  const antes = await db.select({ id: users.id }).from(users);
+
+  const res = await request.post("/api/auth/sign-in/social", {
+    headers: { origin: baseURL ?? "" },
+    data: { provider: "google", callbackURL: "/dashboard" },
+    failOnStatusCode: false,
+  });
+
+  expect(res.status()).toBeGreaterThanOrEqual(400);
+  expect(res.status()).toBeLessThan(500);
+
+  const despues = await db.select({ id: users.id }).from(users);
+  expect(despues).toHaveLength(antes.length);
+});
+
 test("login con contraseña incorrecta muestra el error genérico", async ({ page }) => {
   await page.goto("/login");
 

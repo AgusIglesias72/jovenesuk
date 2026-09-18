@@ -203,6 +203,106 @@ asunción de trabajo mientras no se decida.
 - **Hoy:** `asignarConTablero` (`src/lib/db/queries/asignar-alumno.ts`) reactiva la fila, borra y
   regenera los pasos, y no toca `cuotas`: el alumno vuelve con el plan anterior.
 
+### MIN-28 · Login con Google, acotado a vinculación (⭐ 18/09/2026, reabre una decisión cerrada)
+
+- **Contexto:** el PRD cerró el SSO en dos lugares — Interno §M1 ("SSO descartado definitivamente
+  — Felix") y Representante §M1 ("Google SSO para Representantes: no se implementará"). El dueño
+  pidió el botón igual. Lo que se construyó **no es SSO**: no delega la identidad en Google, no
+  crea cuentas y no toca el rol.
+- **Decidido (Agustín, 18/09/2026):** **Google abre sesión en una cuenta que ya existe; nunca crea
+  una.** Un email de Google que no está en `users` se rechaza con un mensaje claro y no escribe
+  nada. El estado activo/inactivo y el rol siguen mandando igual que en el login por email.
+- **Qué la acota (y la hace fácil de revertir):** `disableSignUp: true` en el provider y el
+  provider armado condicional — sin `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` no se declara, el
+  botón no se muestra y el login queda solo con email y contraseña. Revertir = borrar las dos
+  variables del entorno.
+- **Lo que NO se hizo, a propósito:** google **no** va en `accountLinking.trustedProviders`
+  (saltearía el chequeo del `email_verified` del id_token de Google, que es el vector de toma de
+  cuenta) y no hay registro público por ningún camino.
+- **Queda abierto (⭐ validar con Felix/María):** (a) ¿el botón lo ven todos —equipo y familias— o
+  solo el equipo?; (b) mientras el proyecto no tenga dominio propio, la app de Google puede quedar
+  en modo *Prueba* y entonces solo los mails cargados como usuarios de prueba pueden usarlo: en la
+  práctica es una comodidad del equipo, no de las familias.
+- **Hoy:** implementado y apagado (el dueño todavía no creó el OAuth Client). Código:
+  `src/lib/auth/google-oauth.ts`, `socialProviders` en `src/lib/auth/index.ts`, el botón en
+  `src/app/(auth)/login/login-form.tsx`. Spec: `docs/prd/02-portal-interno.md` §M1 US-01b y
+  `docs/prd/05-vista-representante.md` §M1.
+
+### MIN-29 · Qué tan estricto es el Application Form con lo que la familia tipea (18/09/2026)
+
+- **Contexto:** el dueño pidió que el formulario avise en el momento cuando un dato está mal ("si
+  en DNI ponen una letra… imagino que en el resto también nos hace falta mayor validación"). Marcar
+  en vivo obliga a decidir qué se rechaza, y eso es una decisión de negocio: en un formulario
+  público, un rechazo de más es una familia que se va a WhatsApp o que se pierde.
+- **Decidido (provisorio, revisable con el equipo):**
+  - **DNI:** números, con puntos, espacios o guiones (lo que la gente tipea). Una letra se rechaza.
+    Antes se borraba en silencio: `"45102a"` se guardaba como `"45102"`.
+  - **Nombres** (alumno y adulto responsable): letras, tildes, apóstrofes y guiones. Sin números.
+  - **Pasaporte:** letras y números, **mínimo 5** caracteres (antes bastaba 1).
+  - **Celular:** al menos **8 dígitos**, con `+`, paréntesis, espacios, puntos y guiones.
+  - **Fecha de nacimiento:** ni futura ni anterior a 1900.
+  - **Pasaporte vencido: AVISA, no bloquea.** La familia que lo está renovando es justo la que el
+    equipo quiere ver entrar en la bandeja.
+- **Para preguntarle al dueño:** ¿vio entrar algún pasaporte más corto que 5 caracteres, o algún
+  teléfono del exterior con menos de 8 dígitos? Son los dos únicos mínimos que pueden dejar afuera
+  un caso real.
+- **Alcance:** solo `/inscripcion`. El **webhook del Google Form** (`api/webhooks/google-form`)
+  tiene su propio schema, más blando, y no cambió: si se quiere que las fichas viejas entren con
+  las mismas reglas, es un cambio aparte. `lead-form.tsx`, `alumno-form.tsx` y `prospecto-form.tsx`
+  tampoco cambiaron; el molde para extenderlo está en
+  `src/lib/domain/inscripciones/validacion-campo.ts`.
+- **Hoy:** implementado. Reglas en `src/lib/domain/inscripciones/schema.ts`; spec en
+  `docs/prd/07-prospectos-y-web-publica.md` §Formulario de inscripción.
+
+### MIN-30 · Hasta dónde se agranda el calendario de `DateInput` (18/09/2026)
+
+- **Contexto:** el dueño pidió "hacé más grande el icono de calendar así lo abro". Con la raíz en
+  14 px, el disparador medía 31,5 × 31,5 px dentro de un campo de 44 px (52 px en la piel C del
+  Application Form): muy por debajo del mínimo táctil del proyecto.
+- **Decidido:** el disparador pasa a **44 px fijos de ancho por el alto entero del campo**, con
+  fondo en reposo y un divisor para que se lea como botón; el ícono, de 14 a 17,5 px. Los 44 px van
+  en px y no en `var(--tap)` porque la piel C lo redefine a 52 y un bloque gris de 52 px se come el
+  14 % del campo a 375 px de ancho.
+- **Decidido también (y es la parte discutible):** **el campo se sigue tipeando** — tocar el campo
+  NO abre el calendario. El componente existe para poder escribir la fecha (una fecha de nacimiento
+  de 1968 son 20 clicks de calendario contra ocho teclas), en el teléfono el popover taparía el
+  campo recién tocado, y adentro del diálogo de registrar pago rompería el manejo de Escape y Tab,
+  que mira el `aria-expanded` del disparador. Enter sobre el campo también abre el calendario.
+- **Para preguntarle al dueño:** los **días** de adentro del calendario y las flechas ← → siguen
+  midiendo 31,5 px. Subirlos a 44 obliga a llevar `ANCHO_CALENDARIO` de 296 a ~336 px y a verificar
+  pantallas de 320 px. ¿Se hace ahora o queda anotado?
+- **Hoy:** implementado el disparador. Los días quedan como deuda a la vista en
+  `docs/design-system.md` §9.
+
+### MIN-31 · Qué rodea a la ficha en el Application Form (18/09/2026)
+
+- **Contexto:** el dueño dijo "me gusta la versión c, pero siento que la página en general está muy
+  vacía en comparación a cómo trabajamos en la página base". No era el formulario: era el marco. La
+  pantalla tenía una línea de texto arriba, la ficha y una línea legal abajo, y la piel C apaga el
+  papel y fuerza una sola columna, así que en un monitor quedaba una tira de campos con ~340 px de
+  vacío a cada lado.
+- **Decidido:** el marco se enriquece y el formulario **no se toca** (la barra de progreso, que es
+  lo único que el dueño elogió, queda igual). Se suman cabecera con la marca y el viaje, columna de
+  "qué pasa después" y ayuda, franja con las cifras y las ocho acreditaciones, y pie de tres
+  columnas. Todo con vocabulario `--form-*`, así que las tres pieles lo reciben distinto sin que el
+  TSX conozca la variante.
+- **Decidido también:** el marco **no ofrece navegación al sitio** (solo `/privacidad`, mail y
+  WhatsApp) y no suma ningún control de formulario. Las dos cosas tienen test.
+- **Para preguntarle al dueño** (nada de esto bloquea, son ajustes de copy y de foto):
+  1. La foto de la cabecera es `london-westminster.jpg`, la misma que ya usás como imagen de Open
+     Graph. Están también Big Ben, London Bridge, Londres de noche, Brighton, Edimburgo y Oxford.
+     ¿Te quedás con esa?
+  2. ¿Van las 8 acreditaciones abajo del formulario? Suman confianza justo antes de enviar, pero es
+     la pieza más "de marketing" del marco. Se sacan borrando un componente.
+  3. Los tres pasos de "qué pasa después" los escribí así: enviás la ficha y te queda el número en
+     pantalla → te llega el acuse por mail con ese número → el equipo la revisa y te abrimos el
+     Portal de Familias. Confirmame que es exactamente lo que pasa de tu lado, y si querés que diga
+     un plazo ("en 48 horas hábiles"), decime el número.
+  4. Un testimonio con foto abajo lo dejé **afuera** a propósito: la familia que llega acá ya
+     decidió. Si lo querés, uso el de Camila que ya está publicado.
+- **Hoy:** implementado. El marco vive en `src/app/inscripcion/_marco.tsx`, el vocabulario en
+  `src/styles/form-variants.css` y el detalle en `docs/design-system.md` §10-bis.
+
 ---
 
 ## ⭐ Decididas el 11/06/2026, pendientes de validar con el equipo

@@ -75,7 +75,9 @@ interface DateInputProps
   invalid?: boolean;
 }
 
-/** Ancho ideal del calendario: 7 columnas de 36px + padding. */
+/** Ancho ideal del calendario: 7 columnas de 31,5px (h-9 con la raíz de 14px)
+ *  + el padding de 14px por lado. Sobran ~47px: el margen que deja el popover
+ *  respirar contra el borde del viewport en pantallas angostas. */
 const ANCHO_CALENDARIO = 296;
 
 export function DateInput({
@@ -263,7 +265,12 @@ export function DateInput({
       <div
         ref={campoRef}
         className={cn(
-          "flex min-h-[var(--tap)] w-full items-center gap-1 rounded-[var(--r-md)] border bg-[var(--c-surface)] pl-4 pr-1 transition-[border-color,box-shadow] duration-150",
+          // Sin `pr` ni `gap`: el disparador del calendario se pega al borde
+          // derecho y ocupa el alto entero del campo (ver más abajo). Y sin
+          // `overflow-hidden`, aunque cerraría el milímetro de esquina que el
+          // botón se sale del radio: recortaría el anillo de foco del botón, que
+          // se dibuja por fuera de su caja, y el foco tiene que verse.
+          "flex min-h-[var(--tap)] w-full items-center rounded-[var(--r-md)] border bg-[var(--c-surface)] pl-4 pr-0 transition-[border-color,box-shadow] duration-150",
           disabled && "cursor-not-allowed bg-[var(--c-surface-2)]",
           invalid
             ? "border-[var(--c-danger)] shadow-[shadow:var(--ring-error)]"
@@ -295,7 +302,7 @@ export function DateInput({
               alternar();
             }
           }}
-          className="min-w-0 flex-1 bg-transparent py-0 font-mono text-[length:var(--t-body)] text-[var(--c-ink)] placeholder:text-[var(--c-ink-subtle)] focus:outline-none disabled:cursor-not-allowed disabled:text-[var(--c-ink-subtle)]"
+          className="min-w-0 flex-1 bg-transparent py-0 pr-2 font-mono text-[length:var(--t-body)] text-[var(--c-ink)] placeholder:text-[var(--c-ink-subtle)] focus:outline-none disabled:cursor-not-allowed disabled:text-[var(--c-ink-subtle)]"
         />
         <button
           type="button"
@@ -304,15 +311,22 @@ export function DateInput({
           aria-expanded={open}
           aria-label="elegir fecha en el calendario"
           onClick={alternar}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--r-sm)] text-[var(--c-ink-subtle)] transition-colors hover:bg-[var(--c-surface-2)] hover:text-[var(--c-brand)] disabled:cursor-not-allowed"
+          // 44px FIJOS de ancho, no `var(--tap)`: la piel C del Application Form
+          // redefine --tap a 52px y en una columna única de 375px un bloque gris
+          // de 52px se come el 14% del campo. `self-stretch` le da el alto entero
+          // del campo, así que el objetivo táctil queda en 44×42 (44×50 en C)
+          // contra los 31,5×31,5 de antes. El fondo en reposo (y no solo en
+          // hover, que en un teléfono no existe) es lo que lo hace leer como
+          // botón y no como un glifo decorativo.
+          className="grid w-[44px] shrink-0 self-stretch place-items-center rounded-r-[var(--r-md)] border-l border-[var(--c-border)] bg-[var(--c-surface-2)] text-[var(--c-ink-muted)] transition-colors hover:bg-[var(--c-surface-3)] hover:text-[var(--c-brand)] disabled:cursor-not-allowed"
         >
           <svg
             viewBox="0 0 20 20"
             aria-hidden
-            className="h-4 w-4"
+            className="h-5 w-5"
             fill="none"
             stroke="currentColor"
-            strokeWidth={1.6}
+            strokeWidth={1.8}
           >
             <rect x={3} y={4.5} width={14} height={12} rx={2} />
             <path d="M3 8.5h14M7 2.5v4M13 2.5v4" strokeLinecap="round" />

@@ -176,7 +176,7 @@ export function RegistrarPagoDialog({
         aria-modal="true"
         aria-labelledby="registrar-pago-titulo"
         aria-describedby={detalle ? "registrar-pago-detalle" : undefined}
-        className="relative max-h-[85dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-[var(--r-xl)] border border-[var(--c-border)] bg-[var(--c-surface)] p-6 shadow-[shadow:var(--shadow-3)]"
+        className="scroll-fino relative max-h-[85dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-[var(--r-xl)] border border-[var(--c-border)] bg-[var(--c-surface)] p-6 shadow-[shadow:var(--shadow-3)]"
       >
         <span
           aria-hidden

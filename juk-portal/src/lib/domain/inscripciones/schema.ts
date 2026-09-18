@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { diaCalendarioUTC } from "@/lib/utils/date";
 import { soloDigitos } from "@/lib/utils/dni";
 
 import { NumeroInscripcionInvalidoError } from "./errors";
@@ -54,13 +55,89 @@ export const VARIANTE_POR_DEFECTO: Variante = "a";
 const vacioAUndefined = (v: unknown) =>
   typeof v === "string" && v.trim() === "" ? undefined : v;
 
+const excedido = (max: number) => `Te pasaste: máximo ${max} caracteres.`;
+
 const textoOpcional = (max: number) =>
-  z.preprocess(vacioAUndefined, z.string().trim().max(max).optional());
+  z.preprocess(vacioAUndefined, z.string().trim().max(max, excedido(max)).optional());
+
+/**
+ * QUÉ CARACTERES ACEPTA CADA CAMPO
+ * --------------------------------
+ * Los sets viven en el schema, y no en el formulario, porque son la ÚNICA
+ * fuente de verdad: el mensaje que la familia ve mientras escribe sale de acá
+ * (`validarCampoInscripcion`), y el que el server devuelve si igual manda la
+ * ficha, también. Una segunda regla escrita en el navegador se desincroniza
+ * sola, y el resultado es un formulario que marca en rojo algo que el server
+ * acepta (o al revés).
+ *
+ * Son deliberadamente anchos: rechazan lo IMPOSIBLE (una letra en el DNI, un
+ * número en el nombre), no lo raro. Un falso rechazo en un formulario público
+ * es una familia perdida.
+ */
+
+/** El DNI admite el formateo que la gente tipea: "45.102.338", "45-102-338". */
+export const CARACTERES_DNI = /^[\d.\-\s]+$/;
+/** Un celular con código de país, paréntesis o separadores: "+54 9 11 5555-0000". */
+export const CARACTERES_TELEFONO = /^[\d+()\-./\s]+$/;
+/** Pasaportes de cualquier país: letras y números, sin símbolos. */
+export const CARACTERES_PASAPORTE = /^[A-Za-z0-9\s-]+$/;
+/** Nombres con tildes, diéresis, apóstrofes y guiones ("O'Brien", "Ana-María"). */
+export const CARACTERES_NOMBRE = /^[\p{L}\p{M}\s'’.-]+$/u;
+/** Un email no lleva espacios y tiene un solo arroba. */
+export const CARACTERES_EMAIL = /^[^\s@]*@?[^\s@]*$/;
+
+export const MENSAJE_EMAIL_ESPACIOS = "El email va sin espacios y con un solo @.";
+export const MENSAJE_EMAIL_INVALIDO =
+  "Revisá el email: parece que le falta el @ o el dominio.";
+export const MENSAJE_TELEFONO_CARACTERES =
+  "El celular va con números; podés usar +, espacios y guiones.";
+export const MENSAJE_TELEFONO_CORTO =
+  "Poné el celular con el código de área (al menos 8 números).";
+/** Una fecha que no existe en el calendario, o que quedó a medio tipear. */
+export const MENSAJE_FECHA_INVALIDA = "Esa fecha no existe. Va DD/MM/AAAA.";
+
+const DIGITOS_TELEFONO_MINIMOS = 8;
+
+const emailRequerido = (mensajeVacio: string) =>
+  z
+    .string({ required_error: mensajeVacio, invalid_type_error: mensajeVacio })
+    .trim()
+    .min(1, mensajeVacio)
+    .max(160, excedido(160))
+    .regex(CARACTERES_EMAIL, MENSAJE_EMAIL_ESPACIOS)
+    .email(MENSAJE_EMAIL_INVALIDO);
 
 const emailOpcional = z.preprocess(
   vacioAUndefined,
-  z.string().trim().max(160).email("Email inválido").optional()
+  z
+    .string()
+    .trim()
+    .max(160, excedido(160))
+    .regex(CARACTERES_EMAIL, MENSAJE_EMAIL_ESPACIOS)
+    .email(MENSAJE_EMAIL_INVALIDO)
+    .optional()
 );
+
+/** Un nombre de persona: el orden de los checks fija cuál mensaje se muestra primero. */
+const nombrePersona = (mensajeVacio: string, mensajeCaracteres: string) =>
+  z
+    .string({ required_error: mensajeVacio, invalid_type_error: mensajeVacio })
+    .trim()
+    .min(1, mensajeVacio)
+    .max(120, excedido(120))
+    .regex(CARACTERES_NOMBRE, mensajeCaracteres);
+
+const telefono = (mensajeVacio: string, max: number) =>
+  z
+    .string({ required_error: mensajeVacio, invalid_type_error: mensajeVacio })
+    .trim()
+    .min(1, mensajeVacio)
+    .max(max, excedido(max))
+    .regex(CARACTERES_TELEFONO, MENSAJE_TELEFONO_CARACTERES)
+    .refine(
+      (v) => soloDigitos(v).length >= DIGITOS_TELEFONO_MINIMOS,
+      MENSAJE_TELEFONO_CORTO
+    );
 
 /**
  * Las fechas del formulario viajan como string AAAA-MM-DD (lo que emite un
@@ -71,13 +148,19 @@ const emailOpcional = z.preprocess(
  */
 const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/;
 
-const fechaIso = (mensaje: string) =>
+/**
+ * El campo vacío y la fecha imposible son dos problemas distintos y se dicen
+ * distinto: "12/05/201" a medio tipear deja el valor del form en blanco, y
+ * "Ingresá la fecha" con el campo lleno a la vista no ayuda a nadie.
+ */
+const fechaIso = (mensajeVacio: string) =>
   z.preprocess(
     (v) => (typeof v === "string" ? v.trim() : v),
     z
-      .string({ required_error: mensaje, invalid_type_error: mensaje })
-      .regex(FECHA_ISO, mensaje)
-      .refine(esFechaDeCalendario, mensaje)
+      .string({ required_error: mensajeVacio, invalid_type_error: mensajeVacio })
+      .min(1, mensajeVacio)
+      .regex(FECHA_ISO, MENSAJE_FECHA_INVALIDA)
+      .refine(esFechaDeCalendario, MENSAJE_FECHA_INVALIDA)
   );
 
 function esFechaDeCalendario(valor: string): boolean {
@@ -89,36 +172,90 @@ function esFechaDeCalendario(valor: string): boolean {
   );
 }
 
+/** Día de calendario UTC de un ISO ya validado (para comparar vencimientos). */
+export function diaDeFechaIso(valor: string): number {
+  const [anio, mes, dia] = valor.split("-").map(Number);
+  return Date.UTC(anio ?? 0, (mes ?? 1) - 1, dia ?? 1);
+}
+
+/**
+ * Un año anterior a este no es una fecha de nacimiento: es un dedo que se fue
+ * al año equivocado ("1009") y una ficha que después hay que perseguir.
+ */
+const ANIO_NACIMIENTO_MINIMO = 1900;
+
+const fechaNacimientoSchema = fechaIso("Ingresá la fecha de nacimiento")
+  .refine(
+    (v) => diaDeFechaIso(v) <= diaCalendarioUTC(new Date()),
+    "La fecha de nacimiento no puede ser futura."
+  )
+  .refine(
+    (v) => Number(v.slice(0, 4)) >= ANIO_NACIMIENTO_MINIMO,
+    "Revisá el año de nacimiento."
+  );
+
 /**
  * TEC-12: todo punto de entrada nuevo de DNI normaliza a dígitos. El form
  * público es el caso típico de "45.102.338" tipeado a mano; si entrara con
  * puntos, la idempotencia por DNI y el slug de /alumnos/<dni> verían dos
  * alumnos distintos.
+ *
+ * El regex corre ANTES de normalizar: si `soloDigitos` limpiara primero, un DNI
+ * con una letra ("45102a") llegaría a validarse como "45102" y el mensaje
+ * hablaría del largo en vez de decir lo que realmente pasó. Es el pedido
+ * textual del dueño: marcar la letra, no el síntoma.
  */
 const dniSchema = z.preprocess(
-  (v) => (typeof v === "string" ? soloDigitos(v) : v),
+  (v) => (typeof v === "string" ? v.trim() : v),
   z
-    .string({ required_error: "Ingresá el DNI" })
-    .min(6, "Ingresá un DNI válido")
-    .max(20, "Ingresá un DNI válido")
+    .string({ required_error: "Ingresá el DNI", invalid_type_error: "Ingresá el DNI" })
+    .min(1, "Ingresá el DNI")
+    .regex(CARACTERES_DNI, "El DNI va solo con números.")
+    .transform(soloDigitos)
+    .pipe(
+      z
+        .string()
+        .min(6, "El DNI tiene que tener al menos 6 números.")
+        .max(20, "Ese DNI tiene demasiados números.")
+    )
 );
 
 export const inscripcionSchema = z.object({
   // Personales (como figuran en el pasaporte)
-  nombre: z.string().trim().min(1, "Ingresá el nombre").max(120),
-  apellido: z.string().trim().min(1, "Ingresá el apellido").max(120),
-  fechaNacimiento: fechaIso("Ingresá la fecha de nacimiento"),
+  nombre: nombrePersona("Ingresá el nombre", "El nombre va solo con letras."),
+  apellido: nombrePersona("Ingresá el apellido", "El apellido va solo con letras."),
+  fechaNacimiento: fechaNacimientoSchema,
   dni: dniSchema,
-  numeroPasaporte: z.string().trim().min(1, "Ingresá el número de pasaporte").max(30),
+  numeroPasaporte: z
+    .string({
+      required_error: "Ingresá el número de pasaporte",
+      invalid_type_error: "Ingresá el número de pasaporte",
+    })
+    .trim()
+    .min(1, "Ingresá el número de pasaporte")
+    .min(5, "Ingresá el número completo del pasaporte.")
+    .max(30, excedido(30))
+    .regex(CARACTERES_PASAPORTE, "El pasaporte va con letras y números, sin símbolos."),
   fechaVencimientoPasaporte: fechaIso("Ingresá el vencimiento del pasaporte"),
 
   // Tutor 1 (siempre requerido)
-  tutor1Nombre: z.string().trim().min(1, "Ingresá el nombre del tutor").max(120),
-  tutor1Celular: z.string().trim().min(1, "Ingresá el celular del tutor").max(50),
-  tutor1Email: z.string().trim().max(160).email("Email inválido"),
+  tutor1Nombre: nombrePersona(
+    "Ingresá el nombre y el apellido",
+    "El nombre va solo con letras."
+  ),
+  tutor1Celular: telefono("Ingresá el celular del tutor", 50),
+  tutor1Email: emailRequerido("Ingresá el email del adulto responsable"),
 
   // Contacto y preferencias del alumno (opcionales, como en el webhook)
-  telefonoAlumno: textoOpcional(50),
+  telefonoAlumno: z.preprocess(
+    vacioAUndefined,
+    z
+      .string()
+      .trim()
+      .max(50, excedido(50))
+      .regex(CARACTERES_TELEFONO, MENSAJE_TELEFONO_CARACTERES)
+      .optional()
+  ),
   emailAlumno: emailOpcional,
   alergiasSalud: textoOpcional(2000),
   preferenciasAlojamiento: textoOpcional(500),
@@ -131,15 +268,30 @@ export const inscripcionSchema = z.object({
    */
   website: textoOpcional(200),
 
-  /** Consentimiento explícito: sin esto no hay inscripción (no es opt-out). */
+  /**
+   * Consentimiento explícito: sin esto no hay inscripción (no es opt-out).
+   *
+   * El mensaje va por `errorMap` y no por `required_error`: un literal que no
+   * coincide emite `invalid_literal`, que ningún `*_error` cubre, y la familia
+   * terminaba leyendo "Invalid literal value, expected true".
+   */
   acepta: z.literal(true, {
-    required_error: "Tenés que aceptar para continuar",
-    invalid_type_error: "Tenés que aceptar para continuar",
+    errorMap: () => ({ message: "Tenés que aceptar para continuar" }),
   }),
 });
 
 export type InscripcionData = z.output<typeof inscripcionSchema>;
 export type InscripcionInput = z.input<typeof inscripcionSchema>;
+
+/**
+ * El checkbox del consentimiento, tal como lo manda un form HTML: "on" cuando
+ * está tildado, ausente cuando no. Vive acá para que el server y la validación
+ * en vivo del navegador coercionen el MISMO valor: dos reglas para el mismo
+ * casillero terminan marcando en rojo algo que el server acepta.
+ */
+export function aceptaDesdeFormulario(valor: string | undefined | null): boolean {
+  return valor === "on" || valor === "true";
+}
 
 /** Un envío con el honeypot relleno se descarta en silencio (ver `website`). */
 export function esHoneypotRelleno(datos: { website?: string | null }): boolean {

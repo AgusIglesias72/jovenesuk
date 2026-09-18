@@ -595,13 +595,24 @@ export function Checkbox({ label, className, ...props }: CheckboxProps) {
     <label
       className={cn(
         "inline-flex min-h-[var(--tap)] items-center gap-3 cursor-pointer select-none text-[length:var(--t-body)]",
+        // Deshabilitado no cambiaba NADA a la vista: ni el cursor ni el color.
+        // La opacidad va en el label (y no en la caja) para no pelearle el fondo
+        // al `peer-checked`, que en una lista a medio enviar sigue tildada.
+        "has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60",
         className
       )}
     >
-      <span className="relative inline-flex h-5 w-5 items-center justify-center">
+      {/* shrink-0: es un flex item y su min-content lo marca el tilde de 10,5px,
+          así que en un ancho apretado el cuadrado dejaba de ser cuadrado. */}
+      <span className="relative inline-flex h-5 w-5 shrink-0 items-center justify-center">
         <input
           type="checkbox"
-          className="peer absolute h-full w-full opacity-0 cursor-pointer"
+          // El objetivo táctil de 44px vive en el CONTROL, no en el <label>:
+          // antes lo aportaba el label entero, así que tocar cualquier palabra
+          // del texto (un consentimiento de dos líneas) tildaba la casilla sin
+          // querer. Absoluto y centrado sobre el cuadrado: no mueve una sola
+          // medida del layout y vale aunque el consumidor pise el min-h.
+          className="peer absolute left-1/2 top-1/2 h-[var(--tap)] w-[var(--tap)] -translate-x-1/2 -translate-y-1/2 cursor-pointer opacity-0 disabled:cursor-not-allowed"
           {...props}
         />
         {/* Sin pointer-events: tapaba al input y el click no le llegaba al control real. */}
@@ -610,7 +621,11 @@ export function Checkbox({ label, className, ...props }: CheckboxProps) {
             "pointer-events-none absolute inset-0 rounded-[var(--r-xs)] border border-[var(--c-border-strong)] bg-[var(--c-surface)]",
             "transition-colors duration-150",
             "peer-checked:border-[var(--c-brand)] peer-checked:bg-[var(--c-brand)]",
-            "peer-focus-visible:shadow-[shadow:var(--ring-focus)]"
+            "peer-focus-visible:shadow-[shadow:var(--ring-focus)]",
+            // Variante ARBITRARIA a propósito: Tailwind 3.4 no trae `aria-invalid`
+            // en su lista de variants aria-* y `peer-aria-invalid:` se ignoraría
+            // en silencio. Sin esto, enviar sin tildar dejaba el cuadrado gris.
+            "peer-aria-[invalid=true]:border-[var(--c-danger)] peer-aria-[invalid=true]:shadow-[shadow:var(--ring-error)]"
           )}
         />
         <svg
