@@ -137,11 +137,13 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
   verificado contra el deploy que el `redirect_uri` y los scopes son los correctos. El dominio del
   equipo está en Google Workspace, así que sus cuentas sirven; ninguna de las familias tiene Gmail,
   así que por ahora es una comodidad del equipo.
-- **Hallazgo: es muy probable que producción no esté mandando ni un mail.** El SPF de
-  `jovenesenuk.com` solo autoriza a Google Workspace, y el remitente configurado es de ese dominio:
-  Resend no puede firmar por él. El envío es best-effort, así que la ficha se guarda igual y el error
-  solo llega a Sentry — nadie se entera. Anotado como lo más urgente en
-  [`docs/estado-actual.md` §7](docs/estado-actual.md).
+- **Producción nunca había mandado un mail, y ahora puede.** La `RESEND_API_KEY` cargada en Vercel
+  desde junio era inválida: cada envío volvía con `401 · API key is invalid`. Nadie se enteró porque
+  el envío es best-effort —la ficha se guarda igual— y el motivo solo llegaba a Sentry. Se reemplazó
+  por una key nueva, validada contra la API antes de cargarla. Mientras el dominio de la marca no esté
+  verificado en Resend, el remitente es `onboarding@resend.dev` y solo se entrega a la casilla dueña
+  de la cuenta; el alta del dominio quedó en [`docs/estado-actual.md` §7](docs/estado-actual.md), con
+  el typo que encontramos en el camino (en Resend estaba cargado `jovenesuk.com`, sin el "en").
 - **Tres trampas de Playwright quedaron escritas** en `.claude/docs/05-testing.md`, porque las tres
   hicieron que un test acusara a código sano: leer un color de un tiro lo agarra a mitad de la
   transición (el borde rojo del consentimiento llegó a medir el 3% del recorrido); `getByRole("alert")`

@@ -141,16 +141,28 @@ de cada uno —dónde hacer clic, qué pegar y cómo verificar que quedó— est
   de A1, transiciones de viajes por fecha, aviso de cancelación.
 - [x] **Sentry** (15/09/2026): DSN y source maps en producción (§5). Queda dejar correr una o dos
   semanas los reportes de la CSP antes de pasarla a enforce.
-- [ ] ⚠️ **Verificar el dominio del remitente en Resend. Es lo más urgente de esta lista: hoy es
-  muy probable que NO esté saliendo ni un mail de producción.** `/configuracion` tiene cargados
-  `noreply@jovenesenuk.com` (automáticos) e `info@jovenesenuk.com` (comunicaciones), pero el SPF de
-  `jovenesenuk.com` es `v=spf1 include:_spf.google.com ~all` — **autoriza a Google Workspace y a nadie
-  más**, así que Resend no puede firmar por ese dominio. Y el fallo es **silencioso por diseño**: el
-  envío es best-effort, la ficha se guarda igual y el error solo llega a Sentry. Verificado por DNS el
-  18/09/2026; falta confirmarlo en Resend → Domains. Arreglo: dar de alta el dominio en Resend y sumar
-  sus registros DKIM y su `include` al SPF (no tocan el sitio de Wix, solo el correo).
-  *Destraba:* el acuse a la familia, la invitación de campaña y el aviso al equipo, o sea **todo el
-  módulo de inscripciones de punta a punta**.
+- [x] **`RESEND_API_KEY` reemplazada** (18/09/2026). La que estaba cargada en Vercel desde junio
+  era **inválida**: los logs de producción devolvían `401 · API key is invalid` en cada envío. O sea
+  que **producción nunca mandó un mail**, y nadie se enteró porque el envío es best-effort (la ficha
+  se guarda igual) y el motivo solo llegaba a Sentry. La nueva se validó contra la API de Resend
+  antes de cargarla, y está en Production, Preview y `.env.local` (donde `EMAIL_DRY_RUN=1` sigue
+  impidiendo envíos reales desde el `next dev`).
+- [ ] ⚠️ **Verificar el dominio del remitente en Resend.** Mientras no esté, `/configuracion` tiene
+  cargado **`onboarding@resend.dev`** como remitente (puesto el 18/09/2026 para poder probar), y con
+  ese remitente Resend **solo entrega a la casilla dueña de la cuenta** (`agusiglesias72@gmail.com`):
+  el aviso de ficha nueva al equipo, que va a los admins `@jovenesenuk.com`, se rechaza entero.
+  Tres datos para cuando se haga:
+  - En la cuenta de Resend hay un dominio **`jovenesuk.com` — sin el "en" — en estado
+    `not_started`** desde junio. Es un typo: el dominio real es `jovenesenuk.com`. Hay que dar de alta
+    el correcto (y borrar el otro).
+  - El SPF de `jovenesenuk.com` es `v=spf1 include:_spf.google.com ~all`: autoriza solo a Google
+    Workspace. Hay que sumarle el `include` de Resend y los registros DKIM que Resend indique. No tocan
+    el sitio de Wix ni el correo de Workspace; solo agregan a Resend como remitente autorizado.
+  - Al terminar, **volver a poner los remitentes reales en `/configuracion`**: `noreply@jovenesenuk.com`
+    (automáticos), `info@jovenesenuk.com` (comunicaciones y reply-to). Esa pantalla escribe en la base
+    y le gana al entorno, así que si nadie la toca, `onboarding@resend.dev` se queda para siempre.
+
+  *Destraba:* mandarle a cualquier casilla, incluido el aviso al equipo, con el remitente de la marca.
 - [ ] **Resend, outreach de Prospectos**: alta del dominio `mkt.jovenesenuk.com` con sus registros DNS
   (SPF/DKIM/return-path) en Cloudflare; `EMAIL_FROM_OUTREACH` y `RESEND_WEBHOOK_SECRET` en Vercel;
   webhook de Resend apuntando a `/api/webhooks/resend`. *Destraba:* el envío y el tracking del CRM.
