@@ -127,6 +127,15 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
 - Los datos de marca que comparten el sitio público y el Application Form (las cifras, las
   acreditaciones con su texto alternativo y la foto de cabecera) pasaron a una fuente única, para que
   no envejezcan por separado.
+- **El botón de Google quedó prendido en producción** (18/09/2026): credenciales cargadas y
+  verificado contra el deploy que el `redirect_uri` y los scopes son los correctos. El dominio del
+  equipo está en Google Workspace, así que sus cuentas sirven; ninguna de las familias tiene Gmail,
+  así que por ahora es una comodidad del equipo.
+- **Hallazgo: es muy probable que producción no esté mandando ni un mail.** El SPF de
+  `jovenesenuk.com` solo autoriza a Google Workspace, y el remitente configurado es de ese dominio:
+  Resend no puede firmar por él. El envío es best-effort, así que la ficha se guarda igual y el error
+  solo llega a Sentry — nadie se entera. Anotado como lo más urgente en
+  [`docs/estado-actual.md` §7](docs/estado-actual.md).
 - **Tres trampas de Playwright quedaron escritas** en `.claude/docs/05-testing.md`, porque las tres
   hicieron que un test acusara a código sano: leer un color de un tiro lo agarra a mitad de la
   transición (el borde rojo del consentimiento llegó a medir el 3% del recorrido); `getByRole("alert")`

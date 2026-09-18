@@ -108,7 +108,7 @@ Lo de abajo es lo que se puede afirmar desde el repo (config, código y el `.env
 |---|---|---|
 | **Neon (Postgres)** | ✅ `src/lib/db/`, migraciones `drizzle/0000…0021` | Proyecto `jovenes-uk` (`snowy-pine-02594515`, sa-east-1), dado de alta **por la integración de Vercel** (organización de Neon *"Vercel: agusiglesias72's projects"*: se factura por Vercel). Branches: `main` (default, **es la base de producción**), `dev` (la del `.env.local`, con datos reales), `ci-base` (padre del CI: estructura y registro de migraciones, **sin datos**) y `respaldo-pre-0021` (foto de `main` del 18/09/2026, antes de migrar; borrable cuando el módulo esté probado). **`main` quedó al día el 18/09/2026**: venía 7 migraciones atrás (0015…0021) porque nadie migraba producción desde `0014`; se aplicaron todas de una (aditivas: sin `DROP` ni `DELETE`, un solo `ALTER COLUMN … SET DEFAULT`) y los datos quedaron intactos. Ver §10. |
 | **Better-Auth** | ✅ `src/lib/auth/` | Operativo. |
-| **Google OAuth (botón del login)** | ✅ `src/lib/auth/google-oauth.ts` + `socialProviders` en `src/lib/auth/index.ts` | ⚠️ **Código listo, credenciales pendientes del dueño** (§7). Sin `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` el provider no se declara y el botón no se muestra: es el estado en local, en el CI y **hoy también en producción**. Entra únicamente a una cuenta que ya existe, nunca crea una ([ADR-019](architecture.md#adr-019--google-vincula-nunca-da-de-alta-sept-2026)); apagarlo es borrar las dos variables. |
+| **Google OAuth (botón del login)** | ✅ `src/lib/auth/google-oauth.ts` + `socialProviders` en `src/lib/auth/index.ts` | **Conectado el 18/09/2026.** `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` cargadas en `.env.local` y en Vercel (Production y Preview); el botón se ve en `/login` de producción. Verificado contra el deploy: el `redirect_uri` que sale hacia Google es `https://jovenesuk.vercel.app/api/auth/callback/google` y los scopes son los tres no sensibles (`email profile openid`). Entra únicamente a una cuenta que ya existe, nunca crea una ([ADR-019](architecture.md#adr-019--google-vincula-nunca-da-de-alta-sept-2026)); apagarlo es borrar las dos variables. **`jovenesenuk.com` está en Google Workspace** (los MX apuntan a `aspmx.l.google.com`), así que las cuentas del equipo son cuentas de Google y el botón les sirve. Para una familia depende de que su mail del portal sea el mismo de su Google: hoy **ninguna de las 22 familias tiene Gmail**, así que en la práctica es una comodidad del equipo. En el CI y en cualquier entorno sin las variables, el provider no se declara y el botón no existe. |
 | **Webhook del Google Form** | ✅ `api/webhooks/google-form` | Necesita `GOOGLE_FORM_WEBHOOK_SECRET` en el deploy y el form apuntando al endpoint. |
 | **Trigger.dev (jobs)** | ✅ `src/trigger/`: `daily-reminder-scan` (cron 09:00 UTC = 06:00 ART: transiciones de viajes por fecha + recordatorios), `run-reminder-scan` (manual, con dry-run), `notificar-cancelacion-viaje`, `notificar-consulta-nueva` | ⚠️ **No desplegado.** En el repo no hay deploy de Trigger (el CI no lo corre, `trigger.config.ts` cae a un placeholder sin `TRIGGER_PROJECT_ID`, y las credenciales de dev son placeholders). Consecuencias mientras siga así: **no hay recordatorios automáticos, A1 no pasa solo a *vencido* y los viajes no pasan solos a *en curso* / *finalizado***. El aviso por cancelación de un viaje no sale (la cancelación sí se hace y el error va a Sentry). El aviso de consulta nueva cae a un envío directo. |
 | **Cloudflare R2 (documentos)** | ✅ `src/lib/storage/` | En dev usa el fallback a disco `.uploads/`: directo si alguna `R2_*` está vacía, o después de un intento fallido contra R2 (con un `console.error`) si tienen placeholders. **En producción sin R2 la subida falla a propósito** (`StorageNoConfiguradoError`): no se guardan pasaportes en el disco efímero de Vercel. |
@@ -141,22 +141,32 @@ de cada uno —dónde hacer clic, qué pegar y cómo verificar que quedó— est
   de A1, transiciones de viajes por fecha, aviso de cancelación.
 - [x] **Sentry** (15/09/2026): DSN y source maps en producción (§5). Queda dejar correr una o dos
   semanas los reportes de la CSP antes de pasarla a enforce.
+- [ ] ⚠️ **Verificar el dominio del remitente en Resend. Es lo más urgente de esta lista: hoy es
+  muy probable que NO esté saliendo ni un mail de producción.** `/configuracion` tiene cargados
+  `noreply@jovenesenuk.com` (automáticos) e `info@jovenesenuk.com` (comunicaciones), pero el SPF de
+  `jovenesenuk.com` es `v=spf1 include:_spf.google.com ~all` — **autoriza a Google Workspace y a nadie
+  más**, así que Resend no puede firmar por ese dominio. Y el fallo es **silencioso por diseño**: el
+  envío es best-effort, la ficha se guarda igual y el error solo llega a Sentry. Verificado por DNS el
+  18/09/2026; falta confirmarlo en Resend → Domains. Arreglo: dar de alta el dominio en Resend y sumar
+  sus registros DKIM y su `include` al SPF (no tocan el sitio de Wix, solo el correo).
+  *Destraba:* el acuse a la familia, la invitación de campaña y el aviso al equipo, o sea **todo el
+  módulo de inscripciones de punta a punta**.
 - [ ] **Resend, outreach de Prospectos**: alta del dominio `mkt.jovenesenuk.com` con sus registros DNS
   (SPF/DKIM/return-path) en Cloudflare; `EMAIL_FROM_OUTREACH` y `RESEND_WEBHOOK_SECRET` en Vercel;
   webhook de Resend apuntando a `/api/webhooks/resend`. *Destraba:* el envío y el tracking del CRM.
 - [x] **Neon en GitHub** (15/09/2026): secret `NEON_API_KEY` (key acotada al proyecto `jovenes-uk`,
   nombre `github-actions-ci-jovenesuk`) y variables `NEON_PROJECT_ID` y `NEON_PARENT_BRANCH=ci-base`.
   Cómo se armó `ci-base`, en [`setup-servicios.md` §2](setup-servicios.md#2-secrets-de-neon-en-github--ci).
-- [ ] **Google OAuth Client**, para que aparezca el botón "Continuar con Google" del login. En Google
-  Cloud Console: crear un cliente de tipo *Aplicación web* con la URI de redirección **exacta**
-  `<BETTER_AUTH_URL>/api/auth/callback/google`, y cargar `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET`
-  en Vercel (Production). Paso a paso en [`setup-servicios.md` §8](setup-servicios.md#8-google-oauth--botón-continuar-con-google-opcional).
-  *Destraba:* una segunda forma de entrar a una cuenta que ya existe (nunca un alta: ADR-019).
-  ⚠️ **Con un `vercel.app` y sin dominio propio, Google va a dejar la app en modo *Prueba***: solo
-  pueden usar el botón los mails cargados a mano como usuarios de prueba. Hasta que esté el dominio
-  (y con él la verificación de la app), el botón le sirve **al equipo**, no a las familias. Por eso
-  esto va después del dominio en la fila de prioridades, y por eso sigue abierto en MIN-28 a quién se
-  le muestra el botón.
+- [x] **Google OAuth Client** (18/09/2026): cliente de tipo *Aplicación web* creado, con la URI de
+  redirección `https://jovenesuk.vercel.app/api/auth/callback/google` y los tres scopes no sensibles.
+  `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en Vercel (Production y Preview) y en `.env.local`. El
+  botón se ve en el login de producción (§5). Paso a paso en
+  [`setup-servicios.md` §8](setup-servicios.md#8-google-oauth--botón-continuar-con-google-opcional).
+  Queda pendiente confirmar el **estado de publicación** de la app en Google Cloud: si Google la dejó
+  en modo *Prueba* —probable, porque `vercel.app` no es un dominio del dueño—, solo pueden usar el
+  botón los mails cargados a mano como usuarios de prueba. Hasta que esté el dominio propio, el botón
+  le sirve **al equipo** (que sí tiene cuentas de Google: el dominio está en Workspace), no a las
+  familias. A quién se le muestra sigue abierto en MIN-28 ⭐.
 - [ ] **GitHub Pro** (o repo público), para una branch protection que exija el CI en verde. Sin eso
   el CI informa, pero no bloquea merges.
 - [ ] **Dominio definitivo y acceso público al deploy** ⚠️ *lo más urgente del módulo nuevo.* Hoy el
