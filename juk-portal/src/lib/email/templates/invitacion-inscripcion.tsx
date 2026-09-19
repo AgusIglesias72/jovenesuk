@@ -1,8 +1,23 @@
-import { Hr, Text } from "@react-email/components";
-
 import { VIGENCIA_DIAS } from "@/lib/domain/inscripciones/invitacion";
 
-import { EmailButton, EmailCallout, EmailHeading, EmailLayout, EmailParagraph } from "./_layout";
+import { banderaDelViaje, fotoDelViaje } from "../imagenes";
+import {
+  Aviso,
+  Ayuda,
+  BotonPrincipal,
+  Firma,
+  ListaConIconos,
+  MarcoFamilia,
+  NotaDelBoton,
+  Parrafo,
+  Pasos,
+  Subtitulo,
+  TarjetaViaje,
+  Titulo,
+  Volanta,
+  type ItemConIcono,
+  type Paso,
+} from "./_marca";
 
 /**
  * InvitacionInscripcionEmail — el mail que abre el Application Form propio.
@@ -23,6 +38,12 @@ type InvitacionInscripcionEmailProps = {
   contactoNombre?: string | null;
   prospectoNombre?: string | null;
   viajeNombre?: string | null;
+  /** UK-2026-JUL-LONDON: elige la foto de cabecera y la bandera. */
+  viajeCodigo?: string | null;
+  /** Las fechas del viaje YA formateadas ("Del 04/07/2026 al 18/07/2026"). */
+  viajeFechas?: string | null;
+  /** El `pais` del viaje (reino_unido, irlanda…), para la bandera. */
+  viajePais?: string | null;
   formularioUrl: string;
   unsubscribeUrl: string;
   /** El vencimiento YA formateado (DD/MM/AAAA). Sin él se anuncia la vigencia estándar. */
@@ -30,23 +51,64 @@ type InvitacionInscripcionEmailProps = {
   vigenciaDias?: number;
 };
 
-const TEXT_MUTED = "#66728a";
-
 /**
  * Se saluda a la persona si la tenemos, y si no a la institución. El genérico
  * existe porque el CRM tiene prospectos cargados solo con una casilla: un
  * "Hola null" en el primer mail que ve una familia no es una opción.
  */
 function saludoDe(contactoNombre?: string | null, prospectoNombre?: string | null): string {
-  if (contactoNombre?.trim()) return `Hola ${contactoNombre.trim()}`;
-  if (prospectoNombre?.trim()) return `Hola, equipo de ${prospectoNombre.trim()}`;
+  if (contactoNombre?.trim()) return `Hola ${contactoNombre.trim()},`;
+  if (prospectoNombre?.trim()) return `Hola, equipo de ${prospectoNombre.trim()}:`;
   return "¡Hola!";
 }
+
+/**
+ * Lo que pide el formulario, contado para que la familia lo junte ANTES de
+ * abrirlo (las secciones de `src/app/inscripcion/inscripcion-form.tsx`). Son
+ * descripciones de qué se pide, nunca un dato.
+ */
+const TENER_A_MANO: readonly ItemConIcono[] = [
+  {
+    icono: "pasaporte",
+    titulo: "El pasaporte y el DNI del alumno",
+    texto:
+      "Número y vencimiento del pasaporte. El nombre va tal como figura ahí: es el que usamos para toda la documentación del viaje.",
+  },
+  {
+    icono: "celular",
+    titulo: "Los datos del adulto responsable",
+    texto: "Nombre, celular y mail: es por donde te vamos a escribir.",
+  },
+  {
+    icono: "salud",
+    titulo: "Salud y alojamiento",
+    texto:
+      "Si tiene alergias, toma alguna medicación o hay algo que tengamos que saber para ubicarlo mejor. Es opcional.",
+  },
+];
+
+const PASOS: readonly Paso[] = [
+  {
+    titulo: "Completás la ficha",
+    texto: "Al terminar te llega un mail con tu código de referencia.",
+  },
+  {
+    titulo: "La revisamos",
+    texto: "El equipo controla los datos y, si falta algo, te escribe.",
+  },
+  {
+    titulo: "Te contamos cómo sigue",
+    texto: "Documentación, pagos y todo lo que viene hasta el día de la salida.",
+  },
+];
 
 export function InvitacionInscripcionEmail({
   contactoNombre,
   prospectoNombre,
   viajeNombre,
+  viajeCodigo,
+  viajeFechas,
+  viajePais,
   formularioUrl,
   unsubscribeUrl,
   venceEl,
@@ -54,54 +116,72 @@ export function InvitacionInscripcionEmail({
 }: InvitacionInscripcionEmailProps) {
   const saludo = saludoDe(contactoNombre, prospectoNombre);
   const viaje = viajeNombre?.trim();
+  // La frase se arma entera acá: intercalar `{vigenciaDias}` entre texto hace
+  // que React parta el nodo y meta un comentario en el medio ("vence en
+  // <!-- -->30<!-- --> días"), que se ve igual pero deja de ser buscable en el
+  // HTML renderizado.
   const plazo = venceEl?.trim()
     ? `El link es personal y vence el ${venceEl.trim()}.`
     : `El link es personal y vence en ${vigenciaDias} días.`;
+  const intro = viaje
+    ? `Ya podés completar la ficha de inscripción para ${viaje}.`
+    : "Ya podés completar la ficha de inscripción del viaje.";
 
   return (
-    <EmailLayout
+    <MarcoFamilia
       preview={
-        viaje ? `Completá la ficha de inscripción · ${viaje}` : "Completá la ficha de inscripción"
+        viaje
+          ? `Completá la ficha de inscripción · ${viaje}. Son unos 10 minutos.`
+          : "Completá la ficha de inscripción. Son unos 10 minutos."
       }
+      foto={fotoDelViaje({ codigo: viajeCodigo, nombre: viaje })}
+      motivo="Recibís este correo porque estás en contacto con Jóvenes en UK por un viaje de estudios."
+      bajaUrl={unsubscribeUrl}
     >
-      <EmailHeading>{saludo}</EmailHeading>
+      <Volanta>{viaje ? `Inscripción abierta · ${viaje}` : "Inscripción abierta"}</Volanta>
+      <Titulo>Completá la ficha de inscripción</Titulo>
 
-      <EmailParagraph>
-        Te escribimos desde <strong>Jóvenes en UK</strong>.{" "}
-        {viaje ? `Ya podés completar la ficha de inscripción para ${viaje}` : "Ya podés completar la ficha de inscripción del viaje"}
-        : es el formulario con el que armamos toda la documentación, así que es el primer paso para
-        reservar el lugar.
-      </EmailParagraph>
+      <Parrafo>{saludo}</Parrafo>
+      <Parrafo>
+        {intro} Es el formulario con el que armamos toda la documentación, así que es el{" "}
+        <strong>primer paso para reservar el lugar</strong>.
+      </Parrafo>
 
-      <EmailParagraph>
-        Son unos minutos. Pedimos los datos del alumno <strong>tal como figuran en el pasaporte</strong>,
-        un teléfono de contacto y lo que necesitemos saber para el alojamiento. Si algo no lo tenés a
-        mano, escribinos y lo vemos juntos.
-      </EmailParagraph>
+      {viaje ? (
+        <TarjetaViaje
+          viaje={{
+            nombre: viaje,
+            codigo: viajeCodigo,
+            fechas: viajeFechas,
+            bandera: banderaDelViaje({ paisDestino: viajePais, codigo: viajeCodigo }),
+          }}
+        />
+      ) : null}
 
-      <EmailButton href={formularioUrl}>Completar la inscripción</EmailButton>
+      <BotonPrincipal href={formularioUrl}>Completar la inscripción</BotonPrincipal>
+      <NotaDelBoton>Son unos 10 minutos y se puede hacer desde el teléfono.</NotaDelBoton>
 
-      <EmailCallout>
-        {/* La frase se arma entera arriba: intercalar `{vigenciaDias}` entre
-            texto hace que React parta el nodo y meta un comentario en el medio
-            ("vence en <!-- -->90<!-- --> días"), que se ve igual pero deja de ser
-            buscable en el HTML renderizado. */}
-        {plazo} Mejor no reenviarlo: si otra persona de la familia tiene que completar la ficha,
-        avisanos y le mandamos el suyo.
-      </EmailCallout>
+      <Aviso icono="calendario">
+        <strong>{plazo}</strong> Mejor no reenviarlo: si otra persona de la familia tiene que
+        completar la ficha, avisanos y le mandamos el suyo.
+      </Aviso>
 
-      <EmailParagraph>
-        Cualquier duda, respondé este mismo mail: lo lee alguien del equipo.
-      </EmailParagraph>
+      <Subtitulo>Qué conviene tener a mano</Subtitulo>
+      <ListaConIconos items={TENER_A_MANO} />
+      <Parrafo chico>
+        ¿El pasaporte está en trámite o falta algún dato? Escribinos antes de empezar y lo vemos
+        juntos.
+      </Parrafo>
 
-      <Hr style={{ borderColor: "#e3e7ee", margin: "24px 0 12px" }} />
-      <Text className="m-0 text-[11px] leading-relaxed" style={{ color: TEXT_MUTED }}>
-        Recibís este correo porque estás en contacto con Jóvenes en UK por un viaje de estudios.{" "}
-        <a href={unsubscribeUrl} style={{ color: TEXT_MUTED, textDecoration: "underline" }}>
-          Si no querés recibir más correos, date de baja
-        </a>
-        .
-      </Text>
-    </EmailLayout>
+      <Subtitulo>Cómo sigue</Subtitulo>
+      <Pasos pasos={PASOS} />
+
+      <Aviso icono="candado" tono="neutro">
+        Lo que cargues lo ve <strong>solo el equipo que organiza el viaje</strong>.
+      </Aviso>
+      <Ayuda asuntoWhatsapp="Hola, tengo una consulta sobre la ficha de inscripción" />
+
+      <Firma />
+    </MarcoFamilia>
   );
 }

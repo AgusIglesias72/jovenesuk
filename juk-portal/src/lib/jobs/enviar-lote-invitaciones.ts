@@ -8,7 +8,10 @@ import {
 } from "@/lib/db/queries/invitaciones";
 import { getProspectoById } from "@/lib/db/queries/prospectos";
 import { getViajeById } from "@/lib/db/queries/viajes";
+import type { Prospecto } from "@/lib/db/schema/prospectos";
+import type { Viaje } from "@/lib/db/schema/viajes";
 import { LOTE_TAMANIO, PAUSA_ENTRE_ENVIOS_MS } from "@/lib/domain/inscripciones/invitacion";
+import type { InvitacionParaEnviar } from "@/lib/email/send-invitacion-inscripcion";
 
 /**
  * El motor del envío masivo de invitaciones al Application Form: reciclar,
@@ -80,18 +83,22 @@ function esperar(ms: number): Promise<void> {
 }
 
 /**
- * El nombre del viaje de la campaña, pedido UNA vez por tanda: las diez
- * invitaciones comparten viaje, y cada query es un round-trip HTTP. Se memoiza
- * la promesa y no el resultado para que dos envíos encimados no disparen dos
- * pedidos. El `Map` vive lo que vive la tanda, así que no hay caché rancia.
+ * El viaje de la campaña, pedido UNA vez por tanda: las diez invitaciones
+ * comparten viaje, y cada query es un round-trip HTTP. Se memoiza la promesa y
+ * no el resultado para que dos envíos encimados no disparen dos pedidos. El
+ * `Map` vive lo que vive la tanda, así que no hay caché rancia.
+ *
+ * Se guarda el viaje entero y no solo el nombre: el mail muestra también las
+ * fechas, la bandera y una foto elegida por la ciudad del código, y todo sale
+ * de la misma fila sin otra query.
  */
-function nombreDelViaje(
+function viajeDeLaCampana(
   viajeId: string | null,
-  memo: Map<string, Promise<string | null>>
-): Promise<string | null> {
+  memo: Map<string, Promise<Viaje | null>>
+): Promise<Viaje | null> {
   if (!viajeId) return Promise.resolve(null);
 
-  const pedido = memo.get(viajeId) ?? getViajeById(viajeId).then((v) => v?.nombre ?? null);
+  const pedido = memo.get(viajeId) ?? getViajeById(viajeId);
   memo.set(viajeId, pedido);
   return pedido;
 }
@@ -102,10 +109,43 @@ function urlBaja(unsubscribeToken: string): string {
   return `${base.replace(/\/+$/, "")}/baja?token=${unsubscribeToken}`;
 }
 
+/** Lo que el mail necesita del prospecto, además de lo que ya trae la fila. */
+export type ProspectoDelMail = Pick<Prospecto, "unsubscribeToken">;
+
+/**
+ * El armado del mail a partir de la fila reservada, el viaje de la campaña y el
+ * prospecto. Es pura y exportada por una razón: que el mail diga la fecha exacta
+ * de vencimiento y no "vence en 90 días" depende de que `expiraEl` llegue hasta
+ * acá, y el test de integración del job inyecta su propio sender, así que sin
+ * esto nada fallaría si alguien lo vuelve a sacar.
+ */
+export function invitacionParaEnviar(
+  invitacion: InvitacionReservada,
+  viaje: Pick<Viaje, "nombre" | "codigo" | "fechaInicio" | "fechaFin" | "paisDestino"> | null,
+  prospecto: ProspectoDelMail,
+  asunto: string | null
+): InvitacionParaEnviar {
+  return {
+    to: invitacion.destinatario,
+    token: invitacion.token,
+    variante: invitacion.variante,
+    contactoNombre: invitacion.contactoNombre,
+    prospectoNombre: invitacion.prospectoNombre,
+    viajeNombre: viaje?.nombre ?? null,
+    viajeCodigo: viaje?.codigo ?? null,
+    viajeDesde: viaje?.fechaInicio ?? null,
+    viajeHasta: viaje?.fechaFin ?? null,
+    viajePais: viaje?.paisDestino ?? null,
+    expiraEl: invitacion.expiraEl,
+    asunto,
+    unsubscribeUrl: urlBaja(prospecto.unsubscribeToken),
+  };
+}
+
 /**
  * El sender real. Es una fábrica y no una función suelta porque el mail necesita
  * dos datos que la fila reservada no trae —el link de baja (el token vive en el
- * prospecto) y el nombre del viaje—, y la memoización del viaje tiene que durar
+ * prospecto) y el viaje—, y la memoización del viaje tiene que durar
  * exactamente lo que dura la tanda.
  *
  * El import del módulo de mails es dinámico por el mismo motivo que en
@@ -119,16 +159,16 @@ function urlBaja(unsubscribeToken: string): string {
  * en el medio no recibe nada.
  */
 function senderPorDefecto(asunto: string | null): EnviarInvitacion {
-  const viajes = new Map<string, Promise<string | null>>();
+  const viajes = new Map<string, Promise<Viaje | null>>();
 
   return async (invitacion) => {
     const { sendInvitacionInscripcionEmail } = await import(
       "@/lib/email/send-invitacion-inscripcion"
     );
 
-    const [prospecto, viajeNombre] = await Promise.all([
+    const [prospecto, viaje] = await Promise.all([
       getProspectoById(invitacion.prospectoId),
-      nombreDelViaje(invitacion.viajeId, viajes),
+      viajeDeLaCampana(invitacion.viajeId, viajes),
     ]);
 
     if (!prospecto) throw new Error("El prospecto ya no existe.");
@@ -136,16 +176,7 @@ function senderPorDefecto(asunto: string | null): EnviarInvitacion {
       throw new Error("El prospecto se dio de baja de los correos.");
     }
 
-    return sendInvitacionInscripcionEmail({
-      to: invitacion.destinatario,
-      token: invitacion.token,
-      variante: invitacion.variante,
-      contactoNombre: invitacion.contactoNombre,
-      prospectoNombre: invitacion.prospectoNombre,
-      viajeNombre,
-      asunto,
-      unsubscribeUrl: urlBaja(prospecto.unsubscribeToken),
-    });
+    return sendInvitacionInscripcionEmail(invitacionParaEnviar(invitacion, viaje, prospecto, asunto));
   };
 }
 

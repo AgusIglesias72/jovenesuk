@@ -246,6 +246,16 @@ asunción de trabajo mientras no se decida.
 - **Para preguntarle al dueño:** ¿vio entrar algún pasaporte más corto que 5 caracteres, o algún
   teléfono del exterior con menos de 8 dígitos? Son los dos únicos mínimos que pueden dejar afuera
   un caso real.
+- ⚠️ **Regresión encontrada el 19/09/2026 — un alumno extranjero no puede inscribirse.** El
+  webhook del Google Form acepta a propósito un documento que no es numérico (su comentario lo dice:
+  *"el pasaporte de un alumno extranjero tipeado en el campo DNI"*, y `normalizarDni` lo guarda tal
+  cual). La regla de arriba ("una letra se rechaza") choca con ese caso conocido: con el formulario
+  nuevo, ese alumno no tiene cómo enviar la ficha. Lo detectó la revisión adversarial de la
+  comparación contra el Google Form, no un test. **Opciones:** (a) una casilla "No tengo DNI
+  argentino" que, tildada, cambia la etiqueta a "Documento" y acepta letras — mantiene el aviso en
+  vivo que pidió el dueño para el caso común; (b) volver a aceptar letras en el DNI, como el
+  webhook, y perder el aviso; (c) dejarlo así si el equipo confirma que no tiene alumnos extranjeros.
+  **Recomendado: (a).** Pendiente de respuesta del dueño.
 - **Alcance:** solo `/inscripcion`. El **webhook del Google Form** (`api/webhooks/google-form`)
   tiene su propio schema, más blando, y no cambió: si se quiere que las fichas viejas entren con
   las mismas reglas, es un cambio aparte. `lead-form.tsx`, `alumno-form.tsx` y `prospecto-form.tsx`

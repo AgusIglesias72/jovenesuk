@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { VIGENCIA_DIAS } from "@/lib/domain/inscripciones/invitacion";
 import { CAMPOS_NIVEL_2 } from "@/lib/domain/inscripciones/niveles";
 
+import { problemasDeCompatibilidad } from "./__tests__/html-mail";
 import { filaInscripcion, valoresNivel2De } from "./__tests__/inscripcion-fixture";
 
 // Las queries arrastran @/lib/db (que exige DATABASE_URL): mockeadas.
@@ -58,6 +59,7 @@ vi.mock("./index", async (importOriginal) => {
 import { emailsDryRun, limpiarEmailsDryRun } from "./index";
 import {
   asuntoInvitacion,
+  fechasDelViaje,
   sendInvitacionInscripcionEmail,
   urlInscripcion,
   type InvitacionParaEnviar,
@@ -140,6 +142,19 @@ describe("asuntoInvitacion", () => {
   });
 });
 
+describe("fechasDelViaje", () => {
+  it("arma el rango en DD/MM/AAAA, por día UTC (las columnas date llegan a medianoche UTC)", () => {
+    expect(fechasDelViaje(new Date("2026-07-04T00:00:00.000Z"), new Date("2026-07-18T00:00:00.000Z"))).toBe(
+      "Del 04/07/2026 al 18/07/2026"
+    );
+  });
+
+  it("sin alguna de las dos puntas no muestra un rango a medias", () => {
+    expect(fechasDelViaje(new Date("2026-07-04T00:00:00.000Z"), null)).toBeNull();
+    expect(fechasDelViaje(undefined, undefined)).toBeNull();
+  });
+});
+
 describe("sendInvitacionInscripcionEmail", () => {
   it("sale como comunicación desde info@: la familia tiene que poder responder", async () => {
     await sendInvitacionInscripcionEmail(invitacion());
@@ -197,6 +212,19 @@ describe("sendInvitacionInscripcionEmail", () => {
     expect(html).not.toContain(`vence en ${VIGENCIA_DIAS} días`);
   });
 
+  it("una campaña mandada de noche anuncia el día argentino en que vence, no el UTC", async () => {
+    // 01:30 UTC del 18/12 = 22:30 ART del 17/12: ese día el link deja de abrir.
+    // Con el día UTC el mail decía el 18 y la familia que entraba esa mañana,
+    // confiando en el mail, lo encontraba vencido.
+    await sendInvitacionInscripcionEmail(
+      invitacion({ expiraEl: new Date("2026-12-18T01:30:00.000Z") })
+    );
+
+    const html = await render(capturados[0]!.react);
+    expect(html).toContain("vence el 17/12/2026.");
+    expect(html).not.toContain("18/12/2026");
+  });
+
   it("el cuerpo lleva el link con token y variante, y el plazo real de la invitación", async () => {
     await sendInvitacionInscripcionEmail(invitacion());
 
@@ -239,6 +267,41 @@ describe("sendInvitacionInscripcionEmail", () => {
       (CAMPOS_NIVEL_2 as readonly string[]).includes(k)
     );
     expect(sensibles).toEqual([]);
+  });
+
+  it("muestra el viaje con sus fechas y la foto de su ciudad, con URL absoluta", async () => {
+    await sendInvitacionInscripcionEmail(
+      invitacion({
+        viajeCodigo: "UK-2026-JUL-LONDON",
+        viajeDesde: new Date("2026-07-04T00:00:00.000Z"),
+        viajeHasta: new Date("2026-07-18T00:00:00.000Z"),
+        viajePais: "reino_unido",
+      })
+    );
+
+    const html = await render(capturados[0]!.react);
+    expect(html).toContain("Del 04/07/2026 al 18/07/2026");
+    expect(html).toContain("UK-2026-JUL-LONDON");
+    expect(html).toContain(`${APP_URL}/email/viaje-londres.jpg`);
+    expect(html).toContain(`${APP_URL}/email/bandera-gb.png`);
+    expect(html).toContain(`${APP_URL}/email/logo-juk.png`);
+  });
+
+  it("se puede ver en Gmail y en Outlook: sin SVG ni WebP, imágenes absolutas con alt y tamaño, y liviano", async () => {
+    await sendInvitacionInscripcionEmail(
+      invitacion({ viajeCodigo: "UK-2026-JUL-LONDON", expiraEl: new Date("2026-12-15T10:30:00.000Z") })
+    );
+
+    const html = await render(capturados[0]!.react);
+    expect(problemasDeCompatibilidad(html)).toEqual([]);
+  });
+
+  it("el botón lleva el color en la celda, para que Outlook lo pinte como botón", async () => {
+    await sendInvitacionInscripcionEmail(invitacion());
+
+    const html = await render(capturados[0]!.react);
+    // La celda que envuelve al link del formulario tiene el fondo de marca.
+    expect(html).toMatch(/<td[^>]*background-color:#1f6f63[^>]*><a[^>]*href="[^"]*\/inscripcion\?t=/);
   });
 
   it("sin contacto ni viaje el saludo sigue siendo humano", async () => {

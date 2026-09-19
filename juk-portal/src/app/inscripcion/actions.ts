@@ -146,14 +146,22 @@ async function despuesDeGuardar(
     }
   }
 
+  // El viaje de los mails sale de la invitación, que ya se resolvió por el hash
+  // del token: la fila solo guarda el id, y sin invitación la ficha no tiene
+  // viaje. Sin esto el acuse no nombraba el viaje y el aviso al equipo decía
+  // "sin asignar".
+  const viaje = invitacion
+    ? { nombre: invitacion.viajeNombre, codigo: invitacion.viajeCodigo }
+    : null;
+
   try {
-    await sendInscripcionRecibidaEmail(inscripcion);
+    await sendInscripcionRecibidaEmail(inscripcion, viaje);
   } catch (err) {
     Sentry.captureException(err);
   }
 
   try {
-    await sendInscripcionNuevaEmail(inscripcion);
+    await sendInscripcionNuevaEmail(inscripcion, viaje);
   } catch (err) {
     Sentry.captureException(err);
   }

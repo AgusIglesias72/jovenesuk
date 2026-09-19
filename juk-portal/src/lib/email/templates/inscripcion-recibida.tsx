@@ -1,10 +1,19 @@
+import { banderaDelViaje, fotoDelViaje } from "../imagenes";
 import {
-  EmailCallout,
-  EmailHeading,
-  EmailLayout,
-  EmailMonoCode,
-  EmailParagraph,
-} from "./_layout";
+  Aviso,
+  Ayuda,
+  CodigoDestacado,
+  Firma,
+  MarcoFamilia,
+  Parrafo,
+  Pasos,
+  SelloListo,
+  Subtitulo,
+  TarjetaViaje,
+  Titulo,
+  Volanta,
+  type Paso,
+} from "./_marca";
 
 /**
  * InscripcionRecibidaEmail — acuse a quien completó el Application Form propio.
@@ -25,45 +34,86 @@ type InscripcionRecibidaEmailProps = {
   /** Código público INS-000123 (`codigoInscripcion`). */
   codigo: string;
   viajeNombre?: string | null;
+  /** UK-2026-JUL-LONDON: elige la foto de cabecera y la bandera. */
+  viajeCodigo?: string | null;
 };
+
+const PASOS: readonly Paso[] = [
+  {
+    titulo: "Completaste la ficha",
+    texto: "Ya quedó guardada. No hace falta que la vuelvas a cargar.",
+    hecho: true,
+  },
+  {
+    titulo: "La revisamos",
+    texto: "El equipo controla los datos y, si falta algo, te escribe.",
+  },
+  {
+    titulo: "Te contamos cómo sigue",
+    texto: "Documentación, pagos y todo lo que viene hasta el día de la salida.",
+  },
+];
 
 export function InscripcionRecibidaEmail({
   tutorNombre,
   alumnoNombre,
   codigo,
   viajeNombre,
+  viajeCodigo,
 }: InscripcionRecibidaEmailProps) {
-  return (
-    <EmailLayout preview={`Recibimos la ficha de ${alumnoNombre} · ${codigo}`}>
-      <EmailHeading>Hola {tutorNombre},</EmailHeading>
+  const viaje = viajeNombre?.trim();
+  // El sender puede llegar sin nombre (una fila vieja, un nombre en blanco): el
+  // título no puede quedar colgando en "la ficha de".
+  const alumno = alumnoNombre.trim();
+  const titulo = alumno ? `¡Listo! Ya tenemos la ficha de ${alumno}` : "¡Listo! Ya tenemos tu ficha";
 
-      <EmailParagraph>
-        Recibimos la ficha de inscripción de <strong>{alumnoNombre}</strong>
-        {viajeNombre ? (
+  return (
+    <MarcoFamilia
+      preview={alumno ? `Recibimos la ficha de ${alumno} · ${codigo}` : `Recibimos tu ficha · ${codigo}`}
+      foto={fotoDelViaje({ codigo: viajeCodigo, nombre: viaje })}
+      motivo="Te llega este mail porque completaste la ficha de inscripción de Jóvenes en UK."
+    >
+      <SelloListo />
+      <Volanta>Ficha recibida</Volanta>
+      <Titulo>{titulo}</Titulo>
+
+      <Parrafo>Hola {tutorNombre},</Parrafo>
+      <Parrafo>
+        Recibimos la ficha de inscripción{alumno ? " de " : null}
+        {alumno ? <strong>{alumno}</strong> : null}
+        {viaje ? (
           <>
             {" "}
-            para <strong>{viajeNombre}</strong>
+            para <strong>{viaje}</strong>
           </>
         ) : null}
         . Ya quedó registrada y el equipo de Jóvenes en UK la va a revisar.
-      </EmailParagraph>
+      </Parrafo>
 
-      <EmailCallout>
-        Tu código de referencia es <EmailMonoCode>{codigo}</EmailMonoCode>
-        <br />
+      <CodigoDestacado codigo={codigo}>
         Guardalo: con ese número encontramos tu ficha enseguida si nos escribís.
-      </EmailCallout>
+      </CodigoDestacado>
 
-      <EmailParagraph>
-        Por tu privacidad no repetimos acá los datos que cargaste. Si alguno quedó
-        mal, <strong>respondé este email</strong> contándonos qué corregir y lo
-        arreglamos nosotros.
-      </EmailParagraph>
+      {viaje ? (
+        <TarjetaViaje
+          viaje={{
+            nombre: viaje,
+            codigo: viajeCodigo,
+            bandera: banderaDelViaje({ codigo: viajeCodigo }),
+          }}
+        />
+      ) : null}
 
-      <EmailParagraph>
-        No hace falta que vuelvas a completar el formulario: con una sola carga
-        alcanza.
-      </EmailParagraph>
-    </EmailLayout>
+      <Subtitulo>Cómo sigue</Subtitulo>
+      <Pasos pasos={PASOS} />
+
+      <Aviso icono="lapiz" tono="neutro">
+        Por tu privacidad no repetimos acá los datos que cargaste. Si alguno quedó mal,{" "}
+        <strong>respondé este mail</strong> contándonos qué corregir y lo arreglamos nosotros.
+      </Aviso>
+      <Ayuda asuntoWhatsapp={`Hola, tengo una consulta sobre la ficha ${codigo}`} />
+
+      <Firma />
+    </MarcoFamilia>
   );
 }

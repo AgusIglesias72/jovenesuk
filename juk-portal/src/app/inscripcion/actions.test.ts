@@ -379,6 +379,21 @@ describe("enviarInscripcion — lo que NO se confía del cliente", () => {
     expect(datos.ficha).not.toHaveProperty("comunicacionId");
   });
 
+  it("los dos mails nombran el viaje de la invitación, no uno que mande el cliente", async () => {
+    await enviarInscripcion(null, formulario({ token: TOKEN, viajeId: VIAJE_INYECTADO }));
+
+    const viaje = { nombre: "[INT] Londres julio 2026", codigo: "UK-2026-JUL-LONDON" };
+    expect(q.sendInscripcionRecibidaEmail).toHaveBeenCalledWith(expect.anything(), viaje);
+    expect(q.sendInscripcionNuevaEmail).toHaveBeenCalledWith(expect.anything(), viaje);
+  });
+
+  it("sin invitación, los mails salen sin viaje", async () => {
+    await enviarInscripcion(null, formulario({ viajeId: VIAJE_INYECTADO }));
+
+    expect(q.sendInscripcionRecibidaEmail).toHaveBeenCalledWith(expect.anything(), null);
+    expect(q.sendInscripcionNuevaEmail).toHaveBeenCalledWith(expect.anything(), null);
+  });
+
   it("el DNI llega normalizado a dígitos (TEC-12)", async () => {
     await enviarInscripcion(null, formulario({ dni: " 45.102.338 " }));
 

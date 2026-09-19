@@ -1,6 +1,6 @@
 import { mailConAsunto } from "@/lib/contact";
 import type { Variante } from "@/lib/domain/inscripciones/schema";
-import { formatFecha } from "@/lib/utils/date";
+import { formatFecha, formatFechaArgentina } from "@/lib/utils/date";
 
 import { sendEmail } from "./index";
 import { InvitacionInscripcionEmail } from "./templates/invitacion-inscripcion";
@@ -68,6 +68,11 @@ export type InvitacionParaEnviar = {
   contactoNombre?: string | null;
   prospectoNombre?: string | null;
   viajeNombre?: string | null;
+  /** El resto del viaje: la foto, la bandera y las fechas del mail salen de acá. */
+  viajeCodigo?: string | null;
+  viajeDesde?: Date | null;
+  viajeHasta?: Date | null;
+  viajePais?: string | null;
   asunto?: string | null;
   /** El vencimiento real de la fila. Sin él, el mail promete la vigencia estándar. */
   expiraEl?: Date | null;
@@ -100,6 +105,12 @@ function headersDeBaja(unsubscribeUrl?: string | null): Record<string, string> {
   };
 }
 
+/** "Del 04/07/2026 al 18/07/2026", o nada si falta alguna de las dos puntas. */
+export function fechasDelViaje(desde?: Date | null, hasta?: Date | null): string | null {
+  if (!desde || !hasta) return null;
+  return `Del ${formatFecha(desde)} al ${formatFecha(hasta)}`;
+}
+
 /**
  * Devuelve el id de Resend para que el envío lo selle con `marcarEnviada`: es
  * lo que después usa el webhook para mover la fila a entregado/abierto/rebotado.
@@ -118,11 +129,16 @@ export async function sendInvitacionInscripcionEmail(
         contactoNombre={opts.contactoNombre}
         prospectoNombre={opts.prospectoNombre}
         viajeNombre={opts.viajeNombre}
+        viajeCodigo={opts.viajeCodigo}
+        viajeFechas={fechasDelViaje(opts.viajeDesde, opts.viajeHasta)}
+        viajePais={opts.viajePais}
         formularioUrl={urlInscripcion(opts.token, opts.variante)}
         // El mail dice la fecha exacta cuando la sabe: "vence el 15/12/2026" es
         // accionable y "vence en 90 días" obliga a contar desde un mail que se
-        // lee tres semanas después.
-        venceEl={opts.expiraEl ? formatFecha(opts.expiraEl) : undefined}
+        // lee tres semanas después. `expiraEl` es un instante (envío + 90 × 24 h),
+        // así que va el día argentino: con el UTC, una campaña mandada de noche
+        // anunciaba un día después del que el link deja de abrir.
+        venceEl={opts.expiraEl ? formatFechaArgentina(opts.expiraEl) : undefined}
         unsubscribeUrl={opts.unsubscribeUrl?.trim() || MAILTO_BAJA}
       />
     ),

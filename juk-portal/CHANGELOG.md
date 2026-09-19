@@ -18,6 +18,13 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
 ## [Sin publicar]
 
 ### Agregado
+- **Los dos mails que recibe la familia en el Application Form, rediseñados.** La invitación y el
+  acuse ahora llevan cabecera con el logo y una **foto del viaje** (elegida por la ciudad del código;
+  si no se reconoce, una del grupo, nunca una de Londres para un viaje a Malta), una tarjeta con el
+  viaje, su bandera y sus fechas, un botón grande que se ve como botón también en Outlook, íconos,
+  "qué tener a mano", los pasos de cómo sigue y a quién pedir ayuda. Se leen bien en el teléfono, en
+  modo oscuro y con las imágenes bloqueadas (todo lo importante está en el texto). Pesan unos 16 KB,
+  lejos del recorte de Gmail.
 - **Entrar con Google.** El login suma "Continuar con Google" como **segunda forma de entrar a una
   cuenta que ya existe**: no crea usuarios ni cambia roles, así que un Gmail que el equipo no dio de
   alta rebota con un mensaje que explica qué hacer. El botón solo aparece cuando las credenciales
@@ -89,6 +96,12 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
   del colegio.
 
 ### Corregido
+- **La invitación decía una fecha de vencimiento equivocada.** Anunciaba "vence en 30 días" sin
+  fecha, y cuando se pasó a la fecha exacta, una campaña enviada de noche anunciaba el día siguiente
+  al real (se tomaba el día UTC, no el de Buenos Aires). Ahora dice el día en que el link deja de
+  abrir, en hora argentina.
+- **El acuse no nombraba el viaje y el aviso al equipo decía "sin asignar"** aunque la ficha viniera
+  de una invitación con viaje. Ahora los dos lo toman de la invitación.
 - **El envío de prueba de Configuración ahora dice por qué falló.** Antes mostraba "Verificá la API
   key de Resend y que el dominio del remitente esté verificado", que es una lista de sospechosos y no
   un diagnóstico: el motivo real quedaba solo en Sentry. Ahora muestra el mensaje de Resend tal cual
@@ -144,6 +157,10 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
   verificado en Resend, el remitente es `onboarding@resend.dev` y solo se entrega a la casilla dueña
   de la cuenta; el alta del dominio quedó en [`docs/estado-actual.md` §7](docs/estado-actual.md), con
   el typo que encontramos en el camino (en Resend estaba cargado `jovenesuk.com`, sin el "en").
+- **Los E2E ya no dependen de los secretos de la máquina que los corre.** El server de Playwright
+  leía el `.env.local` de quien los corría, así que cargar las credenciales de Google en local rompió
+  dos specs que en el CI de GitHub pasaban. Ahora el entorno de los E2E las fija vacías, como en el
+  CI. Queda escrito como cuarta trampa en `.claude/docs/05-testing.md`.
 - **Tres trampas de Playwright quedaron escritas** en `.claude/docs/05-testing.md`, porque las tres
   hicieron que un test acusara a código sano: leer un color de un tiro lo agarra a mitad de la
   transición (el borde rojo del consentimiento llegó a medir el 3% del recorrido); `getByRole("alert")`

@@ -144,11 +144,10 @@ base y el seed `[DEMO]`.
 Si agregás un generador con otro patrón, sumalo a `cleanup.ts`, o la base de dev se infla y los
 listados se ponen lentos.
 
-### Tres trampas que ya costaron caro
+### Cuatro trampas que ya costaron caro
 
-Las tres aparecieron el 18/09/2026 en la misma corrida, y ninguna era un bug del producto: eran
-tests mal escritos que acusaban a código sano. Antes de "arreglar" el código porque un E2E se puso
-rojo, descartá estas.
+Aparecieron entre el 18 y el 19/09/2026, y ninguna era un bug del producto: eran tests que acusaban
+a código sano. Antes de "arreglar" el código porque un E2E se puso rojo, descartá estas.
 
 1. **Un color leído de un tiro sale interpolado.** Los controles del sistema transicionan el borde
    (`transition-colors duration-150` en el `Checkbox`, `transition-[border-color,box-shadow]` en
@@ -167,6 +166,14 @@ rojo, descartá estas.
    `getByText(MENSAJE)` matchea por substring y rompe por strict mode. Para lo que **ve** la
    familia, texto exacto; para lo que **escucha** el lector de pantalla, un aserto propio sobre la
    región viva. Los dos casos valen y conviene tener los dos.
+
+4. **El server de los E2E lee el `.env.local` de quien los corre.** Next lo carga solo, así que un
+   secreto que alguien suma en su máquina cambia lo que ven los tests. Pasó el 19/09/2026: cargar las
+   credenciales de Google en local prendió el botón en los E2E y rompió los dos specs que aseveran
+   "sin credenciales no hay botón" (en el CI de GitHub pasaban, porque ahí no están). Lo que los E2E
+   tienen que ver distinto de una máquina de desarrollo se fija en `webServer.env` de
+   `playwright.config.ts` —hoy `EMAIL_DRY_RUN=1` y las dos de Google **vacías**—: Next no pisa con
+   `.env.local` una variable que ya viene definida.
 
 Y una regla que no es de Playwright: **cuando se endurece un schema de dominio, los fixtures de los
 E2E son datos de entrada como cualquier otro.** Al sumar `CARACTERES_NOMBRE` se volvieron inválidos

@@ -182,6 +182,10 @@ import type { ActionResult } from "@/lib/actions/result";
   `costoPorAlumnoGbp` de `src/lib/domain/pasos-viaje/metadata.ts`.
 - Fechas en pantalla **DD/MM/AAAA** con `formatFecha`. Las fechas de calendario (vencimientos, mora)
   se comparan por día UTC con `diaCalendarioUTC` (`src/lib/utils/date.ts`).
+- ⚠️ `formatFecha` es para una **fecha de calendario** (una columna `date`, que llega a medianoche
+  UTC). Un **instante** —un vencimiento calculado, la hora de un envío— se muestra con
+  `formatFechaArgentina`: entre las 21 y las 24 h de Buenos Aires el día UTC ya es el siguiente, y
+  `formatFecha` anunciaba un día de más (pasó con el vencimiento de las invitaciones).
 - Códigos de viaje `UK-AAAA-MMM-CIUDAD` (ej. `UK-2026-JUL-LONDON`; el regex está en `domain/viajes/schema.ts`).
 - DNI: se guarda en dígitos y se muestra con puntos (`formatearDni`; `soloDigitos` para limpiar,
   en `src/lib/utils/dni.ts`). ⚠️ Hoy solo lo normaliza el form del back-office: el schema de dominio
@@ -204,6 +208,9 @@ import type { ActionResult } from "@/lib/actions/result";
 
 - Los mails salen por `sendEmail` de `@/lib/email` con un `tipo` (`automatico`, `comunicacion` o
   `marketing`) que elige el remitente configurado en `/configuracion`.
+- Imágenes de un mail: en `public/email/`, **solo JPG o PNG** (WebP no se ve en Outlook de
+  escritorio; SVG no se ve en Gmail), con URL absoluta, `alt`, `width` y `height`. Nada de íconos
+  inline en SVG ni de emoji como ícono de marca: PNG alojados (`src/lib/email/imagenes.ts`).
 - `EMAIL_DRY_RUN=1` renderiza sin enviar (lo fijan el server de Playwright y el job e2e del CI). Fuera de producción, sin
   `RESEND_API_KEY`, el dry-run es implícito.
 - Documentos: se guardan con `putDocumento` de `@/lib/storage` y se sirven **siempre** por

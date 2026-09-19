@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CAMPOS_NIVEL_2 } from "@/lib/domain/inscripciones/niveles";
 
+import { problemasDeCompatibilidad } from "./__tests__/html-mail";
 import { filaInscripcion, valoresNivel2De } from "./__tests__/inscripcion-fixture";
 
 // Las queries arrastran @/lib/db (que exige DATABASE_URL): mockeadas.
@@ -59,12 +60,14 @@ import { asuntoInscripcionRecibida, sendInscripcionRecibidaEmail } from "./send-
 
 const fila = filaInscripcion();
 const viaje = { nombre: "Londres en Julio", codigo: "UK-2026-JUL-LONDON" };
+const APP_URL = "https://portal.jovenesenuk.com";
 
 beforeEach(() => {
   limpiarEmailsDryRun();
   capturados.length = 0;
   vi.stubEnv("EMAIL_DRY_RUN", "1");
   vi.stubEnv("RESEND_API_KEY", undefined);
+  vi.stubEnv("NEXT_PUBLIC_APP_URL", APP_URL);
 });
 
 afterEach(() => {
@@ -117,6 +120,26 @@ describe("sendInscripcionRecibidaEmail", () => {
     expect(html).toContain("INS-000007");
     expect(html).toContain("Ana");
     expect(html).toContain("Londres en Julio");
+  });
+
+  it("la cabecera lleva la foto de la ciudad del viaje; sin viaje, la del grupo", async () => {
+    await sendInscripcionRecibidaEmail(fila, viaje);
+    await sendInscripcionRecibidaEmail(fila);
+
+    expect(await render(capturados[0]!.react)).toContain(`${APP_URL}/email/viaje-londres.jpg`);
+    expect(await render(capturados[1]!.react)).toContain(`${APP_URL}/email/viaje-grupo.jpg`);
+  });
+
+  it("se puede ver en Gmail y en Outlook: sin SVG ni WebP, imágenes absolutas con alt y tamaño, y liviano", async () => {
+    await sendInscripcionRecibidaEmail(fila, viaje);
+
+    expect(problemasDeCompatibilidad(await render(capturados[0]!.react))).toEqual([]);
+  });
+
+  it("es un mail transaccional: no ofrece darse de baja", async () => {
+    await sendInscripcionRecibidaEmail(fila, viaje);
+
+    expect(await render(capturados[0]!.react)).not.toContain("date de baja");
   });
 
   it("sin email del tutor no manda nada: la ficha ya quedó guardada igual", async () => {

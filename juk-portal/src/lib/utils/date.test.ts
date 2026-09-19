@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { diaCalendarioUTC, diasEntre, formatFecha, toDateInput } from "./date";
+import { diaCalendarioUTC, diasEntre, formatFecha, formatFechaArgentina, toDateInput } from "./date";
 
 // Zona horaria del usuario real: si algún helper usara getters locales en vez
 // de los UTC, estos casos se corren un día y fallan.
@@ -40,6 +40,40 @@ describe("formatFecha / toDateInput", () => {
   it("ida y vuelta con el input: lo que se muestra es lo que se cargó", () => {
     const cargado = "2027-02-28";
     expect(toDateInput(new Date(cargado))).toBe(cargado);
+  });
+});
+
+describe("formatFechaArgentina", () => {
+  it("de noche en Argentina ya es el día siguiente en UTC: gana el día argentino", () => {
+    // 01:30 UTC del 18/12 = 22:30 ART del 17/12. formatFecha diría el 18.
+    const instante = new Date("2026-12-18T01:30:00Z");
+    expect(formatFechaArgentina(instante)).toBe("17/12/2026");
+    expect(formatFecha(instante)).toBe("18/12/2026");
+  });
+
+  it("el borde: 02:59 UTC sigue siendo el día anterior y 03:00 UTC ya es el día", () => {
+    expect(formatFechaArgentina(new Date("2026-12-18T02:59:59Z"))).toBe("17/12/2026");
+    expect(formatFechaArgentina(new Date("2026-12-18T03:00:00Z"))).toBe("18/12/2026");
+  });
+
+  it("de día coincide con formatFecha, con el mismo relleno DD/MM/AAAA", () => {
+    const instante = new Date("2026-03-05T15:00:00Z");
+    expect(formatFechaArgentina(instante)).toBe("05/03/2026");
+    expect(formatFechaArgentina(instante)).toBe(formatFecha(instante));
+  });
+
+  it("cruza el año hacia atrás en la noche del 31/12", () => {
+    expect(formatFechaArgentina(new Date("2027-01-01T02:00:00Z"))).toBe("31/12/2026");
+  });
+
+  it("no depende de la zona del proceso", () => {
+    const antes = process.env.TZ;
+    try {
+      process.env.TZ = "UTC";
+      expect(formatFechaArgentina(new Date("2026-12-18T01:30:00Z"))).toBe("17/12/2026");
+    } finally {
+      process.env.TZ = antes;
+    }
   });
 });
 

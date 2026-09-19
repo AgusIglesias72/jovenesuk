@@ -66,6 +66,7 @@ export async function sendInscripcionRecibidaEmail(
         alumnoNombre={nombreDelAlumno(visible)}
         codigo={codigoInscripcion(inscripcion.numero)}
         viajeNombre={viaje?.nombre}
+        viajeCodigo={viaje?.codigo}
       />
     ),
   });

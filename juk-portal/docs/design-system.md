@@ -406,6 +406,46 @@ fuerza una sola columna, era la que más lo necesitaba.
 - La foto de la cabecera va `hidden lg:block` y **sin `priority`**: no se baja al teléfono, que es
   donde se completa la mayoría de las fichas.
 
+## 10-ter. Mails a las familias (`src/lib/email/templates/_marca.tsx`)
+
+Los mails que recibe una familia (la invitación al Application Form y el acuse de la ficha) usan
+`MarcoFamilia`, no el `EmailLayout` de `_layout.tsx`, que sigue siendo el de los mails internos
+(el aviso al equipo, reset, bienvenida). Piezas: `Volanta`, `Titulo`, `Subtitulo`, `Parrafo`,
+`TarjetaViaje`, `BotonPrincipal`, `NotaDelBoton`, `Aviso`, `ListaConIconos`, `Pasos`,
+`CodigoDestacado`, `SelloListo`, `Ayuda`, `Firma`.
+
+El correo no es la web; las reglas son estas:
+
+- **Tablas de 600 px y estilos inline**, sin Tailwind ni flex/grid: Outlook de escritorio dibuja con
+  el motor de Word. Un solo `<style>` en el head, para achicar márgenes y títulos en el teléfono.
+- **Colores en HEX**, copiados de `tokens.css` en `PALETA`. Ningún cliente lee `var(--…)`. Si
+  cambia un token de marca, se cambia a mano también ahí.
+- **Tipografía de sistema** (`-apple-system, Segoe UI, Roboto…`): las fuentes web no cargan.
+- **Botón "a prueba de balas"**: el fondo va en la celda (con `mso-padding-alt`), no en el `<a>`,
+  porque Outlook ignora el padding y el radio del link. Un solo botón por mail.
+- **Imágenes solo JPG o PNG en `public/email/`**, con URL absoluta (`urlDeImagen`, sobre
+  `NEXT_PUBLIC_APP_URL`), `alt`, `width` y `height`. Nada de WebP (Outlook) ni SVG (Gmail). La
+  carpeta es propia y no se reusa `public/landing/`: un mail enviado vive para siempre en la
+  casilla, y un rename del sitio no puede dejarle un hueco. El origen de cada archivo está en el
+  comentario de `src/lib/email/imagenes.ts`.
+- **Foto de cabecera por destino**: `fotoDelViaje` (pura, con test) elige por la ciudad del código
+  (`UK-…-LONDON`) o del nombre; sin ciudad conocida va la del grupo de alumnos, no una de Londres.
+- **Íconos: PNG propios, no emoji ni SVG.** El SVG no se ve en Gmail ni en Outlook; el emoji cambia
+  de dibujo y de color según el sistema y no puede llevar la marca. Son trazos de Lucide sobre un
+  círculo brand-100, a 96 px para mostrarse a 40. Van con `alt=""`: si se bloquean las imágenes
+  desaparecen y el texto de al lado dice lo mismo. Las banderas, igual: Windows no dibuja los emoji
+  de banderas.
+- **Nada que haga falta leer dentro de una imagen**: el botón, el plazo y el código son texto. Los
+  números de `Pasos` son texto en una celda con fondo, no una imagen.
+- **Modo oscuro**: se declara solo el esquema claro (`color-scheme: light`), así Apple Mail no
+  invierte. Gmail y Outlook invierten igual; para que el resultado quede legible, cada bloque
+  declara su fondo y su color de texto, y el logo viene aplanado sobre blanco.
+- **Peso**: el HTML de cada mail anda en 15-16 KB. Gmail recorta arriba de 102 KB y el link de
+  baja del pie quedaría escondido: `__tests__/html-mail.ts` falla por encima de 90 KB y chequea
+  lo demás de esta lista.
+- **Nivel 2**: ningún prop de estas plantillas puede ser un dato de Nivel 2 (DNI, pasaporte,
+  salud…). Lo traban los tests de cada sender.
+
 ## 11. Shadcn: por qué no está instalado
 
 La CLI moderna de shadcn asume **Tailwind v4** (tokens en `@theme`, `oklch`, `@import "tailwindcss"`).

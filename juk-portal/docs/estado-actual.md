@@ -275,6 +275,19 @@ Lo que las fases dejaron anotado como pendiente. Al saldar un ítem se borra de 
 14. **Los días del calendario de `DateInput` miden 31,5 px**, por debajo del mínimo táctil de 44 del
     proyecto. El disparador ya se agrandó; subir los días obliga a llevar `ANCHO_CALENDARIO` de 296 a
     ~336 px y a verificar pantallas de 320 px (MIN-30 en [`../OPEN_DECISIONS.md`](../OPEN_DECISIONS.md)).
+15. **Instantes mostrados con `formatFecha`.** El vencimiento de la invitación anunciaba un día de
+    más cuando la campaña salía de noche: `formatFecha` toma el día UTC y eso sirve para una columna
+    `date`, no para un instante. Se arregló ese caso con `formatFechaArgentina`, pero **no se revisaron
+    los demás usos** fuera del flujo de invitaciones (mails, pantallas con fecha y hora de un evento).
+    Barrerlos con el criterio de `juk-portal/CLAUDE.md` §Moneda, fechas y datos.
+16. **El aviso de ficha nueva al equipo quedó con el diseño viejo de los mails** (`_layout.tsx`): los
+    dos que ve la familia pasaron al marco nuevo (`_marca.tsx`) y los internos no. Es a propósito —el
+    pedido era sobre los mails de la familia y `_layout.tsx` lo usan ocho plantillas—, pero conviene
+    unificar cuando se toque alguno de los internos.
+17. **E2E intermitente: el borrado a pedido de la bandeja** (`inscripciones-bandeja.spec.ts`, "un
+    super_admin borra los datos a pedido…") falló una vez y pasó en el reintento el 19/09/2026, en
+    una corrida que no tocaba ese flujo. Un test intermitente hace que nadie mire los rojos:
+    investigarlo con el trace del intento fallido antes de que se acostumbre.
 
 ## 10. Estado de producción (corregido el 19/09/2026)
 

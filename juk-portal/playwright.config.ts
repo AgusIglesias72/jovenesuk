@@ -110,6 +110,14 @@ export default defineConfig({
       // Los E2E ejercitan formularios que disparan mails: en dry-run se
       // renderizan y loguean, pero no salen a Resend.
       EMAIL_DRY_RUN: "1",
+      // Vacías a propósito: los E2E corren como el CI de GitHub, sin login con
+      // Google, aunque la máquina que los corra tenga las credenciales en su
+      // `.env.local`. Sin esto, cargar las credenciales en local (18/09/2026)
+      // rompió dos specs que aseveran "sin credenciales no hay botón". Next no
+      // pisa con `.env.local` una variable que ya viene definida, y
+      // `googleOAuthConfig` trata la vacía como ausente.
+      GOOGLE_CLIENT_ID: "",
+      GOOGLE_CLIENT_SECRET: "",
       ...(DATABASE_URL ? { DATABASE_URL } : {}),
     },
   },

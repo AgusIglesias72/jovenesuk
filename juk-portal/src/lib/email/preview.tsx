@@ -1,5 +1,5 @@
 import { fechaDeVencimiento } from "@/lib/domain/inscripciones/invitacion";
-import { formatFecha } from "@/lib/utils/date";
+import { formatFechaArgentina } from "@/lib/utils/date";
 
 import { InscripcionNuevaEquipoEmail } from "./templates/inscripcion-nueva-equipo";
 import { InscripcionRecibidaEmail } from "./templates/inscripcion-recibida";
@@ -74,6 +74,7 @@ export function construirTemplatePrueba(
             alumnoNombre="Alumno Ejemplo"
             codigo="INS-000123"
             viajeNombre="Londres en Julio"
+            viajeCodigo="UK-2026-JUL-LONDON"
           />
         ),
       };
@@ -105,8 +106,11 @@ export function construirTemplatePrueba(
             contactoNombre="Prof. Laura"
             prospectoNombre="Colegio Ejemplo"
             viajeNombre="Londres en Julio"
+            viajeCodigo="UK-2026-JUL-LONDON"
+            viajeFechas="Del 04/07/2026 al 18/07/2026"
+            viajePais="reino_unido"
             formularioUrl={`${appUrl}/inscripcion?t=ejemplo&v=b`}
-            venceEl={formatFecha(fechaDeVencimiento(now))}
+            venceEl={formatFechaArgentina(fechaDeVencimiento(now))}
             unsubscribeUrl={`${appUrl}/baja?token=ejemplo`}
           />
         ),

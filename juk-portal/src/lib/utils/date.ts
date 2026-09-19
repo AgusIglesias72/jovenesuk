@@ -17,6 +17,30 @@ export function formatFecha(d: Date): string {
   return `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 }
 
+const DIA_EN_ARGENTINA = new Intl.DateTimeFormat("es-AR", {
+  timeZone: "America/Argentina/Buenos_Aires",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
+/**
+ * Un INSTANTE (no una columna `date`) -> "DD/MM/YYYY" del día que es en
+ * Argentina. `formatFecha` sirve para días de calendario guardados a medianoche
+ * UTC; aplicado a un instante, desde las 21:00 ART anuncia el día siguiente. Es
+ * lo que pasaba con el vencimiento de una invitación mandada de noche: el mail
+ * decía un día después del que el link dejaba de abrir.
+ *
+ * Por partes y no con `format()`: el separador y el relleno de `es-AR` dependen
+ * de la versión de ICU, y el texto tiene que ser el mismo que el de `formatFecha`.
+ */
+export function formatFechaArgentina(instante: Date): string {
+  const partes = DIA_EN_ARGENTINA.formatToParts(instante);
+  const valor = (tipo: Intl.DateTimeFormatPartTypes) =>
+    partes.find((p) => p.type === tipo)?.value.padStart(tipo === "year" ? 4 : 2, "0") ?? "";
+  return `${valor("day")}/${valor("month")}/${valor("year")}`;
+}
+
 /**
  * Día calendario UTC como timestamp (medianoche UTC de ese día). Es la unidad
  * de comparación de todo lo que vence: comparar Dates crudos marcaba el
