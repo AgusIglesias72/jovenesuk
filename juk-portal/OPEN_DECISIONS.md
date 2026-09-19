@@ -221,9 +221,9 @@ asunción de trabajo mientras no se decida.
   cuenta) y no hay registro público por ningún camino.
 - **Queda abierto (⭐ validar con Felix/María):** (a) ¿el botón lo ven todos —equipo y familias— o
   solo el equipo?; (b) mientras el proyecto no tenga dominio propio, la app de Google puede quedar
-  en modo *Prueba* y entonces solo los mails cargados como usuarios de prueba pueden usarlo: en la
-  práctica es una comodidad del equipo, no de las familias.
-- **Hoy:** implementado y apagado (el dueño todavía no creó el OAuth Client). Código:
+  en modo *Prueba* y entonces solo los mails cargados como usuarios de prueba pueden usarlo. Vale
+  la pena publicarla: al 19/09/2026, **8 de las 16 familias tienen Gmail**.
+- **Hoy:** implementado y **prendido en producción** desde el 18/09/2026. Código:
   `src/lib/auth/google-oauth.ts`, `socialProviders` en `src/lib/auth/index.ts`, el botón en
   `src/app/(auth)/login/login-form.tsx`. Spec: `docs/prd/02-portal-interno.md` §M1 US-01b y
   `docs/prd/05-vista-representante.md` §M1.

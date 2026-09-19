@@ -497,8 +497,8 @@ contraseña sigue existiendo.
 
 **Trade-off:** dos credenciales más para rotar y una superficie de login más. Y mientras el proyecto
 no tenga dominio propio, Google va a dejar la app en modo *Prueba*, donde solo entran los mails
-cargados como usuarios de prueba: en la práctica arranca siendo una comodidad del equipo, no de las
-familias.
+cargados como usuarios de prueba: en la práctica arranca siendo una comodidad del equipo. Publicarla
+vale la pena (al 19/09/2026, la mitad de las familias tiene Gmail), y eso depende del dominio propio.
 
 **Cuándo revisar:** si alguna vez se quisiera alta autoservicio (hoy no está en el producto), esto
 **no** es el mecanismo: haría falta volver a abrir ADR-000 y decidir qué rol recibe una cuenta que

@@ -135,8 +135,8 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
   no envejezcan por separado.
 - **El botón de Google quedó prendido en producción** (18/09/2026): credenciales cargadas y
   verificado contra el deploy que el `redirect_uri` y los scopes son los correctos. El dominio del
-  equipo está en Google Workspace, así que sus cuentas sirven; ninguna de las familias tiene Gmail,
-  así que por ahora es una comodidad del equipo.
+  equipo está en Google Workspace, así que sus cuentas sirven, y **8 de las 16 familias tienen
+  Gmail**: publicada la app en Google Cloud, el botón ya le sirve a la mitad de ellas.
 - **Producción nunca había mandado un mail, y ahora puede.** La `RESEND_API_KEY` cargada en Vercel
   desde junio era inválida: cada envío volvía con `401 · API key is invalid`. Nadie se enteró porque
   el envío es best-effort —la ficha se guarda igual— y el motivo solo llegaba a Sentry. Se reemplazó
@@ -163,15 +163,17 @@ Categorías: **Agregado** · **Cambiado** · **Corregido** · **Seguridad** · *
   aterrizaje `inscripciones` con su compuerta de alta. El formulario público tolera mejor que varias
   familias del mismo colegio carguen a la vez desde la misma red, sin aflojar el límite de los otros
   formularios.
-- **La base de producción se puso al día**: venía 7 migraciones atrás (`0015`…`0021`), o sea que el
-  CRM de Prospectos y la captura de leads del sitio público llevaban meses desplegados contra una
-  base que no tenía sus tablas. Se aplicaron las siete —todas aditivas— con una foto previa
-  (`respaldo-pre-0021`) y sin tocar un dato. Queda la regla: **migrar dev no migra producción**; un
-  cambio de schema no está entregado hasta que la branch `main` de Neon lo tiene.
-- Se documentó que el portal todavía **no es alcanzable desde afuera**: sin dominio propio y con la
-  *Deployment Protection* en `all_except_custom_domains`, hasta `/inscripcion` pide el SSO de Vercel.
-  Alcanza para que el dueño pruebe; no, para mandar la primera campaña de invitaciones.
-  ([`docs/estado-actual.md` §10](docs/estado-actual.md))
+- **Producción lee la branch `dev` de Neon, no `main`** — la misma que usa el `next dev` del dueño,
+  así que probar en `localhost:3000` es escribir en los datos de producción. Separarlas quedó como
+  decisión del dueño en [`docs/estado-actual.md` §7](docs/estado-actual.md).
+  **Corrección de una entrada anterior de esta misma sección**: acá decía que "la base de producción
+  venía 7 migraciones atrás" y que "el CRM llevaba meses desplegado contra una base sin sus tablas".
+  **Era falso**: se había dado por hecho que producción era `main` (la branch *default*) sin
+  verificarlo. La que estaba atrasada era `main`, que no usa nadie; producción siempre estuvo al día.
+  Se migró `main` (inofensivo) y se sacó un respaldo de `main` (`respaldo-pre-0021`, borrable). La
+  historia completa y la regla que sale de esto, en [§10](docs/estado-actual.md).
+- **El portal es alcanzable desde afuera** desde el 18/09/2026: el dueño apagó la *Deployment
+  Protection* de Vercel. El back-office sigue protegido por el login del portal.
 
 ### Seguridad
 - Se sacó `NEXT_PUBLIC_ENABLE_TWEAK` de Vercel Production: la herramienta de diseño del sitio

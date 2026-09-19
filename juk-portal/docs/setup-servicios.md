@@ -359,8 +359,9 @@ la URI de redirección, y Google la compara carácter por carácter. Abajo asumi
 7. **Redeploy** en Vercel para que tome las variables, y `npm run check:env` para confirmar que las
    dos quedaron con valor real (el `xxxxxxxx` de la plantilla se detecta como placeholder).
 
-> Con la *Deployment Protection* como está hoy (`all_except_custom_domains`), un tercero no llega
-> ni a la pantalla de login. Hasta que haya dominio propio, el botón es una comodidad del equipo.
+> **Configurado el 18/09/2026.** La *Deployment Protection* de Vercel está apagada, así que
+> cualquiera llega al login. Lo que decide a quién le sirve el botón es el **estado de publicación**
+> de la app en Google Cloud: en modo *Prueba*, solo a los mails cargados como usuarios de prueba.
 > Ver [`estado-actual.md`](estado-actual.md) §7.
 
 ---
